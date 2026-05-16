@@ -1,0 +1,10 @@
+# Bỏ qua thư mục build rác
+bin/
+obj/
+gauge_bin/
+reports/
+logs/
+
+# Bỏ qua file cấu hình người dùng
+.vscode/
+*.user
