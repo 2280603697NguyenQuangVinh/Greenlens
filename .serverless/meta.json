@@ -1,0 +1,401 @@
+{
+  "D:\\AWS\\greenlens-backend\\serverless.yml": {
+    "versionFramework": "4.36.1",
+    "servicePath": "D:\\AWS\\greenlens-backend\\serverless.yml",
+    "serviceConfigFileName": "serverless.yml",
+    "service": {
+      "service": "greenlens-backend",
+      "provider": {
+        "name": "aws",
+        "runtime": "dotnet8",
+        "region": "us-east-1",
+        "stage": "dev",
+        "environment": {
+          "USER_PROGRESS_TABLE": {
+            "Ref": "UserProgressTable"
+          },
+          "SNS_TOPIC_ARN": {
+            "Ref": "StreakNotificationTopic"
+          },
+          "QUESTION_TABLE": {
+            "Ref": "QuizQuestionsTable"
+          },
+          "BEDROCK_MODEL_ID": "anthropic.claude-3-sonnet-20240229-v1:0",
+          "COGNITO_USER_POOL_ID": {
+            "Ref": "CognitoUserPool"
+          },
+          "COGNITO_CLIENT_ID": {
+            "Ref": "CognitoUserPoolClient"
+          }
+        },
+        "iam": {
+          "role": {
+            "statements": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "arn:aws:logs:us-east-1:${aws:accountId}:log-group:/aws/lambda/*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "dynamodb:GetItem",
+                  "dynamodb:PutItem",
+                  "dynamodb:UpdateItem",
+                  "dynamodb:DeleteItem",
+                  "dynamodb:Query",
+                  "dynamodb:Scan"
+                ],
+                "Resource": [
+                  {
+                    "Fn::GetAtt": [
+                      "UserProgressTable",
+                      "Arn"
+                    ]
+                  },
+                  {
+                    "Fn::GetAtt": [
+                      "QuizQuestionsTable",
+                      "Arn"
+                    ]
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "rekognition:DetectLabels"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "bedrock:InvokeModel"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "sns:Publish"
+                ],
+                "Resource": {
+                  "Ref": "StreakNotificationTopic"
+                }
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetObject",
+                  "s3:ListBucket"
+                ],
+                "Resource": [
+                  {
+                    "Fn::GetAtt": [
+                      "GreenLensImagesBucket",
+                      "Arn"
+                    ]
+                  },
+                  {
+                    "Fn::Sub": "${GreenLensImagesBucket.Arn}/*"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "functions": {
+        "PostConfirmation": {
+          "handler": "GreenLens.Api::GreenLens.Api.PostConfirmationHandler::FunctionHandler",
+          "events": [
+            {
+              "cognitoUserPool": {
+                "pool": {
+                  "Ref": "CognitoUserPool"
+                },
+                "trigger": "PostConfirmation"
+              }
+            }
+          ]
+        },
+        "ProcessImage": {
+          "handler": "GreenLens.Api::GreenLens.Api.ProcessImageHandler::FunctionHandler",
+          "events": [
+            {
+              "s3": {
+                "bucket": "greenlens-images",
+                "event": "s3:ObjectCreated:*"
+              }
+            }
+          ]
+        },
+        "SubmitQuiz": {
+          "handler": "GreenLens.Api::GreenLens.Api.SubmitQuizHandler::FunctionHandler",
+          "events": [
+            {
+              "http": {
+                "path": "submit-quiz",
+                "method": "post"
+              }
+            }
+          ]
+        }
+      },
+      "resources": {
+        "Resources": {
+          "GreenLensImagesBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketName": "greenlens-images"
+            }
+          },
+          "UserProgressTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "UserProgress",
+              "BillingMode": "PAY_PER_REQUEST",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "userId",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "userId",
+                  "KeyType": "HASH"
+                }
+              ]
+            }
+          },
+          "QuizQuestionsTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "QuizQuestions",
+              "BillingMode": "PAY_PER_REQUEST",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "questionId",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "questionId",
+                  "KeyType": "HASH"
+                }
+              ]
+            }
+          },
+          "CognitoUserPool": {
+            "Type": "AWS::Cognito::UserPool",
+            "Properties": {
+              "UserPoolName": "greenlens-user-pool",
+              "AutoVerifiedAttributes": [
+                "email"
+              ]
+            }
+          },
+          "CognitoUserPoolClient": {
+            "Type": "AWS::Cognito::UserPoolClient",
+            "Properties": {
+              "ClientName": "greenlens-user-pool-client",
+              "UserPoolId": {
+                "Ref": "CognitoUserPool"
+              },
+              "GenerateSecret": "<REDACTED>",
+              "ExplicitAuthFlows": [
+                "ALLOW_USER_PASSWORD_AUTH",
+                "ALLOW_REFRESH_TOKEN_AUTH",
+                "ALLOW_USER_SRP_AUTH"
+              ]
+            }
+          },
+          "StreakNotificationTopic": {
+            "Type": "AWS::SNS::Topic",
+            "Properties": {
+              "TopicName": "StreakNotificationTopic"
+            }
+          }
+        },
+        "Outputs": {
+          "GreenLensImagesBucketName": {
+            "Description": "S3 bucket for uploaded images",
+            "Value": {
+              "Ref": "GreenLensImagesBucket"
+            }
+          },
+          "UserProgressTableName": {
+            "Description": "DynamoDB table for user progress",
+            "Value": {
+              "Ref": "UserProgressTable"
+            }
+          },
+          "QuizQuestionsTableName": {
+            "Description": "DynamoDB table for generated quiz questions",
+            "Value": {
+              "Ref": "QuizQuestionsTable"
+            }
+          },
+          "CognitoUserPoolId": {
+            "Description": "Cognito User Pool identifier",
+            "Value": {
+              "Ref": "CognitoUserPool"
+            }
+          },
+          "CognitoUserPoolClientId": {
+            "Description": "Cognito User Pool client identifier",
+            "Value": {
+              "Ref": "CognitoUserPoolClient"
+            }
+          },
+          "StreakNotificationTopicArn": {
+            "Description": "SNS topic used for streak notifications",
+            "Value": {
+              "Ref": "StreakNotificationTopic"
+            }
+          }
+        }
+      }
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "dotnet8",
+      "region": "us-east-1",
+      "stage": "dev",
+      "environment": {
+        "USER_PROGRESS_TABLE": {
+          "Ref": "UserProgressTable"
+        },
+        "SNS_TOPIC_ARN": {
+          "Ref": "StreakNotificationTopic"
+        },
+        "QUESTION_TABLE": {
+          "Ref": "QuizQuestionsTable"
+        },
+        "BEDROCK_MODEL_ID": "anthropic.claude-3-sonnet-20240229-v1:0",
+        "COGNITO_USER_POOL_ID": {
+          "Ref": "CognitoUserPool"
+        },
+        "COGNITO_CLIENT_ID": {
+          "Ref": "CognitoUserPoolClient"
+        }
+      },
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:us-east-1:${aws:accountId}:log-group:/aws/lambda/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "UserProgressTable",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "QuizQuestionsTable",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "rekognition:DetectLabels"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "bedrock:InvokeModel"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sns:Publish"
+              ],
+              "Resource": {
+                "Ref": "StreakNotificationTopic"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "GreenLensImagesBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${GreenLensImagesBucket.Arn}/*"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "dashboard": {
+      "isEnabledForService": false,
+      "requiredAuthentication": true,
+      "orgFeaturesInUse": null,
+      "orgObservabilityIntegrations": null,
+      "serviceAppId": null,
+      "serviceProvider": null,
+      "instanceParameters": null
+    },
+    "error": {
+      "message": "Failed to resolve variable 'accountId' with resolver 'ssm' and provider 'default-aws-credential-resolver': Error: AWS credentials missing or invalid. Original error from AWS: Could not load credentials from any providers",
+      "stack": "Error: Failed to resolve variable 'accountId' with resolver 'ssm' and provider 'default-aws-credential-resolver': Error: AWS credentials missing or invalid. Original error from AWS: Could not load credentials from any providers\n    at #resolveKey (file:///C:/Users/khanh/.serverless/releases/4.36.1/package/dist/sf-core.js:977:25984)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async _ResolverManager.resolve (file:///C:/Users/khanh/.serverless/releases/4.36.1/package/dist/sf-core.js:977:32026)\n    at async #handlePlaceholderNode (file:///C:/Users/khanh/.serverless/releases/4.36.1/package/dist/sf-core.js:977:30550)\n    at async file:///C:/Users/khanh/.serverless/releases/4.36.1/package/dist/sf-core.js:977:28394\n    at async processNodeAndHandleCompletion (file:///C:/Users/khanh/.serverless/releases/4.36.1/package/dist/sf-core.js:977:16781)",
+      "code": "RESOLVER_RESOLVE_VARIABLE_ERROR"
+    },
+    "serviceRawFile": "service: greenlens-backend\r\n\r\n#frameworkVersion: '3'\r\n\r\nprovider:\r\n  name: aws\r\n  runtime: dotnet8\r\n  region: us-east-1\r\n  stage: ${opt:stage, 'dev'}\r\n  environment:\r\n    USER_PROGRESS_TABLE: !Ref UserProgressTable\r\n    SNS_TOPIC_ARN: !Ref StreakNotificationTopic\r\n    QUESTION_TABLE: !Ref QuizQuestionsTable\r\n    BEDROCK_MODEL_ID: anthropic.claude-3-sonnet-20240229-v1:0\r\n    COGNITO_USER_POOL_ID: !Ref CognitoUserPool\r\n    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient\r\n  iam:\r\n    role:\r\n      statements:\r\n        - Effect: Allow\r\n          Action:\r\n            - logs:CreateLogGroup\r\n            - logs:CreateLogStream\r\n            - logs:PutLogEvents\r\n          Resource: arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/*\r\n\r\n        - Effect: Allow\r\n          Action:\r\n            - dynamodb:GetItem\r\n            - dynamodb:PutItem\r\n            - dynamodb:UpdateItem\r\n            - dynamodb:DeleteItem\r\n            - dynamodb:Query\r\n            - dynamodb:Scan\r\n          Resource:\r\n            - !GetAtt UserProgressTable.Arn\r\n            - !GetAtt QuizQuestionsTable.Arn\r\n\r\n        - Effect: Allow\r\n          Action:\r\n            - rekognition:DetectLabels\r\n          Resource: '*'\r\n\r\n        - Effect: Allow\r\n          Action:\r\n            - bedrock:InvokeModel\r\n          Resource: '*'\r\n\r\n        - Effect: Allow\r\n          Action:\r\n            - sns:Publish\r\n          Resource: !Ref StreakNotificationTopic\r\n\r\n        - Effect: Allow\r\n          Action:\r\n            - s3:GetObject\r\n            - s3:ListBucket\r\n          Resource:\r\n            - !GetAtt GreenLensImagesBucket.Arn\r\n            - !Sub ${GreenLensImagesBucket.Arn}/*\r\n\r\nfunctions:\r\n  PostConfirmation:\r\n    handler: GreenLens.Api::GreenLens.Api.PostConfirmationHandler::FunctionHandler\r\n    events:\r\n      - cognitoUserPool:\r\n          pool: !Ref CognitoUserPool\r\n          trigger: PostConfirmation\r\n\r\n  ProcessImage:\r\n    handler: GreenLens.Api::GreenLens.Api.ProcessImageHandler::FunctionHandler\r\n    events:\r\n      - s3:\r\n          bucket: greenlens-images\r\n          event: s3:ObjectCreated:*\r\n\r\n  SubmitQuiz:\r\n    handler: GreenLens.Api::GreenLens.Api.SubmitQuizHandler::FunctionHandler\r\n    events:\r\n      - http:\r\n          path: submit-quiz\r\n          method: post\r\n\r\nresources:\r\n  Resources:\r\n    GreenLensImagesBucket:\r\n      Type: AWS::S3::Bucket\r\n      Properties:\r\n        BucketName: greenlens-images\r\n\r\n    UserProgressTable:\r\n      Type: AWS::DynamoDB::Table\r\n      Properties:\r\n        TableName: UserProgress\r\n        BillingMode: PAY_PER_REQUEST\r\n        AttributeDefinitions:\r\n          - AttributeName: userId\r\n            AttributeType: S\r\n        KeySchema:\r\n          - AttributeName: userId\r\n            KeyType: HASH\r\n\r\n    QuizQuestionsTable:\r\n      Type: AWS::DynamoDB::Table\r\n      Properties:\r\n        TableName: QuizQuestions\r\n        BillingMode: PAY_PER_REQUEST\r\n        AttributeDefinitions:\r\n          - AttributeName: questionId\r\n            AttributeType: S\r\n        KeySchema:\r\n          - AttributeName: questionId\r\n            KeyType: HASH\r\n\r\n    CognitoUserPool:\r\n      Type: AWS::Cognito::UserPool\r\n      Properties:\r\n        UserPoolName: greenlens-user-pool\r\n        AutoVerifiedAttributes:\r\n          - email\r\n\r\n    CognitoUserPoolClient:\r\n      Type: AWS::Cognito::UserPoolClient\r\n      Properties:\r\n        ClientName: greenlens-user-pool-client\r\n        UserPoolId: !Ref CognitoUserPool\r\n        GenerateSecret: false\r\n        ExplicitAuthFlows:\r\n          - ALLOW_USER_PASSWORD_AUTH\r\n          - ALLOW_REFRESH_TOKEN_AUTH\r\n          - ALLOW_USER_SRP_AUTH\r\n\r\n    StreakNotificationTopic:\r\n      Type: AWS::SNS::Topic\r\n      Properties:\r\n        TopicName: StreakNotificationTopic\r\n\r\n  Outputs:\r\n    GreenLensImagesBucketName:\r\n      Description: S3 bucket for uploaded images\r\n      Value: !Ref GreenLensImagesBucket\r\n\r\n    UserProgressTableName:\r\n      Description: DynamoDB table for user progress\r\n      Value: !Ref UserProgressTable\r\n\r\n    QuizQuestionsTableName:\r\n      Description: DynamoDB table for generated quiz questions\r\n      Value: !Ref QuizQuestionsTable\r\n\r\n    CognitoUserPoolId:\r\n      Description: Cognito User Pool identifier\r\n      Value: !Ref CognitoUserPool\r\n\r\n    CognitoUserPoolClientId:\r\n      Description: Cognito User Pool client identifier\r\n      Value: !Ref CognitoUserPoolClient\r\n\r\n    StreakNotificationTopicArn:\r\n      Description: SNS topic used for streak notifications\r\n      Value: !Ref StreakNotificationTopic",
+    "command": [
+      "deploy"
+    ],
+    "options": {},
+    "orgId": "ae17319c-05ad-45ed-a4cf-5fc3896317d6",
+    "orgName": "khanh2004",
+    "userId": "wSNP1921q7xd56S3yH",
+    "userName": "khanh2004",
+    "serviceProviderAwsCfStackId": null,
+    "serviceProviderAwsCfStackCreated": null,
+    "serviceProviderAwsCfStackUpdated": null,
+    "serviceProviderAwsCfStackStatus": null,
+    "serviceProviderAwsCfStackOutputs": null
+  }
+}

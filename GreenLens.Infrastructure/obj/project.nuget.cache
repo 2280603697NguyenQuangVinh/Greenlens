@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "dgSpecHash": "fApsqmEzC4I=",
+  "success": true,
+  "projectFilePath": "D:\\AWS\\greenlens-backend\\GreenLens.Infrastructure\\GreenLens.Infrastructure.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.bedrockruntime\\4.0.17.9\\awssdk.bedrockruntime.4.0.17.9.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.cognitoidentityprovider\\4.0.8.6\\awssdk.cognitoidentityprovider.4.0.8.6.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.core\\4.0.7.1\\awssdk.core.4.0.7.1.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.dynamodbv2\\4.0.18.4\\awssdk.dynamodbv2.4.0.18.4.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.rekognition\\4.0.3.30\\awssdk.rekognition.4.0.3.30.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\awssdk.simplenotificationservice\\4.0.2.33\\awssdk.simplenotificationservice.4.0.2.33.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.8\\microsoft.extensions.configuration.abstractions.10.0.8.nupkg.sha512",
+    "C:\\Users\\khanh\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.8\\microsoft.extensions.primitives.10.0.8.nupkg.sha512"
+  ],
+  "logs": []
+}

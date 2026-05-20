@@ -1,0 +1,15 @@
+D:\AWS\greenlens-backend\GreenLens.Application\bin\Debug\net9.0\GreenLens.Application.deps.json
+D:\AWS\greenlens-backend\GreenLens.Application\bin\Debug\net9.0\GreenLens.Application.dll
+D:\AWS\greenlens-backend\GreenLens.Application\bin\Debug\net9.0\GreenLens.Application.pdb
+D:\AWS\greenlens-backend\GreenLens.Application\bin\Debug\net9.0\GreenLens.Infrastructure.dll
+D:\AWS\greenlens-backend\GreenLens.Application\bin\Debug\net9.0\GreenLens.Infrastructure.pdb
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.csproj.AssemblyReference.cache
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.AssemblyInfoInputs.cache
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.AssemblyInfo.cs
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.csproj.CoreCompileInputs.cache
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLen.ED94309A.Up2Date
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.dll
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\refint\GreenLens.Application.dll
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\GreenLens.Application.pdb
+D:\AWS\greenlens-backend\GreenLens.Application\obj\Debug\net9.0\ref\GreenLens.Application.dll

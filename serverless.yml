@@ -1,0 +1,161 @@
+service: greenlens-backend
+
+#frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: dotnet8
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    USER_PROGRESS_TABLE: !Ref UserProgressTable
+    SNS_TOPIC_ARN: !Ref StreakNotificationTopic
+    QUESTION_TABLE: !Ref QuizQuestionsTable
+    BEDROCK_MODEL_ID: anthropic.claude-3-sonnet-20240229-v1:0
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/*
+
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt UserProgressTable.Arn
+            - !GetAtt QuizQuestionsTable.Arn
+
+        - Effect: Allow
+          Action:
+            - rekognition:DetectLabels
+          Resource: '*'
+
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource: '*'
+
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource: !Ref StreakNotificationTopic
+
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:ListBucket
+          Resource:
+            - !GetAtt GreenLensImagesBucket.Arn
+            - !Sub ${GreenLensImagesBucket.Arn}/*
+
+functions:
+  PostConfirmation:
+    handler: GreenLens.Api::GreenLens.Api.PostConfirmationHandler::FunctionHandler
+    events:
+      - cognitoUserPool:
+          pool: !Ref CognitoUserPool
+          trigger: PostConfirmation
+
+  ProcessImage:
+    handler: GreenLens.Api::GreenLens.Api.ProcessImageHandler::FunctionHandler
+    events:
+      - s3:
+          bucket: greenlens-images
+          event: s3:ObjectCreated:*
+
+  SubmitQuiz:
+    handler: GreenLens.Api::GreenLens.Api.SubmitQuizHandler::FunctionHandler
+    events:
+      - http:
+          path: submit-quiz
+          method: post
+
+resources:
+  Resources:
+    GreenLensImagesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: greenlens-images
+
+    UserProgressTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UserProgress
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+
+    QuizQuestionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: QuizQuestions
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: questionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: questionId
+            KeyType: HASH
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: greenlens-user-pool
+        AutoVerifiedAttributes:
+          - email
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: greenlens-user-pool-client
+        UserPoolId: !Ref CognitoUserPool
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_SRP_AUTH
+
+    StreakNotificationTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: StreakNotificationTopic
+
+  Outputs:
+    GreenLensImagesBucketName:
+      Description: S3 bucket for uploaded images
+      Value: !Ref GreenLensImagesBucket
+
+    UserProgressTableName:
+      Description: DynamoDB table for user progress
+      Value: !Ref UserProgressTable
+
+    QuizQuestionsTableName:
+      Description: DynamoDB table for generated quiz questions
+      Value: !Ref QuizQuestionsTable
+
+    CognitoUserPoolId:
+      Description: Cognito User Pool identifier
+      Value: !Ref CognitoUserPool
+
+    CognitoUserPoolClientId:
+      Description: Cognito User Pool client identifier
+      Value: !Ref CognitoUserPoolClient
+
+    StreakNotificationTopicArn:
+      Description: SNS topic used for streak notifications
+      Value: !Ref StreakNotificationTopic

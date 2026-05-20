@@ -1,0 +1,269 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "GreenLens.Api/1.0.0": {
+        "dependencies": {
+          "Amazon.Lambda.CognitoEvents": "5.0.0",
+          "Amazon.Lambda.Core": "3.0.0",
+          "Amazon.Lambda.S3Events": "4.0.0",
+          "Amazon.Lambda.Serialization.SystemTextJson": "3.0.0",
+          "GreenLens.Application": "1.0.0",
+          "GreenLens.Infrastructure": "1.0.0"
+        },
+        "runtime": {
+          "GreenLens.Api.dll": {}
+        }
+      },
+      "Amazon.Lambda.CognitoEvents/5.0.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.CognitoEvents.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.Core/3.0.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.S3Events/4.0.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.S3Events.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.Serialization.SystemTextJson/3.0.0": {
+        "dependencies": {
+          "Amazon.Lambda.Core": "3.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Serialization.SystemTextJson.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "AWSSDK.BedrockRuntime/4.0.17.9": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.7.1"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.BedrockRuntime.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.17.9"
+          }
+        }
+      },
+      "AWSSDK.CognitoIdentityProvider/4.0.8.6": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.7.1"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.CognitoIdentityProvider.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.8.6"
+          }
+        }
+      },
+      "AWSSDK.Core/4.0.7.1": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.1"
+          }
+        }
+      },
+      "AWSSDK.DynamoDBv2/4.0.18.4": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.7.1"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.DynamoDBv2.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.18.4"
+          }
+        }
+      },
+      "AWSSDK.Rekognition/4.0.3.30": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.7.1"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.Rekognition.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.3.30"
+          }
+        }
+      },
+      "AWSSDK.SimpleNotificationService/4.0.2.33": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.7.1"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SimpleNotificationService.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.2.33"
+          }
+        }
+      },
+      "Microsoft.Extensions.Configuration.Abstractions/10.0.8": {
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.8"
+        },
+        "runtime": {
+          "lib/net9.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.826.23019"
+          }
+        }
+      },
+      "Microsoft.Extensions.Primitives/10.0.8": {
+        "runtime": {
+          "lib/net9.0/Microsoft.Extensions.Primitives.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.826.23019"
+          }
+        }
+      },
+      "GreenLens.Application/1.0.0": {
+        "dependencies": {
+          "GreenLens.Infrastructure": "1.0.0"
+        },
+        "runtime": {
+          "GreenLens.Application.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "GreenLens.Infrastructure/1.0.0": {
+        "dependencies": {
+          "AWSSDK.BedrockRuntime": "4.0.17.9",
+          "AWSSDK.CognitoIdentityProvider": "4.0.8.6",
+          "AWSSDK.DynamoDBv2": "4.0.18.4",
+          "AWSSDK.Rekognition": "4.0.3.30",
+          "AWSSDK.SimpleNotificationService": "4.0.2.33",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.8"
+        },
+        "runtime": {
+          "GreenLens.Infrastructure.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "GreenLens.Api/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Amazon.Lambda.CognitoEvents/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IO4ruLOgmgE1QVc40S17zvFrhXzyQ7uIRIQ85B7Vc7cjZ+W12LCFTj4Bub4MtfTPfrqMP1wrsPOaZ/p6TQEeEQ==",
+      "path": "amazon.lambda.cognitoevents/5.0.0",
+      "hashPath": "amazon.lambda.cognitoevents.5.0.0.nupkg.sha512"
+    },
+    "Amazon.Lambda.Core/3.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2WxArNAPJBhs3ncxJh3K2UC1yrGqIiAtb+9qmS1XlyNC4sZeMZntB4/wgT1WOi2gN5jzasZwXSH9UK+Ft6o8SA==",
+      "path": "amazon.lambda.core/3.0.0",
+      "hashPath": "amazon.lambda.core.3.0.0.nupkg.sha512"
+    },
+    "Amazon.Lambda.S3Events/4.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-z20p9X0oNR0qghuSOhwRLg34H8Wf7mA2xRjOdmj6OmLUoayCEDKlPsASOEM4Ejd21mFWCqEfPlboSWSsNcsT2Q==",
+      "path": "amazon.lambda.s3events/4.0.0",
+      "hashPath": "amazon.lambda.s3events.4.0.0.nupkg.sha512"
+    },
+    "Amazon.Lambda.Serialization.SystemTextJson/3.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8lKS2w8Ww+Kq41mRmedL3lYLVr+UE0tzN2FwOigxKe+hzDbWJIMXZwVHwf53RsdFsYZlaTmW4WHE56W/1Fk3Hg==",
+      "path": "amazon.lambda.serialization.systemtextjson/3.0.0",
+      "hashPath": "amazon.lambda.serialization.systemtextjson.3.0.0.nupkg.sha512"
+    },
+    "AWSSDK.BedrockRuntime/4.0.17.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-uXXT2s5RXoxI/BfGhs+c0VOgLMHJnLQAKRF/tWEXKuuPXkd4hrdYtobRRie69BsYcekm/TV9bE0hguZOLS6kPw==",
+      "path": "awssdk.bedrockruntime/4.0.17.9",
+      "hashPath": "awssdk.bedrockruntime.4.0.17.9.nupkg.sha512"
+    },
+    "AWSSDK.CognitoIdentityProvider/4.0.8.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-F7oH2jOkGn1g4rSLZwsc75BciTbRCxNIpTvYCphIl24xoCv6Un41qeOT4751uN+Vr0bhVdBezAhKN2RHRGtBeQ==",
+      "path": "awssdk.cognitoidentityprovider/4.0.8.6",
+      "hashPath": "awssdk.cognitoidentityprovider.4.0.8.6.nupkg.sha512"
+    },
+    "AWSSDK.Core/4.0.7.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XA0GHLwEMkoVu3u8neKnLEDD9ViXpn26ie9UhKXZXYRzCRfSFrLWpBOhupWlf+cJEFBYCC5mx2NsN8h59Y+M2Q==",
+      "path": "awssdk.core/4.0.7.1",
+      "hashPath": "awssdk.core.4.0.7.1.nupkg.sha512"
+    },
+    "AWSSDK.DynamoDBv2/4.0.18.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xlYcMTvfAtGsUeIt924w0Za4voEIYGUtOzu9nA4Ce72D4eOpCJemgJ40lK7pa5LtF7ULIN1zIRHJ1a9qKwTNrA==",
+      "path": "awssdk.dynamodbv2/4.0.18.4",
+      "hashPath": "awssdk.dynamodbv2.4.0.18.4.nupkg.sha512"
+    },
+    "AWSSDK.Rekognition/4.0.3.30": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4uqxwby8Q9KdQG/oJc6guOAhBaXZl5vi79ZjQpegNUuvC+4abjOmdn1skdCNq63sVg6ktbO8H+yVgrTl12Bt2g==",
+      "path": "awssdk.rekognition/4.0.3.30",
+      "hashPath": "awssdk.rekognition.4.0.3.30.nupkg.sha512"
+    },
+    "AWSSDK.SimpleNotificationService/4.0.2.33": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-YviozKoXi89RQewIpRaADxVj9r9z1rHTf6H+3zqmeOPoATGH1kca19tfd0gsIrzxj6Ij6as8EgOuX2hj3DWW2A==",
+      "path": "awssdk.simplenotificationservice/4.0.2.33",
+      "hashPath": "awssdk.simplenotificationservice.4.0.2.33.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Configuration.Abstractions/10.0.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I63esIFbL3h5pSt7gXpXOlmcwDmYBUoYNEglKfDPFUqtYvSV84f2l28hO2lfVXsV0wdlplgAM7IVz16matapSg==",
+      "path": "microsoft.extensions.configuration.abstractions/10.0.8",
+      "hashPath": "microsoft.extensions.configuration.abstractions.10.0.8.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Primitives/10.0.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OBPo4nYhMyIbtueoC10CBm6AGAbo/A9IV8QQ/6ryZS7VvmqpGT7hunazeHLxFawRzn3oLOq4jhqhpBX4tfswWQ==",
+      "path": "microsoft.extensions.primitives/10.0.8",
+      "hashPath": "microsoft.extensions.primitives.10.0.8.nupkg.sha512"
+    },
+    "GreenLens.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GreenLens.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
