@@ -1,0 +1,42 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Shared", "src\GreenLens.Shared\GreenLens.Shared.csproj", "{B1F6A3BE-B251-4198-BA7E-8756ED97ACD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Domain", "src\GreenLens.Domain\GreenLens.Domain.csproj", "{3E4CE92A-6A38-41AA-BCE5-2D2556FE2DBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Application", "src\GreenLens.Application\GreenLens.Application.csproj", "{D1C1B036-70ED-40C9-880F-A16F3C70D2FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Infrastructure", "src\GreenLens.Infrastructure\GreenLens.Infrastructure.csproj", "{D1BF4414-B974-4C3D-9457-4EFE1DA2414A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Api", "src\GreenLens.Api\GreenLens.Api.csproj", "{3D6FF606-CC77-497B-8EFD-5777F92FE22B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B1F6A3BE-B251-4198-BA7E-8756ED97ACD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1F6A3BE-B251-4198-BA7E-8756ED97ACD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1F6A3BE-B251-4198-BA7E-8756ED97ACD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1F6A3BE-B251-4198-BA7E-8756ED97ACD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E4CE92A-6A38-41AA-BCE5-2D2556FE2DBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E4CE92A-6A38-41AA-BCE5-2D2556FE2DBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E4CE92A-6A38-41AA-BCE5-2D2556FE2DBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E4CE92A-6A38-41AA-BCE5-2D2556FE2DBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1C1B036-70ED-40C9-880F-A16F3C70D2FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1C1B036-70ED-40C9-880F-A16F3C70D2FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1C1B036-70ED-40C9-880F-A16F3C70D2FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1C1B036-70ED-40C9-880F-A16F3C70D2FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1BF4414-B974-4C3D-9457-4EFE1DA2414A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1BF4414-B974-4C3D-9457-4EFE1DA2414A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1BF4414-B974-4C3D-9457-4EFE1DA2414A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1BF4414-B974-4C3D-9457-4EFE1DA2414A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

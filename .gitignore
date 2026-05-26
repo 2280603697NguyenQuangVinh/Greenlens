@@ -8,3 +8,11 @@ logs/
 # Bỏ qua file cấu hình người dùng
 .vscode/
 *.user
+
+# Bỏ qua tệp tin bảo mật/môi trường
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
