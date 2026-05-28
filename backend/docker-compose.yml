@@ -1,58 +1,20 @@
 version: '3.8'
 
 services:
-  # The Backend API Service
+  # Backend API Service
   api:
     image: greenlens-api:latest
     build:
       context: .
       dockerfile: Dockerfile
+
     ports:
       - "5000:80"
+
+    env_file:
+      - .env
+
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - Aws__Region=${AWS_REGION}
-      - Aws__DynamoDb__ServiceUrl=http://dynamodb-local:8000
-      - Aws__S3__ServiceUrl=http://localstack:4566
-    depends_on:
-      - dynamodb-local
-      - localstack
 
-  # DynamoDB Local for local development
-  dynamodb-local:
-    image: amazon/dynamodb-local:latest
-    container_name: greenlens-dynamodb
-    ports:
-      - "8000:8000"
-    volumes:
-      - dynamodb-data:/home/dynamodblocal/data
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
-
-  # DynamoDB Admin - GUI for viewing DynamoDB tables
-  dynamodb-admin:
-    image: aaronshaf/dynamodb-admin:latest
-    container_name: greenlens-dynamodb-admin
-    ports:
-      - "8001:8001"
-    environment:
-      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
-    depends_on:
-      - dynamodb-local
-
-  # LocalStack for mocking AWS S3, Cognito, Rekognition locally
-  localstack:
-    image: localstack/localstack:latest
-    container_name: greenlens-localstack
-    ports:
-      - "4566:4566"
-    environment:
-      - SERVICES=s3,cognito-idp
-      - AWS_DEFAULT_REGION=${AWS_REGION}
-    volumes:
-      - localstack-data:/var/lib/localstack
-
-volumes:
-  dynamodb-data:
-  localstack-data:
+    restart: unless-stopped
