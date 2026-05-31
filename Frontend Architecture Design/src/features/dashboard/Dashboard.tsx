@@ -1,96 +1,156 @@
 import { Link } from "react-router";
-import { Camera, BrainCircuit, Calendar, Star, Leaf, Play, Clock } from "lucide-react";
+import { Star, Lock, Play } from "lucide-react";
 import { useAuth } from "@/state/authStore";
 import { useReward } from "@/state/rewardStore";
 
+const LEADERBOARD = [
+  { rank: 1, name: "Phúc", xp: 1280, highlight: true },
+  { rank: 2, name: "Người A", xp: 1280, highlight: false },
+  { rank: 3, name: "Người B", xp: 1280, highlight: false },
+];
+
 export default function Dashboard() {
   const { user } = useAuth();
-  const { streak, xp } = useReward();
-  const name = user?.name || "Explorer";
+  const { xp } = useReward();
+  const name = user?.name || "Phúc";
+  const xpDisplay = xp || 1280;
+  const xpMax = 1500;
+  const xpPercent = Math.min(100, Math.round((xpDisplay / xpMax) * 100));
 
   return (
-    <div className="p-6 pb-20">
-      <h1 className="text-2xl font-bold mb-1 text-slate-800">Hello, {name}! 👋</h1>
-      <p className="text-slate-500 mb-6 font-medium text-sm">Ready for today&apos;s nature adventure?</p>
+    <div
+      className="min-h-full pb-4"
+      style={{
+        backgroundColor: "#e8f8ef",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2322c55e' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+      }}
+    >
+      {/* Header */}
+      <div className="px-4 pt-5 pb-3 flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-200 to-amber-400 border-3 border-white shadow-md flex items-center justify-center text-2xl overflow-hidden">
+          🧒
+        </div>
+        <h1 className="flex-1 text-xl font-bold text-slate-800">Chào, {name}!</h1>
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <div className="flex-1 h-3 bg-white/80 rounded-full overflow-hidden border border-green-200">
+            <div
+              className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full"
+              style={{ width: `${xpPercent}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-slate-700 whitespace-nowrap">{xpDisplay} XP</span>
+          <Star className="text-amber-400 fill-amber-400 shrink-0" size={22} />
+        </div>
+      </div>
 
-      <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-3xl p-5 text-white mb-6 shadow-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-bold text-lg flex items-center gap-2">
-            <Star className="text-yellow-300 fill-yellow-300" size={20} /> Daily Goal
+      {/* Mascot + speech */}
+      <div className="px-4 flex items-end gap-2 mb-4">
+        <div className="w-16 h-16 shrink-0 text-5xl leading-none" aria-hidden>
+          ☕
+        </div>
+        <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border-2 border-green-100 flex-1">
+          <p className="text-sm font-semibold text-slate-700 leading-snug">
+            Chào {name}! Sẵn sàng cho thử thách hôm nay chưa? 🔥
+          </p>
+        </div>
+      </div>
+
+      {/* Today's mission */}
+      <section className="mx-4 mb-4 bg-white rounded-3xl overflow-hidden shadow-md border-2 border-green-100">
+        <div className="bg-gradient-to-r from-green-100 to-emerald-50 px-4 py-2.5 border-b border-green-100">
+          <h2 className="font-bold text-green-800 text-center text-sm">Nhiệm Vụ Hôm Nay</h2>
+        </div>
+        <div className="p-4">
+          <div className="flex gap-3 mb-3">
+            <div className="text-4xl">🗑️♻️</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-slate-800 text-base leading-tight">
+                Thử Thách Ngày 1: Chụp Ảnh Rác
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                Hãy tìm 2 rác tái chế trong nhà và sử dụng Camera chụp chúng!
+              </p>
+            </div>
+            <div className="text-3xl">🏅</div>
+          </div>
+          <div className="flex items-center gap-3 mb-4 text-sm font-bold">
+            <span className="flex items-center gap-1 text-amber-600">
+              🪙 +15 XP
+            </span>
+            <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs">
+              First Scan
+            </span>
+          </div>
+          <Link
+            to="/app/camera"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#4ade80] to-[#22c55e] text-white font-bold text-base shadow-lg shadow-green-200 active:scale-[0.98]"
+          >
+            Bắt đầu ngay! <Play size={18} fill="white" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Leaderboard */}
+      <section className="mx-4 mb-4 bg-white rounded-3xl overflow-hidden shadow-md border-2 border-orange-100">
+        <div className="bg-gradient-to-r from-orange-200 to-amber-100 px-4 py-2.5">
+          <h2 className="font-bold text-orange-900 text-center text-sm">Xếp Hạng</h2>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {LEADERBOARD.map((row) => (
+            <li
+              key={row.rank}
+              className={`flex items-center gap-3 px-4 py-3 ${
+                row.highlight ? "bg-green-50" : ""
+              }`}
+            >
+              <span className="w-6 font-black text-slate-500">{row.rank}.</span>
+              <span className="flex-1 font-bold text-slate-800">{row.name}</span>
+              <span className="font-bold text-green-600 text-sm">{row.xp} XP</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Badges */}
+      <section className="mx-4 mb-6 bg-white rounded-3xl overflow-hidden shadow-md border-2 border-blue-100">
+        <div className="bg-gradient-to-r from-sky-200 to-blue-100 px-4 py-2.5">
+          <h2 className="font-bold text-blue-900 text-center text-sm">
+            Huy Hiệu Của {name}
           </h2>
-          <span className="font-bold bg-white/20 px-3 py-1 rounded-full text-sm">
-            🔥 {streak} · {xp} XP
-          </span>
         </div>
-        <div className="w-full bg-white/30 rounded-full h-3 mb-2">
-          <div className="bg-white h-3 rounded-full w-2/3" />
+        <div className="flex justify-around gap-2 p-5">
+          <BadgeSlot unlocked emoji="☕" label="First Scan" />
+          <BadgeSlot locked />
+          <BadgeSlot locked />
+          <BadgeSlot locked />
         </div>
-        <p className="text-sm font-medium opacity-90">Almost there! Keep exploring!</p>
-      </div>
-
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-lg text-slate-800">Today&apos;s Missions</h3>
-        <Link to="/app/daily" className="text-green-600 text-sm font-bold flex items-center gap-1">
-          <Calendar size={16} /> View all
-        </Link>
-      </div>
-
-      <div className="flex flex-col gap-4 mb-8">
-        <MissionCard icon={<Leaf className="text-green-500" />} title="Identify 3 Leaves" points={50} completed />
-        <MissionCard icon={<Play className="text-blue-500" />} title="Play Recycle Sorting" points={30} completed />
-        <MissionCard icon={<Clock className="text-orange-500" />} title="Take a nature walk" points={100} />
-      </div>
-
-      <h3 className="font-bold text-lg mb-4 text-slate-800">Quick Actions</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <Link
-          to="/app/camera"
-          className="bg-emerald-100 p-4 rounded-3xl flex flex-col items-center gap-3 text-center"
-        >
-          <div className="w-14 h-14 bg-emerald-500 text-white rounded-full flex items-center justify-center">
-            <Camera size={28} />
-          </div>
-          <span className="font-bold text-emerald-800">AI Scanner</span>
-        </Link>
-        <Link
-          to="/app/quiz"
-          className="bg-indigo-100 p-4 rounded-3xl flex flex-col items-center gap-3 text-center"
-        >
-          <div className="w-14 h-14 bg-indigo-500 text-white rounded-full flex items-center justify-center">
-            <BrainCircuit size={28} />
-          </div>
-          <span className="font-bold text-indigo-800">Daily Quiz</span>
-        </Link>
-      </div>
+      </section>
     </div>
   );
 }
 
-function MissionCard({
-  icon,
-  title,
-  points,
-  completed = false,
+function BadgeSlot({
+  unlocked,
+  emoji,
+  label,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  points: number;
-  completed?: boolean;
+  unlocked?: boolean;
+  emoji?: string;
+  label?: string;
 }) {
+  if (unlocked) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div className="w-14 h-14 rounded-full bg-amber-100 border-3 border-amber-300 flex items-center justify-center text-2xl shadow-inner">
+          {emoji}
+        </div>
+        {label && <span className="text-[10px] font-bold text-slate-600">{label}</span>}
+      </div>
+    );
+  }
   return (
-    <div className={`bg-green-50 p-4 rounded-2xl flex items-center gap-4 ${completed ? "opacity-60" : ""}`}>
-      <div className="bg-white p-3 rounded-xl shadow-sm">{icon}</div>
-      <div className="flex-1">
-        <h4 className={`font-bold text-slate-700 ${completed ? "line-through" : ""}`}>{title}</h4>
-        <span className="text-xs font-bold text-slate-500">+{points} XP</span>
-      </div>
-      <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          completed ? "bg-green-500 text-white" : "border-2 border-slate-300"
-        }`}
-      >
-        {completed ? "✓" : ""}
-      </div>
+    <div className="w-14 h-14 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
+      <Lock className="text-slate-400" size={20} />
     </div>
   );
 }

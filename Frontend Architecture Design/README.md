@@ -2,12 +2,24 @@
 
 Educational nature app for kids (React + TypeScript + Vite). UI originated from [Figma Make](https://www.figma.com/design/1sYDbNjAjMKxVlRv7MQpEv/Flutter-Frontend-Architecture-Design); this repo implements a **layered frontend architecture** with mock APIs (no real backend required).
 
-## Run
+## Run (Web)
 
 ```bash
 npm install
 npm run dev
 ```
+
+## Run (React Native / Expo)
+
+Main children's home screen UI lives in `mobile/`:
+
+```bash
+cd mobile
+npm install
+npx expo start
+```
+
+See [mobile/README.md](./mobile/README.md) for component breakdown.
 
 ---
 

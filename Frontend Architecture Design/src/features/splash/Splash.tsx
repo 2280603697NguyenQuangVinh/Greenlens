@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Leaf } from "lucide-react";
 import { isAuthenticated } from "@/services/tokenStorage";
 
 export default function Splash() {
@@ -8,18 +7,18 @@ export default function Splash() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate(isAuthenticated() ? "/app" : "/login");
-    }, 2000);
+      navigate(isAuthenticated() ? "/app" : "/login", { replace: true });
+    }, 2800);
     return () => clearTimeout(timer);
   }, [navigate]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-400 to-green-600">
-      <div className="bg-white p-6 rounded-full shadow-2xl mb-6 animate-bounce">
-        <Leaf size={80} className="text-green-500" strokeWidth={2.5} />
+    <div className="min-h-screen w-full max-w-lg mx-auto bg-[#7ed957] flex items-center justify-center overflow-hidden">
+      <div className="text-center text-white">
+        <div className="text-7xl mb-4">♻️</div>
+        <h1 className="text-4xl font-black">GreenLens Kids</h1>
+        <p className="text-lg mt-1">Learn by Playing & Exploring</p>
       </div>
-      <h1 className="text-5xl font-black text-white tracking-wide drop-shadow-md">GreenLens</h1>
-      <p className="text-green-100 text-xl font-bold mt-2">Kids</p>
     </div>
   );
 }

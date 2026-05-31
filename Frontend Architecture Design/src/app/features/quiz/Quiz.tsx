@@ -11,19 +11,29 @@ export function Quiz() {
 
   const questions = [
     {
-      question: "Which of these animals is an amphibian?",
-      options: ["Lizard", "Frog", "Turtle", "Snake"],
+      question: "Loại rác nào có thể tái chế?",
+      options: ["Chai nhựa", "Tã dùng một lần", "Khăn giấy ướt", "Đồ ăn thừa"],
+      correct: 0
+    },
+    {
+      question: "Rác hữu cơ nên được bỏ vào thùng màu gì?",
+      options: ["Đỏ", "Xanh dương", "Xanh lá", "Vàng"],
+      correct: 2
+    },
+    {
+      question: "Việc tái chế chai nhựa giúp gì cho môi trường?",
+      options: ["Tăng ô nhiễm", "Tiết kiệm tài nguyên", "Gây hại động vật", "Tăng rác thải"],
       correct: 1
     },
     {
-      question: "What do bees collect from flowers?",
-      options: ["Water", "Leaves", "Nectar", "Seeds"],
+      question: "Pin chết nên bỏ ở đâu?",
+      options: ["Thùng rác thường", "Sông hồ", "Điểm thu pin chuyên dụng", "Ra đường"],
       correct: 2
     },
     {
-      question: "Which tree keeps its leaves all winter?",
-      options: ["Oak", "Maple", "Pine", "Birch"],
-      correct: 2
+      question: "Giấy báo cũ thuộc loại rác nào?",
+      options: ["Rác hữu cơ", "Rác tái chế", "Rác nguy hại", "Rác xây dựng"],
+      correct: 1
     }
   ];
 
@@ -57,14 +67,14 @@ export function Quiz() {
         >
           <Trophy size={64} className="text-yellow-500" />
         </motion.div>
-        <h1 className="text-4xl font-black text-green-900 mb-2">Quiz Complete!</h1>
-        <p className="text-xl text-green-600 font-bold mb-8">You scored {score} out of {questions.length}</p>
-        
-        <button 
+        <h1 className="text-4xl font-black text-green-900 mb-2">Hoàn thành!</h1>
+        <p className="text-xl text-green-600 font-bold mb-8">Bạn đạt {score}/{questions.length} điểm</p>
+
+        <button
           onClick={() => window.history.back()}
           className="bg-green-500 text-white px-8 py-4 rounded-3xl font-black text-xl shadow-lg shadow-green-200"
         >
-          Back to Map
+          Quay lại
         </button>
       </div>
     );
@@ -78,7 +88,7 @@ export function Quiz() {
           <div className="bg-purple-100 p-3 rounded-2xl">
             <Brain className="text-purple-500" size={28} />
           </div>
-          <h2 className="text-2xl font-black text-green-900">Nature Quiz</h2>
+          <h2 className="text-2xl font-black text-green-900">Câu Đố Phân Loại Rác</h2>
         </div>
         <div className="bg-white px-4 py-2 rounded-full font-bold text-gray-500 border-2 border-gray-200 shadow-sm">
           {currentQuestion + 1} / {questions.length}
@@ -146,7 +156,7 @@ export function Quiz() {
               onClick={handleNext}
               className="w-full bg-purple-500 text-white py-4 rounded-3xl font-black text-xl flex items-center justify-center gap-2 shadow-lg shadow-purple-200"
             >
-              {currentQuestion < questions.length - 1 ? "Next Question" : "See Results"} <ArrowRight size={24} />
+              {currentQuestion < questions.length - 1 ? "Câu tiếp theo" : "Xem kết quả"} <ArrowRight size={24} />
             </button>
           </motion.div>
         )}

@@ -10,6 +10,7 @@ import CameraModule from "@/features/camera/CameraModule";
 import QuizModule from "@/features/quiz/QuizModule";
 import RewardsModule from "@/features/rewards/RewardsModule";
 import MiniGameModule from "@/features/mini-games/MiniGameModule";
+import { Profile } from "@/app/features/profile/Profile";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/splash" replace /> },
@@ -29,9 +30,10 @@ export const router = createBrowserRouter([
           { path: "quiz", Component: QuizModule },
           { path: "rewards", Component: RewardsModule },
           { path: "game", Component: MiniGameModule },
+          { path: "profile", Component: Profile },
         ],
       },
     ],
   },
-  { path: "*", element: <Navigate to="/splash" replace /> },
+  { path: "*", element: <Navigate to="/login" replace /> },
 ]);
