@@ -61,7 +61,7 @@ export function MiniGame() {
           <div className="bg-blue-100 p-3 rounded-2xl">
             <Gamepad2 className="text-blue-500" size={28} />
           </div>
-          <h2 className="text-2xl font-black text-blue-900">Trash Sort</h2>
+          <h2 className="text-2xl font-black text-blue-900">Phân Loại Rác</h2>
         </div>
         <div className="flex gap-4">
           <div className="bg-white px-4 py-2 rounded-xl font-bold text-blue-800 shadow-sm">
@@ -75,8 +75,8 @@ export function MiniGame() {
 
       {!isPlaying && timeLeft === 15 ? (
         <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-          <h1 className="text-4xl font-black text-blue-900 mb-4 text-center">Clean the Ocean!</h1>
-          <p className="text-blue-600 font-bold mb-8 text-center max-w-xs">Tap the trash to collect it, but don't tap the fish!</p>
+          <h1 className="text-4xl font-black text-blue-900 mb-4 text-center">Sạch Sẽ Đại Dương!</h1>
+          <p className="text-blue-600 font-bold mb-8 text-center max-w-xs">Chạm vào rác để thu gom, nhưng đừng chạm vào cá!</p>
           <motion.button 
             whileTap={{ scale: 0.9 }}
             onClick={startGame}
@@ -87,8 +87,8 @@ export function MiniGame() {
         </div>
       ) : !isPlaying && timeLeft <= 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-          <h1 className="text-4xl font-black text-blue-900 mb-2">Time's Up!</h1>
-          <p className="text-2xl text-blue-600 font-bold mb-8">You scored: {score}</p>
+          <h1 className="text-4xl font-black text-blue-900 mb-2">Hết Giờ!</h1>
+          <p className="text-2xl text-blue-600 font-bold mb-8">Điểm của bạn: {score}</p>
           <motion.button 
             whileTap={{ scale: 0.9 }}
             onClick={startGame}
@@ -114,7 +114,7 @@ export function MiniGame() {
                 style={{ left: `${item.left}%` }}
                 onPointerDown={() => catchItem(item.id, item.type)}
               >
-                {item.type === 'good' ? '🥤' : '🐟'}
+                {item.type === 'good' ? '🥤' : '�'}
               </motion.div>
             ))}
           </AnimatePresence>
