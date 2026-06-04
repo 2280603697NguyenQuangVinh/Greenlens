@@ -5,9 +5,9 @@ import { loadStoredProfile } from "@/lib/api"
 import { useGreenLens } from "@/hooks/useGreenLens"
 import { SCREEN_LABELS, FF_FREDOKA, FF_COMFORTAA } from "./constants"
 import type { AvatarConfig } from "./types"
-import { LoginScreen } from "./screens/LoginScreen"
-import { RegisterScreen } from "./screens/RegisterScreen"
 import { AvatarScreen } from "./screens/AvatarScreen"
+import { SplashScreen } from "./screens/SplashScreen"
+import { AdminLoginScreen } from "./screens/AdminLoginScreen"
 import { DashboardScreen } from "./screens/DashboardScreen"
 import { ScannerScreen } from "./screens/ScannerScreen"
 import { QuizScreen } from "./screens/QuizScreen"
@@ -18,9 +18,9 @@ import { ProfileScreen } from "./screens/ProfileScreen"
 // Auth phase types
 // ---------------------------------------------------------------------------
 
-/** "auth" = login/register wall, "avatar" = new user avatar setup, "app" = main screens */
-type AuthPhase = "auth" | "avatar" | "app"
-type AvatarFlow = "register" | "profile"
+/** "splash" = startup, "avatar" = setup/edit avatar, "app" = main screens */
+type AppPhase = "splash" | "avatar" | "app"
+type AvatarFlow = "startup" | "profile"
 
 function profileToCfg(profile: { gender: number; skin: number; hair: number; eyes: number; outfit: number }): AvatarConfig {
   return { gender: profile.gender, skin: profile.skin, hair: profile.hair, eyes: profile.eyes, outfit: profile.outfit }
@@ -33,51 +33,34 @@ function profileToCfg(profile: { gender: number; skin: number; hair: number; eye
 export default function App() {
   const gl = useGreenLens()
   const stored = loadStoredProfile()
+  const initialTargetPhase: Exclude<AppPhase, "splash"> = "avatar"
 
-  const [phase, setPhase] = useState<AuthPhase>(stored ? "app" : "auth")
-  const [authView, setAuthView] = useState<"login" | "register">("login")
-  const [avatarFlow, setAvatarFlow] = useState<AvatarFlow>("register")
-  const [registrationPending, setRegistrationPending] = useState(false)
-  const [screen, setScreen] = useState(stored ? 1 : 0)   // main app screens (1–5)
+  const [phase, setPhase] = useState<AppPhase>("splash")
+  const [avatarFlow, setAvatarFlow] = useState<AvatarFlow>("startup")
+  const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+  const [screen, setScreen] = useState(1)   // main app screens (1–5)
   const [cfg, setCfg] = useState<AvatarConfig>(
     stored ? profileToCfg(stored) : { gender: 0, skin: 0, hair: 1, eyes: 0, outfit: 1 }
   )
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPhase(initialTargetPhase)
+    }, 1300)
+    return () => window.clearTimeout(timer)
+  }, [initialTargetPhase])
+
+  useEffect(() => {
     if (gl.profile) setCfg(profileToCfg(gl.profile))
   }, [gl.profile])
 
-  // If profile is cleared (logout etc.), drop back to auth
+  // If profile is cleared while in app, move back to avatar setup
   useEffect(() => {
-    if (!gl.profile && phase === "app") setPhase("auth")
+    if (!gl.profile && phase === "app") setPhase("avatar")
   }, [gl.profile, phase])
 
-  useEffect(() => {
-    if (phase === "auth" && authView === "login") {
-      setRegistrationPending(false)
-    }
-  }, [phase, authView])
-
   const go = useCallback((s: number) => setScreen(s), [])
-
-  // ---- Auth handlers ----
-  const handleLogin = async (badgeId: string) => {
-    const ok = await gl.login(badgeId)
-    if (ok) {
-      setScreen(1)
-      setPhase("app")
-    }
-    return ok
-  }
-
-  const handleRegister = async (badgeId: string, avatar: AvatarConfig) => {
-    setCfg(avatar)
-    // After filling email/name, go to avatar customisation before saving
-    setAvatarFlow("register")
-    setRegistrationPending(true)
-    setPhase("avatar")
-    return true
-  }
 
   const handleSaveAvatar = async (finalCfg: AvatarConfig) => {
     if (avatarFlow === "profile") {
@@ -90,17 +73,11 @@ export default function App() {
       return
     }
 
-    if (!registrationPending) {
-      setPhase("auth")
-      setAuthView("register")
-      return
-    }
     setCfg(finalCfg)
-    // Generate a simple badge ID from randomness (mock)
-    const mockBadge = String(Math.floor(100000 + Math.random() * 900000))
-    const ok = await gl.register(mockBadge, finalCfg)
+    const ok = gl.profile
+      ? await gl.updateAvatar(finalCfg)
+      : await gl.register(String(Math.floor(100000 + Math.random() * 900000)), finalCfg)
     if (ok) {
-      setRegistrationPending(false)
       setScreen(1)
       setPhase("app")
     }
@@ -116,13 +93,29 @@ export default function App() {
     setScreen(5)
   }
 
+  const handleOpenAdminLogin = () => {
+    setShowAdminLogin(true)
+  }
+
+  const handleCloseAdminLogin = () => {
+    setShowAdminLogin(false)
+  }
+
+  const handleAdminPasswordLogin = (password: string) => {
+    if (password === "admin123") {
+      setAdminAuthenticated(true)
+      return true
+    }
+    return false
+  }
+
   const handleLogout = () => {
     gl.logout()
-    setPhase("auth")
-    setAuthView("login")
-    setScreen(0)
-    setRegistrationPending(false)
-    setAvatarFlow("register")
+    setPhase("avatar")
+    setScreen(1)
+    setAvatarFlow("startup")
+    setShowAdminLogin(false)
+    setAdminAuthenticated(false)
   }
 
   // ---- UI shell ----
@@ -144,12 +137,14 @@ export default function App() {
         ))}
       </div>
 
-      <div className="text-green-800 font-bold text-sm flex items-center gap-2 opacity-80" style={FF_FREDOKA}>
-        🌍 GreenLens Kids
-        {gl.busy && <span className="text-xs font-normal opacity-70">· đang xử lý...</span>}
-      </div>
+      {phase !== "splash" ? (
+        <div className="text-green-800 font-bold text-sm flex items-center gap-2 opacity-80" style={FF_FREDOKA}>
+          🌍 GreenLens Kids
+          {gl.busy && <span className="text-xs font-normal opacity-70">· đang xử lý...</span>}
+        </div>
+      ) : null}
 
-      {gl.error && (
+      {phase !== "splash" && gl.error && (
         <p className="text-red-600 text-xs px-4 text-center max-w-md" style={FF_COMFORTAA}>
           {gl.error}
         </p>
@@ -159,27 +154,16 @@ export default function App() {
       <div className="relative w-full max-w-[430px] min-h-screen sm:min-h-[860px] sm:rounded-[28px] sm:shadow-2xl overflow-hidden bg-[#F0FDF4]">
           <div className="absolute inset-0 overflow-hidden" style={{ background: "#F0FDF4" }}>
             <AnimatePresence mode="wait">
-              {/* ===== AUTH: Login ===== */}
-              {phase === "auth" && authView === "login" && (
-                <motion.div key="login" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <LoginScreen
-                    busy={gl.busy}
-                    error={gl.error}
-                    onLogin={handleLogin}
-                    onGoRegister={() => setAuthView("register")}
-                  />
-                </motion.div>
-              )}
-
-              {/* ===== AUTH: Register ===== */}
-              {phase === "auth" && authView === "register" && (
-                <motion.div key="register" className="absolute inset-0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-                  <RegisterScreen
-                    busy={gl.busy}
-                    error={gl.error}
-                    onRegister={handleRegister}
-                    onGoLogin={() => setAuthView("login")}
-                  />
+              {phase === "splash" && (
+                <motion.div
+                  key="splash"
+                  className="absolute inset-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.45 }}
+                >
+                  <SplashScreen />
                 </motion.div>
               )}
 
@@ -193,6 +177,8 @@ export default function App() {
                     error={gl.error}
                     onSave={handleSaveAvatar}
                     onCancel={avatarFlow === "profile" ? handleCancelAvatarEdit : undefined}
+                    onAdminLogin={handleOpenAdminLogin}
+                    adminAuthenticated={adminAuthenticated}
                   />
                 </motion.div>
               )}
@@ -245,10 +231,18 @@ export default function App() {
                     profile={gl.profile}
                     onEditAvatar={handleEditAvatarFromProfile}
                     onLogout={handleLogout}
+                    onAdminLogin={handleOpenAdminLogin}
+                    adminAuthenticated={adminAuthenticated}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
+            {(phase === "avatar" || phase === "app") && showAdminLogin ? (
+              <AdminLoginScreen
+                onClose={handleCloseAdminLogin}
+                onSubmit={handleAdminPasswordLogin}
+              />
+            ) : null}
           </div>
       </div>
 
@@ -272,10 +266,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Auth nav dots */}
-      {(phase === "auth" || phase === "avatar") && (
+      {/* Avatar phase label */}
+      {phase === "avatar" && (
         <p className="text-green-700 text-xs font-semibold opacity-70" style={FF_COMFORTAA}>
-          {phase === "avatar" ? "🎨 Tạo nhân vật" : authView === "login" ? "🔑 Đăng nhập" : "📝 Đăng ký"}
+          🎨 Tạo nhân vật
         </p>
       )}
     </div>

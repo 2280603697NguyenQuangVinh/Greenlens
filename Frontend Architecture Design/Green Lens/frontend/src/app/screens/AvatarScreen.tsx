@@ -1,6 +1,6 @@
-import { useState } from "react"
+import React, { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { RefreshCw, Save } from "lucide-react"
+import { RefreshCw, Save, ShieldCheck } from "lucide-react"
 import { FF_FREDOKA, FF_COMFORTAA } from "../constants"
 import type { AvatarConfig } from "../types"
 import { getHairOptionList, getOutfitOptionList, getGenderIcon } from "../avatarAssets"
@@ -16,6 +16,14 @@ const EYE_COLORS = [
   { label: "Xanh\nDương", color: "rgba(25, 100, 220, 0.55)" },
 ]
 
+const GENDER_FRAME_RADIUS = 22
+const GENDER_IMAGE_WIDTH = 280
+const GENDER_FRAME_WIDTH_PCT = 45
+const GENDER_FRAME_HEIGHT_PCT = 88
+const GENDER_FRAME_TOP_PCT = 6
+const GENDER_FRAME_LEFT_MALE_PCT = 4
+const GENDER_FRAME_LEFT_FEMALE_PCT = 51
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -29,13 +37,24 @@ type Props = {
   error: string | null
   onSave: (cfg: AvatarConfig) => void
   onCancel?: () => void
+  onAdminLogin?: () => void
+  adminAuthenticated?: boolean
 }
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export function AvatarScreen({ cfg, setCfg, busy, error, onSave, onCancel }: Props) {
+export function AvatarScreen({
+  cfg,
+  setCfg,
+  busy,
+  error,
+  onSave,
+  onCancel,
+  onAdminLogin,
+  adminAuthenticated = false,
+}: Props) {
   const [tab, setTab] = useState<Tab>(0)
   const TAB_LABELS = ["Giới tính", "Tóc", "Mắt", "Áo"]
 
@@ -50,28 +69,35 @@ export function AvatarScreen({ cfg, setCfg, busy, error, onSave, onCancel }: Pro
   const renderOptions = () => {
     // --- Giới tính ---
     if (tab === 0) {
-      const genders = [
-        { label: "", gender: 0 },
-        { label: "",  gender: 1 },
-      ]
+      const combinedSrc = getGenderIcon(0)
+      const selectedLeft = cfg.gender === 0
+      const hasSelection = cfg.gender === 0 || cfg.gender === 1
+      const frameLeft = selectedLeft ? GENDER_FRAME_LEFT_MALE_PCT : GENDER_FRAME_LEFT_FEMALE_PCT
       return (
-        <div className="grid grid-cols-2 gap-4 px-4">
-          {genders.map(({ label, gender }) => {
-            const thumbSrc = getGenderIcon(gender)
-            const selected = cfg.gender === gender
-            return (
-              <button
-                key={label}
-                onClick={() => setCfg({ ...cfg, gender })}
-                className={`flex flex-col items-center gap-2 pt-3 pb-2 rounded-3xl border-[3px] transition-all active:scale-95 overflow-hidden ${
-                  selected ? "border-green-500 shadow-lg bg-green-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <img src={thumbSrc} alt={label} className="w-24 h-28 object-contain" />
-                <span className="text-sm font-black text-slate-700 pb-1" style={FF_FREDOKA}>{label}</span>
-              </button>
-            )
-          })}
+        <div className="px-4">
+          <p className="text-center text-sm text-slate-600 mb-3" style={FF_COMFORTAA}>
+            Chạm vào nửa bên trái hoặc bên phải để chọn giới tính
+          </p>
+          <div className="relative mx-auto" style={{ width: 555, maxWidth: "100%" }}>
+            <img
+              src={combinedSrc}
+              alt="Tùy chọn giới tính"
+              className="w-full h-auto object-contain rounded-3xl bg-white/85 shadow-sm"
+            />
+
+            <button
+              type="button"
+              onClick={() => setCfg({ ...cfg, gender: 0 })}
+              className="absolute left-0 top-0 h-full w-1/2 rounded-l-3xl"
+              aria-label="Chọn bạn trai"
+            />
+            <button
+              type="button"
+              onClick={() => setCfg({ ...cfg, gender: 1 })}
+              className="absolute right-0 top-0 h-full w-1/2 rounded-r-3xl"
+              aria-label="Chọn bạn gái"
+            />
+          </div>
         </div>
       )
     }
@@ -180,6 +206,21 @@ export function AvatarScreen({ cfg, setCfg, busy, error, onSave, onCancel }: Pro
         <h1 className="text-green-800 text-base font-black leading-tight" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
           Hãy Tạo Nhân Vật Cho<br />Riêng Bản Thân Nào!
         </h1>
+        {onAdminLogin ? (
+          <button
+            type="button"
+            onClick={onAdminLogin}
+            className={`ml-auto rounded-full px-3 py-2 text-[11px] font-black border flex items-center gap-1.5 active:scale-95 ${
+              adminAuthenticated
+                ? "bg-green-600 border-green-700 text-white"
+                : "bg-white border-green-300 text-green-700"
+            }`}
+            style={FF_FREDOKA}
+          >
+            <ShieldCheck size={14} />
+            {adminAuthenticated ? "Admin đã đăng nhập" : "Admin Login"}
+          </button>
+        ) : null}
       </div>
 
       {/* Model preview */}

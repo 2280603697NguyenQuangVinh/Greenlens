@@ -9,9 +9,11 @@ const EYES_LAYER = [
   new URL("../assets/Character/eyes color/blue.png", import.meta.url).href,
 ]
 
+const GENDER_OPTION = new URL("../assets/Character/male/gender/gender-option.png", import.meta.url).href
+
 const GENDER_ICON = {
-  male: new URL("../assets/Character/male/gender/male.png", import.meta.url).href,
-  female: new URL("../assets/Character/male/gender/female.png", import.meta.url).href,
+  male: GENDER_OPTION,
+  female: GENDER_OPTION,
 } as const
 
 // ============================================================================
