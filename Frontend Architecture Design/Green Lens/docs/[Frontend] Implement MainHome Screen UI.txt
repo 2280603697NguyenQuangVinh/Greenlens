@@ -1,0 +1,34 @@
+Develop the main application screen UI based on the Figma design.
+
+This task includes:
+
+User greeting section
+
+Daily streak display
+
+XP/progress section
+
+AI scan shortcut/button
+
+Quiz/Game cards
+
+Daily mission section
+
+Bottom navigation bar
+
+Scrollable content layout
+
+Focus only on frontend UI implementation without backend integration at this stage.
+
+Acceptance Criteria
+Main screen matches Figma design
+
+Responsive layout across mobile devices
+
+Navigation UI implemented
+
+Reusable card/button components created
+
+Smooth scrolling and layout rendering
+
+Proper component separation and clean code structure

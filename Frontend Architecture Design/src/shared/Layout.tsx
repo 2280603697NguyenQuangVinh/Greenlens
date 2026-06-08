@@ -1,61 +1,63 @@
-import { Outlet, NavLink, useNavigate } from "react-router";
-import { Home, Camera, BrainCircuit, Trophy, Calendar, Gamepad2, LogOut } from "lucide-react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router";
+import { Home, Camera, Puzzle, User, FileQuestion } from "lucide-react";
 import { useAuth } from "@/state/authStore";
 import { logout } from "@/features/auth/authService";
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, clearAuth } = useAuth();
 
   const handleLogout = async () => {
     await logout();
     clearAuth();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-green-50 text-slate-800 font-sans">
-      <header className="bg-white shadow-sm py-4 px-6 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2 text-green-600 font-bold text-xl">
-          <div className="bg-green-500 text-white p-1.5 rounded-xl">
-            <Camera size={20} />
-          </div>
-          GreenLens Kids
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-slate-600 hidden sm:inline">
-            {user?.name || "Explorer"}
-          </span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-red-500 rounded-lg"
-            title="Logout"
-          >
-            <LogOut size={18} />
-          </button>
-        </div>
-      </header>
+  const isCamera = location.pathname.includes("/camera");
 
-      <main className="flex-1 overflow-y-auto w-full max-w-lg mx-auto bg-white shadow-xl sm:border-x border-slate-100">
+  return (
+    <div className="flex flex-col h-screen max-w-lg mx-auto bg-[#e8f8ef]">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <Outlet />
       </main>
 
-      <nav className="bg-white border-t border-slate-100 sticky bottom-0 z-10">
-        <div className="max-w-lg mx-auto flex justify-around py-2">
-          <NavItem to="/app" icon={<Home size={22} />} label="Home" end />
-          <NavItem to="/app/daily" icon={<Calendar size={22} />} label="Daily" />
-          <NavItem to="/app/camera" icon={<Camera size={22} />} label="Camera" />
-          <NavItem to="/app/quiz" icon={<BrainCircuit size={22} />} label="Quiz" />
-          <NavItem to="/app/game" icon={<Gamepad2 size={22} />} label="Play" />
-          <NavItem to="/app/rewards" icon={<Trophy size={22} />} label="Rewards" />
-        </div>
-      </nav>
+      {/* Bottom nav — matches UI sample */}
+      {!isCamera && (
+        <nav className="shrink-0 bg-[#d4f5e4] border-t-2 border-green-200/80 px-2 pt-2 pb-safe pb-3 relative">
+          <div className="flex items-end justify-around">
+            <TabItem to="/app" end icon={<Home size={26} strokeWidth={2.5} />} label="Trang Chủ" />
+            <TabItem to="/app/quiz" icon={<FileQuestion size={26} strokeWidth={2.5} />} label="Câu Đố" />
+
+            <NavLink
+              to="/app/camera"
+              className={({ isActive }) =>
+                `relative flex flex-col items-center -mt-8 ${isActive ? "scale-105" : ""}`
+              }
+            >
+              <div
+                className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${
+                  isCamera
+                    ? "bg-gradient-to-br from-green-400 to-green-600"
+                    : "bg-gradient-to-br from-[#4ade80] to-[#22c55e]"
+                }`}
+              >
+                <Camera size={30} className="text-white" strokeWidth={2.5} />
+                <span className="absolute -top-1 -right-1 text-lg">⭐</span>
+              </div>
+              <span className="text-[10px] font-bold text-green-800 mt-1">Camera</span>
+            </NavLink>
+
+            <TabItem to="/app/game" icon={<Puzzle size={26} strokeWidth={2.5} />} label="Mini Game" />
+            <TabItem to="/app/profile" icon={<User size={26} strokeWidth={2.5} />} label="Hồ Sơ" />
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
 
-function NavItem({
+function TabItem({
   to,
   icon,
   label,
@@ -71,13 +73,13 @@ function NavItem({
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex flex-col items-center py-1 px-1 gap-0.5 text-[10px] font-semibold ${
-          isActive ? "text-green-600" : "text-slate-400"
+        `flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${
+          isActive ? "text-green-700" : "text-green-600/70"
         }`
       }
     >
       {icon}
-      <span>{label}</span>
+      <span className="text-[10px] font-bold leading-tight text-center">{label}</span>
     </NavLink>
   );
 }

@@ -18,8 +18,8 @@ export function Login() {
   return (
     <div className="flex flex-col min-h-screen bg-green-50 font-['Nunito',sans-serif] px-6 py-12">
       <div className="flex flex-col items-center mt-10 mb-12">
-        <div className="bg-green-500 p-4 rounded-3xl shadow-lg shadow-green-200 mb-4">
-          <Leaf size={48} className="text-white" strokeWidth={2.5} />
+        <div className="mb-4">
+          <div className="w-28 h-28 rounded-full bg-green-100 border border-green-200 flex items-center justify-center text-5xl">♻️</div>
         </div>
         <h1 className="text-4xl font-black text-green-900">Welcome Back!</h1>
         <p className="text-green-600 font-semibold mt-2 text-lg">Ready for a new adventure?</p>

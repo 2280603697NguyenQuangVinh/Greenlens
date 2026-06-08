@@ -1,24 +1,27 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  Camera as CameraIcon,
-  Zap,
-  FlipVertical,
-  Image as ImageIcon,
-  CheckCircle2,
-} from "lucide-react";
-import { uploadImage, type CameraAnalysisResult } from "@/services/cameraApi";
-import { useReward } from "@/state/rewardStore";
+import { motion, AnimatePresence } from "motion/react";
+import { Camera as CameraIcon, X, RotateCcw, Image, Clock, Factory, Globe, Trash2, Home } from "lucide-react";
+import { useNavigate } from "react-router";
+
+interface WasteInfo {
+  object: string;
+  type: string;
+  binColor: string;
+  binIcon: string;
+  decomposition: string;
+  suggestion: string;
+  impact: string;
+}
 
 export default function CameraModule() {
-  const { addXp } = useReward();
-  const [isCapturing, setIsCapturing] = useState(false);
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<CameraAnalysisResult | null>(null);
+  const [wasteInfo, setWasteInfo] = useState<WasteInfo | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -49,32 +52,28 @@ export default function CameraModule() {
     };
   }, [capturedImage]);
 
-  const analyzeImage = async (imageDataUrl?: string) => {
-    setAnalyzing(true);
-    try {
-      const data = await uploadImage(imageDataUrl);
-      setResult(data);
-      addXp(data.xp);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
+  const handleCapture = () => {
+    setIsProcessing(true);
 
-  const capturePhoto = () => {
     if (cameraError) {
-      setIsCapturing(true);
-      setTimeout(() => setIsCapturing(false), 150);
-      const sample =
-        "https://images.unsplash.com/photo-1555169062-013468b47731?w=800&q=80";
-      setCapturedImage(sample);
-      analyzeImage(sample);
+      setTimeout(() => {
+        setIsProcessing(false);
+        setCapturedImage("captured");
+        setWasteInfo({
+          object: "Chai Nhựa",
+          type: "Tái Chế",
+          binColor: "Xanh Lá",
+          binIcon: "♻️",
+          decomposition: "10 ngày - 1 triệu năm",
+          suggestion: "Tái chế!",
+          impact: "Giảm ô nhiễm"
+        });
+        navigate("/app/camera?result=true", { replace: true });
+      }, 2000);
       return;
     }
 
     if (!videoRef.current || !canvasRef.current) return;
-
-    setIsCapturing(true);
-    setTimeout(() => setIsCapturing(false), 150);
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -86,109 +85,284 @@ export default function CameraModule() {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imgDataUrl = canvas.toDataURL("image/jpeg");
       setCapturedImage(imgDataUrl);
-      analyzeImage(imgDataUrl);
+
+      setTimeout(() => {
+        setIsProcessing(false);
+        setWasteInfo({
+          object: "Chai Nhựa",
+          type: "Tái Chế",
+          binColor: "Xanh Lá",
+          binIcon: "♻️",
+          decomposition: "10 ngày - 1 triệu năm",
+          suggestion: "Tái chế!",
+          impact: "Giảm ô nhiễm"
+        });
+        navigate("/app/camera?result=true", { replace: true });
+      }, 2000);
     }
   };
 
   const resetCamera = () => {
     setCapturedImage(null);
-    setResult(null);
+    setWasteInfo(null);
+    navigate("/app/camera", { replace: true });
   };
 
+  const handleGalleryClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageDataUrl = event.target?.result as string;
+        setCapturedImage(imageDataUrl);
+        setIsProcessing(true);
+        setTimeout(() => {
+          setIsProcessing(false);
+          setWasteInfo({
+            object: "Chai Nhựa",
+            type: "Tái Chế",
+            binColor: "Xanh Lá",
+            binIcon: "♻️",
+            decomposition: "10 ngày - 1 triệu năm",
+            suggestion: "Tái chế!",
+            impact: "Giảm ô nhiễm"
+          });
+          navigate("/app/camera?result=true", { replace: true });
+        }, 2000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+
   return (
-    <div className="h-full flex flex-col bg-slate-900 relative overflow-hidden">
-      <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
-        {capturedImage ? (
-          <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-        ) : cameraError ? (
-          <div className="text-white text-center p-6 flex flex-col items-center">
-            <div className="bg-slate-800 p-4 rounded-full mb-4">
-              <CameraIcon size={32} className="text-slate-400" />
+    <div className={`flex flex-col h-screen bg-black relative font-['Nunito',sans-serif] ${capturedImage && wasteInfo ? '' : 'overflow-hidden'}`}>
+      {/* Hidden File Input for Gallery */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Back to Home Button */}
+      {!capturedImage && !isProcessing && (
+        <div className="absolute top-4 left-4 z-50">
+          <button
+            onClick={() => navigate("/app")}
+            className="w-12 h-12 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center"
+          >
+            <Home size={24} className="text-white" />
+          </button>
+        </div>
+      )}
+
+      {/* Camera View */}
+      <div className={`flex-1 relative bg-gray-900 ${capturedImage && wasteInfo ? 'overflow-y-auto' : ''}`}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Mock background for when camera fails */}
+        {cameraError && !capturedImage && (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+            <div className="text-center text-white">
+              <CameraIcon size={64} className="mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-semibold opacity-70">Camera đang khởi động...</p>
             </div>
-            <h3 className="font-bold text-lg mb-2">Camera Access Denied</h3>
-            <p className="text-slate-400 text-sm mb-6 max-w-xs">
-              Tap the shutter to use a sample photo and test the AI scanner.
-            </p>
-          </div>
-        ) : (
-          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        )}
-
-        {isCapturing && (
-          <div className="absolute inset-0 bg-white z-50 animate-out fade-out duration-150" />
-        )}
-
-        {analyzing && (
-          <div className="absolute inset-0 bg-black/40 z-40 flex flex-col items-center justify-center">
-            <p className="text-green-400 font-mono font-bold tracking-wider">ANALYZING...</p>
           </div>
         )}
+
+        {/* Object Detection Frame */}
+        {!capturedImage && !isProcessing && (
+          <div className="absolute inset-0 flex items-center justify-center p-8">
+            <div className="relative w-64 h-64 border-4 border-teal-400 rounded-2xl z-10">
+              <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-teal-400 rounded-tl-lg"></div>
+              <div className="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-teal-400 rounded-tr-lg"></div>
+              <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-teal-400 rounded-bl-lg"></div>
+              <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-teal-400 rounded-br-lg"></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-400 text-4xl animate-pulse">
+                🎯
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Processing Overlay */}
+        <AnimatePresence>
+          {isProcessing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm z-30"
+            >
+              <div className="relative">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                  className="w-20 h-20 border-4 border-teal-400/30 border-t-teal-400 rounded-full"
+                />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-400 text-2xl">
+                  🔍
+                </div>
+              </div>
+              <p className="text-white font-bold text-lg mt-6">Đang phân tích...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Captured Image with Info Overlay */}
+        <AnimatePresence>
+          {capturedImage && wasteInfo && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 flex flex-col z-40"
+            >
+              {/* Captured Image Background */}
+              <div className="flex-1 relative bg-gradient-to-br from-gray-800 to-gray-900">
+                {capturedImage !== "captured" ? (
+                  <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-9xl">🥤</div>
+                  </div>
+                )}
+
+                {/* Detection Frame on captured image */}
+                <div className="absolute inset-0 flex items-center justify-center p-8">
+                  <div className="relative w-64 h-64 border-4 border-blue-300 rounded-2xl">
+                    <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-blue-300 rounded-tl-lg"></div>
+                    <div className="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-blue-300 rounded-tr-lg"></div>
+                    <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-blue-300 rounded-bl-lg"></div>
+                    <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-blue-300 rounded-br-lg"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Panel */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                className="bg-green-50 rounded-t-3xl p-6 shadow-2xl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-black text-green-800">Thông Tin Rác</h2>
+                  <button
+                    onClick={resetCamera}
+                    className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center"
+                  >
+                    <X size={20} className="text-green-700" />
+                  </button>
+                </div>
+
+                {/* Object Info */}
+                <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">🥤</span>
+                    <h3 className="text-2xl font-black text-gray-900">{wasteInfo.object}</h3>
+                  </div>
+                  <p className="text-green-700 font-bold">Loại Rác: {wasteInfo.type} (Màu {wasteInfo.binColor})</p>
+                </div>
+
+                {/* Info Cards Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Bin Card */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm">
+                    <div className="flex justify-center mb-2">
+                      <div className="flex gap-1">
+                        <div className="w-6 h-8 bg-blue-500 rounded-sm"></div>
+                        <div className="w-6 h-8 bg-green-500 rounded-sm"></div>
+                        <div className="w-6 h-8 bg-orange-500 rounded-sm"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-1">
+                      <Trash2 size={16} className="text-gray-600" />
+                      <p className="text-sm font-bold text-gray-700">Thùng: {wasteInfo.binColor}</p>
+                    </div>
+                  </div>
+
+                  {/* Decomposition Card */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm">
+                    <div className="flex justify-center mb-2">
+                      <Clock size={24} className="text-gray-600" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 text-center">Phân hủy:</p>
+                    <p className="text-xs font-semibold text-gray-500 text-center">{wasteInfo.decomposition}</p>
+                  </div>
+
+                  {/* Suggestion Card */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm">
+                    <div className="flex justify-center mb-2">
+                      <Factory size={24} className="text-gray-600" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 text-center">Gợi ý:</p>
+                    <p className="text-xs font-semibold text-green-600 text-center">{wasteInfo.suggestion}</p>
+                  </div>
+
+                  {/* Impact Card */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm">
+                    <div className="flex justify-center mb-2">
+                      <Globe size={24} className="text-gray-600" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 text-center">Tác động:</p>
+                    <p className="text-xs font-semibold text-green-600 text-center">{wasteInfo.impact}</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={resetCamera}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-bold flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw size={20} /> Chụp lại
+                  </button>
+                  <button className="flex-1 bg-green-500 text-white py-3 rounded-2xl font-bold shadow-lg">
+                    Lưu
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {result && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 shadow-2xl z-50">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-md uppercase">
-                {result.type}
-              </span>
-              <h2 className="text-2xl font-black text-slate-800 mt-1">{result.name}</h2>
-              <span className="text-slate-400 text-xs font-bold flex items-center mt-1">
-                <CheckCircle2 size={12} className="mr-1 text-green-500" /> {result.confidence}% Match
-              </span>
-            </div>
-            <div className="bg-yellow-100 p-2 rounded-xl text-yellow-600 font-bold text-center">
-              <span className="text-xl">+{result.xp}</span>
-              <span className="text-[10px] uppercase block">XP</span>
-            </div>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-2xl mb-6 border border-blue-100">
-            <h3 className="text-blue-800 font-bold text-sm mb-1">Fun Fact</h3>
-            <p className="text-blue-600 text-sm font-medium">{result.funFact}</p>
-          </div>
-          <button
-            type="button"
-            onClick={resetCamera}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl"
-          >
-            Scan Another Subject
-          </button>
-        </div>
-      )}
+      {/* Camera Controls (Bottom) */}
+      {!capturedImage && !isProcessing && (
+        <div className="absolute bottom-0 left-0 w-full bg-black/60 backdrop-blur-md p-6 pb-8 z-50">
+          <div className="flex items-center justify-center gap-8">
+            {/* Gallery Button */}
+            <button
+              onClick={handleGalleryClick}
+              className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center"
+            >
+              <Image size={28} className="text-white" />
+            </button>
 
-      {!result && (
-        <div className="h-32 bg-black flex items-center justify-around px-8 pb-4">
-          <button
-            type="button"
-            className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white"
-          >
-            <ImageIcon size={20} />
-          </button>
-          <button
-            type="button"
-            onClick={capturePhoto}
-            disabled={analyzing}
-            className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 disabled:opacity-50"
-          >
-            <div className="w-full h-full bg-white rounded-full" />
-          </button>
-          <button
-            type="button"
-            className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white"
-          >
-            <FlipVertical size={20} />
-          </button>
-        </div>
-      )}
-
-      {!result && (
-        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between z-10 bg-gradient-to-b from-black/50 to-transparent">
-          <div className="bg-black/40 backdrop-blur-md text-white text-sm font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-            <Zap size={14} className="text-yellow-400" /> Auto
+            {/* Capture Button */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={handleCapture}
+              className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg"
+            >
+              <div className="w-16 h-16 border-4 border-gray-300 rounded-full"></div>
+            </motion.button>
           </div>
-          <p className="text-white text-sm font-medium">Point at plants or animals</p>
         </div>
       )}
     </div>
