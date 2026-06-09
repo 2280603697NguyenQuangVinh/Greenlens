@@ -16,3 +16,9 @@ logs/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Local dataset artifacts
+backend/datasets/.venv/
+backend/datasets/raw/
+backend/datasets/filtered/
+backend/datasets/rejected_blurry/
