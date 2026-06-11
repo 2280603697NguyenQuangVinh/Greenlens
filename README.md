@@ -1,38 +1,38 @@
 # GreenLens Kids
 
-GreenLens Kids la ung dung giao duc moi truong danh cho tre em. Tre tao nhan vat rieng, quet/rac bang AI Camera, hoc phan loai rac, lam quiz, choi mini game va nhan thuong khi duy tri thoi quen xanh.
+GreenLens Kids is an environmental education app for children. Kids create their own character, scan waste with an AI Camera, learn how to classify trash, complete quizzes, play mini games, and earn rewards for building green habits.
 
-Muc tieu cua du an la bien viec hoc ve moi truong thanh mot trai nghiem nhe nhang, vui va co tinh lien tuc: nhan vat di cung tre trong app, tien trinh duoc luu bang `childId`, va he thong backend co the lien ket ngam voi AWS Cognito/DynamoDB.
+The goal of the project is to make environmental learning playful and continuous. A child character follows the player throughout the app, progress is tracked through `childId`, and the backend can link the profile silently with AWS Cognito and DynamoDB.
 
-## Tinh nang chinh
+## Key Features
 
-- Tao ho so tre va nhan vat ban dau.
-- Tuy bien nhan vat: gioi tinh, toc, mat, trang phuc, ten nhan vat.
-- AI Camera cho bai toan nhan dien/phan loai rac.
-- Quiz giao duc ve moi truong.
-- Mini games cho tre em.
-- XP, level, streak, badges va rewards.
-- Frontend web React va mobile Expo/React Native.
-- Backend .NET 8 theo Clean Architecture/module-based structure.
-- Ha tang AWS du kien: API Gateway, Lambda, DynamoDB, Cognito, S3, Rekognition, Bedrock.
+- Create a child profile and first character.
+- Customize character gender, hair, eyes, outfit, and name.
+- AI Camera flow for waste recognition and classification.
+- Environmental education quizzes.
+- Mini games for children.
+- XP, level, streak, badges, and rewards.
+- React web frontend and Expo/React Native mobile app.
+- .NET 8 backend using a Clean Architecture/module-based structure.
+- Planned AWS infrastructure: API Gateway, Lambda, DynamoDB, Cognito, S3, Rekognition, and Bedrock.
 
-## Luong tao ho so tre
+## Child Profile Creation Flow
 
 ```text
-Tre mo app
--> Tao nhan vat
--> Chon gender/hair/eyes/outfit
--> Nhap ten nhan vat
--> Bam xac nhan
--> Backend tao childId
--> Backend tao child identity ngam trong Cognito
--> Backend luu profile vao DynamoDB
--> App luu childId de theo doi tien trinh choi/hoc
+Child opens the app
+-> Creates a character
+-> Selects gender/hair/eyes/outfit
+-> Enters character name
+-> Confirms the character
+-> Backend generates childId
+-> Backend silently creates a child identity in Cognito
+-> Backend saves the profile to DynamoDB
+-> App stores childId for progress tracking
 ```
 
-Trong che do local hien tai, backend dung in-memory storage de test nhanh API. Khi cau hinh AWS that, backend se goi Cognito va DynamoDB.
+In the current local development mode, the backend uses in-memory storage for fast API testing. When real AWS configuration is enabled, the backend will call Cognito and DynamoDB.
 
-## Cau truc thu muc
+## Project Structure
 
 ```text
 Greenlens/
@@ -85,13 +85,13 @@ Greenlens/
 └── README.md
 ```
 
-Ghi chu:
+Notes:
 
-- `frontend/node_modules/`, `frontend/mobile/node_modules/`, `backend/datasets/.venv/` la thu muc dependency/local environment.
-- `frontend/dist/` la output build cua frontend.
-- `backend/datasets/raw/`, `backend/datasets/filtered/`, `backend/datasets/rejected_blurry/` chua du lieu xu ly cho AI/dataset pipeline.
+- `frontend/node_modules/`, `frontend/mobile/node_modules/`, and `backend/datasets/.venv/` are dependency/local environment folders.
+- `frontend/dist/` is the frontend build output.
+- `backend/datasets/raw/`, `backend/datasets/filtered/`, and `backend/datasets/rejected_blurry/` contain data used by the AI/dataset pipeline.
 
-## Tech stack
+## Tech Stack
 
 Frontend web:
 
@@ -111,14 +111,14 @@ Mobile:
 Backend:
 
 - .NET 8
-- AWS Lambda style API layer
+- AWS Lambda-style API layer
 - ASP.NET Core local host for Docker testing
 - DynamoDB
 - Cognito
 - Serverless Framework
 - Docker
 
-AWS services du kien:
+Planned AWS services:
 
 - API Gateway
 - Lambda
@@ -129,15 +129,15 @@ AWS services du kien:
 - Bedrock
 - IAM
 
-## Chay backend local
+## Run Backend Locally
 
-Backend co README rieng tai:
+The backend has its own detailed guide:
 
 ```text
 backend/README.md
 ```
 
-Chay nhanh:
+Quick start:
 
 ```bash
 cd backend
@@ -145,19 +145,19 @@ cp .env.example .env
 docker compose up --build -d api
 ```
 
-API local:
+Local API URL:
 
 ```text
 http://localhost:5001
 ```
 
-Test tao ho so tre:
+Test child profile creation:
 
 ```http
 POST http://localhost:5001/child-profiles
 ```
 
-Body:
+Request body:
 
 ```json
 {
@@ -170,29 +170,29 @@ Body:
 }
 ```
 
-Dung backend:
+Stop the backend:
 
 ```bash
 docker compose down
 ```
 
-## Dataset cho AI Camera
+## AI Camera Dataset
 
-Thu muc dataset nam tai:
+The dataset folder is located at:
 
 ```text
 backend/datasets/
 ```
 
-Muc dich:
+Purpose:
 
-- Luu dataset phan loai rac.
-- Tai dataset garbage classification.
-- Loc anh ro/loai anh mo.
-- Tao manifest cho Rekognition Custom Labels.
-- Upload dataset da xu ly len S3.
+- Store waste classification datasets.
+- Download garbage classification datasets.
+- Filter clear images and reject blurry/low-quality images.
+- Generate manifests for Rekognition Custom Labels.
+- Upload processed datasets to S3.
 
-Mot so file quan trong:
+Important files:
 
 ```text
 backend/datasets/README.md
@@ -206,7 +206,7 @@ backend/datasets/upload_to_s3.sh
 backend/datasets/requirements.txt
 ```
 
-Thu muc du lieu:
+Data folders:
 
 ```text
 backend/datasets/raw/
@@ -214,19 +214,19 @@ backend/datasets/filtered/
 backend/datasets/rejected_blurry/
 ```
 
-Trong do:
+Folder meanings:
 
-- `raw/`: dataset goc tai ve.
-- `filtered/`: anh da loc va manifest sinh ra.
-- `rejected_blurry/`: anh bi loai do mo/chat luong kem.
+- `raw/`: original downloaded dataset.
+- `filtered/`: filtered images and generated manifests.
+- `rejected_blurry/`: images rejected because of blur or poor quality.
 
-Doc them huong dan rieng tai:
+For more details, see:
 
 ```text
 backend/datasets/README.md
 ```
 
-## Chay frontend web
+## Run Web Frontend
 
 ```bash
 cd frontend
@@ -234,13 +234,13 @@ npm install
 npm run dev
 ```
 
-Mac dinh Vite se in ra URL local trong terminal, thuong la:
+Vite will print the local development URL in the terminal, usually:
 
 ```text
 http://localhost:5173
 ```
 
-## Chay mobile app
+## Run Mobile App
 
 ```bash
 cd frontend/mobile
@@ -248,29 +248,29 @@ npm install
 npx expo start
 ```
 
-## Trang thai hien tai
+## Current Project Status
 
-- Frontend web da co UI va mock API cho cac module chinh.
-- Mobile app co scaffold Expo/React Native.
-- Backend da co cau truc module-based.
-- Backend co dataset pipeline trong `backend/datasets/` cho AI Camera/Rekognition.
-- API `POST /child-profiles` da chay duoc local bang Docker.
-- Local backend dang dung in-memory storage, chua ghi AWS neu chua tat `USE_IN_MEMORY_CHILD_PROFILES`.
-- README backend da co huong dan chi tiet de chay va test API.
+- Web frontend includes UI and mock APIs for the main modules.
+- Mobile app has an Expo/React Native scaffold.
+- Backend has a module-based structure.
+- Backend includes a dataset pipeline in `backend/datasets/` for AI Camera/Rekognition work.
+- `POST /child-profiles` can run locally with Docker.
+- Local backend currently uses in-memory storage unless `USE_IN_MEMORY_CHILD_PROFILES` is disabled.
+- Backend README includes detailed instructions for running and testing the API.
 
-## Ghi chu phat trien
+## Development Notes
 
-- Dung `backend/README.md` khi can chay/test backend.
-- Dung `frontend/README.md` khi can chay web/mobile frontend.
-- Khong commit file `.env`.
-- Port backend local dang dung `5001` vi `5000` co the bi service he thong tren macOS chiem.
-- Khi chuyen sang AWS that, can cau hinh credentials, Cognito User Pool, DynamoDB table va IAM permissions.
+- Use `backend/README.md` for backend setup and API testing.
+- Use `frontend/README.md` for web/mobile frontend setup.
+- Do not commit `.env` files.
+- The local backend uses port `5001` because port `5000` can be occupied by macOS system services.
+- To use real AWS services, configure AWS credentials, Cognito User Pool, DynamoDB table, and IAM permissions.
 
-## Dinh huong tiep theo
+## Next Steps
 
-- Ket noi frontend create-character screen voi `POST /child-profiles`.
-- Chuyen backend local tu in-memory sang DynamoDB local hoac DynamoDB AWS tuy moi truong.
-- Them API lay profile theo `childId`.
-- Them API cap nhat XP, level, streak, rewards.
-- Hoan thien AI Camera flow voi S3/Rekognition.
-- Them unit/integration tests cho backend.
+- Connect the frontend create-character screen to `POST /child-profiles`.
+- Switch backend local persistence from in-memory storage to DynamoDB Local or real DynamoDB depending on the environment.
+- Add an API to fetch a child profile by `childId`.
+- Add APIs to update XP, level, streak, and rewards.
+- Complete the AI Camera flow with S3 and Rekognition.
+- Add backend unit and integration tests.
