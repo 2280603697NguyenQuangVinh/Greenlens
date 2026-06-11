@@ -93,7 +93,7 @@ GreenLens Kids is an educational mobile and web application designed for childre
 ```
 Splash Screen → Login/Register → Onboarding → Dashboard
                                            ↓
-                    ┌──────────────────────┴──────────────────────┐
+                    ┌──────────────────────┴─────────────────────┐
                     ↓              ↓              ↓              ↓
                  Camera          Quiz        Mini Game      Profile
                     ↓              ↓              ↓              ↓
