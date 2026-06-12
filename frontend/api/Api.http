@@ -1,0 +1,15 @@
+@Api_HostAddress = http://localhost:5186
+
+POST {{Api_HostAddress}}/child-profiles
+Content-Type: application/json
+
+{
+  "characterName": "Gấu Xanh",
+  "gender": "male",
+  "hair": "hair_01",
+  "eyes": "eyes_01",
+  "outfit": "outfit_01",
+  "avatarPreview": "character_preview_01"
+}
+
+###
