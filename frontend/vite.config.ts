@@ -17,30 +17,20 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
-  publicDir: path.resolve(__dirname, './public'),
   plugins: [
     figmaAssetResolver(),
+    // The React and Tailwind plugins are both required for Make, even if
+    // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
   ],
   resolve: {
     alias: {
+      // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5186',
-        changeOrigin: true,
-      },
-      '/child-profiles': {
-        target: 'http://localhost:5186',
-        changeOrigin: true,
-      },
-    },
-  },
 
+  // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
