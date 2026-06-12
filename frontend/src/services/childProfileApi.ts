@@ -1,65 +1,47 @@
 import {
   toChildProfilePayload,
   type ChildProfileResponse,
-} from "@/lib/avatarMapper";
-import type { AvatarConfig } from "@/app/types";
+} from "@/utils/avatarMapper"
+import type { AvatarConfig } from "@/utils/types"
+import { ApiError, NetworkError, ValidationError } from "@/services/errors"
+import { apiUrl } from "@/services/http"
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
-const CHILD_PROFILES_PATH = `${API_BASE}/child-profiles`;
+export { ApiError, NetworkError, ValidationError }
 
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
-
-export class ApiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export class NetworkError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NetworkError";
-  }
-}
+const CHILD_PROFILES_PATH = apiUrl("/child-profiles")
 
 export function validateCharacterName(name: string): string | null {
   if (!name.trim()) {
-    return "Character Name is required";
+    return "Character Name is required"
   }
-  return null;
+  return null
 }
 
 export async function createChildProfile(
   cfg: AvatarConfig,
   characterName: string,
 ): Promise<ChildProfileResponse> {
-  const validationError = validateCharacterName(characterName);
+  const validationError = validateCharacterName(characterName)
   if (validationError) {
-    throw new ValidationError(validationError);
+    throw new ValidationError(validationError)
   }
 
-  const body = toChildProfilePayload(cfg, characterName);
+  const body = toChildProfilePayload(cfg, characterName)
 
-  let res: Response;
+  let res: Response
   try {
     res = await fetch(CHILD_PROFILES_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    })
   } catch {
-    throw new NetworkError("No internet connection. Please try again later.");
+    throw new NetworkError("No internet connection. Please try again later.")
   }
 
   if (!res.ok) {
-    throw new ApiError("Unable to create character profile. Please try again.");
+    throw new ApiError("Unable to create character profile. Please try again.")
   }
 
-  return res.json() as Promise<ChildProfileResponse>;
+  return res.json() as Promise<ChildProfileResponse>
 }

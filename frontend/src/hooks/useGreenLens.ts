@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+﻿import { useCallback, useState } from "react"
 import {
   api,
   clearSession,
@@ -7,8 +7,8 @@ import {
   type ClassificationResult,
   type QuizQuestion,
   type UserProfile,
-} from "@/lib/api"
-import type { AvatarConfig } from "@/app/types"
+} from "@/services/greenLensApi"
+import type { AvatarConfig } from "@/utils/types"
 import {
   createChildProfile,
   ValidationError,
