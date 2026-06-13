@@ -16,8 +16,8 @@ COPY src/GreenLens.Domain/GreenLens.Domain.csproj src/GreenLens.Domain/
 COPY src/GreenLens.Infrastructure/GreenLens.Infrastructure.csproj src/GreenLens.Infrastructure/
 COPY src/GreenLens.Shared/GreenLens.Shared.csproj src/GreenLens.Shared/
 
-# Restore dependencies
-RUN dotnet restore
+# Restore API dependencies only; test projects are not part of the runtime image build context.
+RUN dotnet restore src/GreenLens.Api/GreenLens.Api.csproj
 
 # Copy all source files
 COPY src/ src/

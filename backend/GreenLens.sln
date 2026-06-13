@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Infrastructure", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.Api", "src\GreenLens.Api\GreenLens.Api.csproj", "{3D6FF606-CC77-497B-8EFD-5777F92FE22B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenLens.UnitTests", "tests\GreenLens.UnitTests\GreenLens.UnitTests.csproj", "{8F3FB594-C40F-4DC7-A134-4AFDB59C73FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,5 +40,9 @@ Global
 		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3D6FF606-CC77-497B-8EFD-5777F92FE22B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F3FB594-C40F-4DC7-A134-4AFDB59C73FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F3FB594-C40F-4DC7-A134-4AFDB59C73FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F3FB594-C40F-4DC7-A134-4AFDB59C73FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F3FB594-C40F-4DC7-A134-4AFDB59C73FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

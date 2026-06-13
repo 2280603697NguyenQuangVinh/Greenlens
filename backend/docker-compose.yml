@@ -16,6 +16,10 @@ services:
 
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - USE_IN_MEMORY_CHILD_PROFILES=true
+      - ALLOW_DEV_AUTH=true
+      - USE_IN_MEMORY_CHILD_PROFILES=false
+      - USE_IN_MEMORY_AUTH=${USE_IN_MEMORY_AUTH:-false}
+      - CHILD_PROFILES_TABLE_NAME=${CHILD_PROFILES_TABLE_NAME:-GreenLens-ChildProfiles}
+      - AI_CAMERA_GUIDANCE_FALLBACK_ENABLED=${AI_CAMERA_GUIDANCE_FALLBACK_ENABLED:-true}
 
     restart: unless-stopped

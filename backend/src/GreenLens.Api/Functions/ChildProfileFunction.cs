@@ -4,6 +4,7 @@ using Amazon.CognitoIdentityProvider;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
+using GreenLens.Api.Auth;
 using GreenLens.Application.Modules.ChildProfiles.DTOs;
 using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using GreenLens.Application.Modules.ChildProfiles.Services;
@@ -20,15 +21,19 @@ public sealed class ChildProfileFunction
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IChildProfileService _childProfileService;
+    private readonly CognitoSubExtractor _cognitoSubExtractor;
 
     public ChildProfileFunction()
-        : this(CreateService())
+        : this(CreateService(), new CognitoSubExtractor())
     {
     }
 
-    public ChildProfileFunction(IChildProfileService childProfileService)
+    public ChildProfileFunction(
+        IChildProfileService childProfileService,
+        CognitoSubExtractor cognitoSubExtractor)
     {
         _childProfileService = childProfileService;
+        _cognitoSubExtractor = cognitoSubExtractor;
     }
 
     public async Task<APIGatewayProxyResponse> CreateAsync(
@@ -47,7 +52,13 @@ public sealed class ChildProfileFunction
 
         try
         {
-            var profile = await _childProfileService.CreateAsync(body!);
+            var cognitoSub = _cognitoSubExtractor.Extract(request);
+            if (string.IsNullOrWhiteSpace(cognitoSub))
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Authorization Bearer token is required." });
+            }
+
+            var profile = await _childProfileService.CreateAsync(body!, cognitoSub);
             return JsonResponse(HttpStatusCode.Created, profile);
         }
         catch (ArgumentException exception)

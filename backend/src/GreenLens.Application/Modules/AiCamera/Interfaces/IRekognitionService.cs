@@ -2,11 +2,9 @@ using GreenLens.Application.Modules.AiCamera.DTOs;
 
 namespace GreenLens.Application.Modules.AiCamera.Interfaces;
 
-public interface IImageStorageService
+public interface IRekognitionService
 {
-    Task<S3UploadResultDto> UploadImageAsync(
+    Task<DetectedLabelDto> DetectLabelsAsync(
         Stream imageStream,
-        string fileName,
-        string contentType,
         CancellationToken cancellationToken = default);
 }

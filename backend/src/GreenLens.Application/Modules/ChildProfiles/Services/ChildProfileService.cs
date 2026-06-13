@@ -13,6 +13,7 @@ public sealed class ChildProfileService(
 {
     public async Task<ChildProfileResponse> CreateAsync(
         CreateChildProfileRequest request,
+        string? cognitoSub = null,
         CancellationToken cancellationToken = default)
     {
         var validationErrors = validator.Validate(request);
@@ -23,15 +24,17 @@ public sealed class ChildProfileService(
 
         var now = DateTime.UtcNow;
         var childId = $"child_{Guid.NewGuid():N}";
-        var cognitoSub = await childIdentityService.CreateChildIdentityAsync(
-            childId,
-            request.CharacterName!.Trim(),
-            cancellationToken);
+        var resolvedCognitoSub = string.IsNullOrWhiteSpace(cognitoSub)
+            ? await childIdentityService.CreateChildIdentityAsync(
+                childId,
+                request.CharacterName!.Trim(),
+                cancellationToken)
+            : cognitoSub.Trim();
 
         var profile = new ChildProfile
         {
             ChildId = childId,
-            CognitoSub = cognitoSub,
+            CognitoSub = resolvedCognitoSub,
             CharacterName = request.CharacterName!.Trim(),
             Gender = request.Gender!.Trim(),
             Hair = request.Hair!.Trim(),

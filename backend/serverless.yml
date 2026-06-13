@@ -10,6 +10,14 @@ provider:
   environment:
     CHILD_PROFILES_TABLE_NAME: GreenLens-ChildProfiles
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID}
+    COGNITO_APP_CLIENT_SECRET: ${env:COGNITO_APP_CLIENT_SECRET, ''}
+    AI_CAMERA_BUCKET_NAME: ${env:AI_CAMERA_BUCKET_NAME}
+    BEDROCK_MODEL_ID: ${env:BEDROCK_MODEL_ID, 'amazon.nova-lite-v1:0'}
+    AI_CAMERA_GUIDANCE_FALLBACK_ENABLED: ${env:AI_CAMERA_GUIDANCE_FALLBACK_ENABLED, 'false'}
+  apiGateway:
+    binaryMediaTypes:
+      - multipart/form-data
   iam:
     role:
       statements:
@@ -23,13 +31,50 @@ provider:
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
+            - cognito-idp:AdminInitiateAuth
+            - cognito-idp:InitiateAuth
           Resource:
             - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+          Resource:
+            - Fn::Sub: arn:aws:s3:::${env:AI_CAMERA_BUCKET_NAME}/uploads/*
+        - Effect: Allow
+          Action:
+            - rekognition:DetectLabels
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource: "*"
 
 package:
   artifact: bin/Release/net8.0/greenlens-api.zip
 
 functions:
+  authRegister:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AuthFunction::RegisterAsync
+    events:
+      - http:
+          path: auth/register
+          method: post
+          cors: true
+  authLogin:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AuthFunction::LoginAsync
+    events:
+      - http:
+          path: auth/login
+          method: post
+          cors: true
+  authRefresh:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AuthFunction::RefreshAsync
+    events:
+      - http:
+          path: auth/refresh
+          method: post
+          cors: true
   createChildProfile:
     handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::CreateAsync
     events:
@@ -37,6 +82,19 @@ functions:
           path: child-profiles
           method: post
           cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  aiCameraAnalyze:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
+    events:
+      - http:
+          path: ai-camera/analyze
+          method: post
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
 
 resources:
   Resources:

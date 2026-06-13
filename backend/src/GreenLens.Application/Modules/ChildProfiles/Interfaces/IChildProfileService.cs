@@ -6,5 +6,6 @@ public interface IChildProfileService
 {
     Task<ChildProfileResponse> CreateAsync(
         CreateChildProfileRequest request,
+        string? cognitoSub = null,
         CancellationToken cancellationToken = default);
 }

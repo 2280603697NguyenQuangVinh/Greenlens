@@ -2,11 +2,10 @@ using GreenLens.Application.Modules.AiCamera.DTOs;
 
 namespace GreenLens.Application.Modules.AiCamera.Interfaces;
 
-public interface IImageStorageService
+public interface IBedrockGuidanceService
 {
-    Task<S3UploadResultDto> UploadImageAsync(
-        Stream imageStream,
-        string fileName,
-        string contentType,
+    Task<BedrockGuidanceDto> GenerateGuidanceAsync(
+        string label,
+        string category,
         CancellationToken cancellationToken = default);
 }
