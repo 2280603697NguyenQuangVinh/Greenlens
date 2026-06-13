@@ -1,181 +1,119 @@
-# GreenLens Kids — Frontend Architecture
+# GreenLens Kids — Frontend
 
-Educational nature app for kids (React + TypeScript + Vite). UI originated from [Figma Make](https://www.figma.com/design/1sYDbNjAjMKxVlRv7MQpEv/Flutter-Frontend-Architecture-Design); this repo implements a **layered frontend architecture** with mock APIs (no real backend required).
+Educational nature app for kids (React + TypeScript + Vite). UI originated from [Figma Make](https://www.figma.com/design/1sYDbNjAjMKxVlRv7MQpEv/Flutter-Frontend-Architecture-Design).
 
-## Run (Web)
+The frontend connects to the **GreenLens backend** (`../backend/`). Scanner, quiz, game, and TTS fall back to in-browser mocks when those `/api/*` endpoints are not available yet.
+
+---
+
+## Quick start
 
 ```bash
 npm install
+cp .env.example .env.local   # optional — defaults to localhost:5001
 npm run dev
 ```
 
-## Run (React Native / Expo)
+Open **http://localhost:5173/**.
 
-Main children's home screen UI lives in `mobile/`:
+### With local backend (BE team)
+
+From the repo root, start the API via Docker (see `../backend/README.md`):
 
 ```bash
-cd mobile
-npm install
-npx expo start
+cd ../backend
+docker compose up --build -d api
 ```
 
-See [mobile/README.md](./mobile/README.md) for component breakdown.
+API listens at **http://localhost:5001**. Vite proxies `/child-profiles` and `/api/*` to that URL.
+
+| Frontend path     | Proxied to (dev default)   |
+|-------------------|----------------------------|
+| `/child-profiles` | `http://localhost:5001`    |
+| `/api/*`          | `http://localhost:5001`    |
+
+Override the proxy target in `.env.local`:
+
+```env
+VITE_API_PROXY_TARGET=http://localhost:5001
+```
+
+For staging/production builds, set the full API URL:
+
+```env
+VITE_API_URL=https://api.greenlens.com
+```
+
+Force in-browser mocks only (skip network):
+
+```env
+VITE_USE_MOCK=true
+```
 
 ---
 
-## Implemented
+## How the app boots
 
-| # | Requirement | Status | Location |
-|---|-------------|--------|----------|
-| 1 | Authentication (Login, Register, flow) | Done | `src/features/auth/` |
-| 2 | Secure token storage | Done | `src/services/tokenStorage.ts` |
-| 3 | API layer (mock) | Done | `src/services/*Api.ts` |
-| 4 | State management (React Context) | Done | `src/state/*Store.ts` |
-| 5 | Daily Activity module | Done | `src/features/daily/DailyActivity.tsx` |
-| 6 | Communication flow diagram | Done | Below + this README |
-| 7 | Architecture explanation | Done | Below |
-| 8 | Standard folder structure | Done | `src/features`, `services`, `state`, `shared`, `routes`, `app` |
-| 9 | Mini Game module (placeholder) | Done | `src/features/mini-games/MiniGameModule.tsx` |
+```
+index.html
+    └── src/main.tsx
+            └── src/App.tsx          # phase-based navigation + screens
+                    └── useGreenLens()
+                            ├── src/services/greenLensApi.ts
+                            └── src/services/childProfileApi.ts
+```
 
-### Authentication flow
-
-1. `/splash` → redirects to `/login` or `/app` if token exists  
-2. **Login / Register** → `authService` → `authApi` (mock) → `tokenStorage` → `authStore`  
-3. Navigate to `/app` (protected routes)
-
-Login/register accept any email/password; no validation against a real server.
+The active app does **not** use React Router. Legacy router modules under `src/features/` and `src/pages/routes.tsx` remain but are not wired into `main.tsx`.
 
 ---
 
-## Current architecture
+## API layers
 
-### Folder structure
+**Child profile** — `src/services/childProfileApi.ts`
+
+- `POST /child-profiles` → GreenLens backend (`../backend/`)
+- Saves `childId` via `childProfileStorage.ts`
+
+**App features** — `src/services/greenLensApi.ts`
+
+- Endpoints: auth, scanner, quiz, game, TTS, user profile
+- Falls back to in-browser mocks when the backend is unreachable or endpoint not implemented
+
+---
+
+## Folder structure
 
 ```
 src/
-├── app/                 # App root + providers wiring
-│   └── App.tsx
-├── routes/              # React Router definitions
-│   └── index.tsx
-├── features/            # Feature modules (UI + feature logic)
-│   ├── auth/
-│   ├── splash/
-│   ├── dashboard/
-│   ├── daily/
-│   ├── camera/
-│   ├── quiz/
-│   ├── rewards/
-│   └── mini-games/
-├── services/            # API clients + token storage
-│   ├── tokenStorage.ts
-│   ├── authApi.ts
-│   ├── cameraApi.ts
-│   ├── quizApi.ts
-│   └── rewardApi.ts
-├── state/               # React Context stores
-│   ├── authStore.ts
-│   ├── rewardStore.ts
-│   ├── quizStore.ts
-│   └── index.ts
-├── shared/              # Layout, guards, reusable UI
-│   ├── Layout.tsx
-│   ├── ProtectedRoute.tsx
-│   └── components/ui/   # shadcn/Radix primitives
-├── styles/
-└── main.tsx
+├── App.tsx, main.tsx, index.css
+├── assets/          # images, avatar layers
+├── components/      # shared UI
+├── features/        # feature modules (pages, components, hooks)
+├── hooks/           # useGreenLens
+├── layout/          # Layout, ProtectedRoute
+├── pages/           # router configs (legacy)
+├── redux/           # stores (legacy router path)
+├── services/        # API clients
+└── utils/           # constants, types, mappers
 ```
 
-### Communication flow (Frontend → API → AWS)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         UI Layer                             │
-│  features/*  (Login, Dashboard, Camera, Quiz, Rewards…)     │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ user events
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   State Management                           │
-│  authStore │ rewardStore │ quizStore  (React Context)       │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ read / write state
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Services (API + tokenStorage)                   │
-│  authApi │ cameraApi │ quizApi │ rewardApi │ tokenStorage   │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ HTTP (mock today / real later)
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    AWS Backend (future)                      │
-│  API Gateway → Lambda → DynamoDB / S3 / Cognito             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Today:** service files return mock data after a short delay. **Later:** replace implementations in `src/services/*Api.ts` with `fetch()` to your AWS API Gateway endpoints without changing feature UI.
-
-### Data flow
-
-1. User action in a **feature screen** (e.g. capture photo).  
-2. Feature calls a **service** (`uploadImage`).  
-3. Service resolves mock/real JSON.  
-4. Feature updates **context** (`addXp`, `setAuth`).  
-5. **Token** persisted via `localStorage` when logging in.  
-6. UI re-renders from context hooks (`useAuth`, `useReward`, `useQuiz`).
-
-### State flow
-
-| Store | Responsibility |
-|-------|----------------|
-| `authStore` | User session, `isAuthenticated`, login/logout |
-| `rewardStore` | XP, level, streak, badges |
-| `quizStore` | Questions list, score, quiz progress |
-
-Providers are composed in `src/state/index.ts` → `AppProviders` wraps the router in `App.tsx`.
-
-### API flow (mock)
-
-```ts
-// Example: camera scan
-CameraModule → uploadImage() → cameraApi.ts → mock result → rewardStore.addXp()
-```
-
-### Reusable component strategy
-
-- **`shared/components/ui/`** — low-level primitives (Button, Card, Dialog…) from shadcn/Radix; use for new screens.  
-- **`shared/Layout.tsx`** — app shell (header, bottom nav).  
-- **`features/*`** — page-level modules; keep business logic thin; delegate to `services/` and `state/`.  
-- **Do not** import feature modules from other features; share via `state` or `shared/`.
+Backend lives in **`../backend/`** — not inside this frontend repo folder.
 
 ---
 
-## Routes
+## Scripts
 
-| Path | Screen |
-|------|--------|
-| `/splash` | Splash |
-| `/login` | Login |
-| `/register` | Register |
-| `/app` | Dashboard (protected) |
-| `/app/daily` | Daily Activity |
-| `/app/camera` | AI Camera |
-| `/app/quiz` | Quiz |
-| `/app/game` | Mini Games (placeholder) |
-| `/app/rewards` | Rewards |
+| Command         | Description                                        |
+|-----------------|----------------------------------------------------|
+| `npm run dev`   | Vite dev server (port 5173) — serves from `src/`   |
+| `npm run build` | Production build → `dist/` (gitignored, regenerated) |
+
+Static assets live in `src/assets/` — not in `dist/`. The `dist/` folder is build output only; do not commit it.
 
 ---
 
 ## Tech stack
 
-- React 18, TypeScript, Vite 6  
-- React Router 7  
-- Tailwind CSS 4  
-- Lucide icons  
-- React Context API (no Redux/Zustand required for this assignment)
-
----
-
-## Notes
-
-- Legacy files under `src/app/features/` and `src/app/components/` may remain from the Figma export; **active code** uses `src/features/` and `src/shared/`.  
-- Supabase edge functions in `/supabase` are optional scaffolding, not used by the mock frontend flow.
+- React 18, TypeScript, Vite 6
+- Tailwind CSS 4
+- Motion (animations)
