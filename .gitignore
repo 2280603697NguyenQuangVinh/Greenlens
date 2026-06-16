@@ -22,3 +22,6 @@ backend/datasets/.venv/
 backend/datasets/raw/
 backend/datasets/filtered/
 backend/datasets/rejected_blurry/
+# Added by code-review-graph
+.code-review-graph/
+.codegraph/

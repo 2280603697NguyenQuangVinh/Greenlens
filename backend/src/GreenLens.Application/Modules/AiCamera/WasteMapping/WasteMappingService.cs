@@ -11,9 +11,15 @@ public sealed class WasteMappingService : IWasteMappingService
         {
             ["Bottle"] = new(WasteCategories.Recyclable, "Green"),
             ["Plastic"] = new(WasteCategories.Recyclable, "Green"),
+            ["Plastic Bag"] = new(WasteCategories.Recyclable, "Green"),
             ["Paper"] = new(WasteCategories.Recyclable, "Green"),
+            ["Cardboard"] = new(WasteCategories.Recyclable, "Green"),
+            ["Can"] = new(WasteCategories.Recyclable, "Green"),
+            ["Aluminium"] = new(WasteCategories.Recyclable, "Green"),
             ["Food"] = new(WasteCategories.Organic, "Brown"),
+            ["Banana"] = new(WasteCategories.Organic, "Brown"),
             ["Battery"] = new(WasteCategories.Hazardous, "Red"),
+            ["Diaper"] = new(WasteCategories.NonRecyclable, "Gray"),
             ["Trash"] = new(WasteCategories.NonRecyclable, "Gray")
         };
 

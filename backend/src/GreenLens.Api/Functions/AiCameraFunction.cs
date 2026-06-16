@@ -191,7 +191,14 @@ public sealed class AiCameraFunction
             EnableFallbackGuidance = string.Equals(
                 Environment.GetEnvironmentVariable("AI_CAMERA_GUIDANCE_FALLBACK_ENABLED"),
                 "true",
-                StringComparison.OrdinalIgnoreCase)
+                StringComparison.OrdinalIgnoreCase),
+            SkipBedrockWhenFallbackEnabled = string.Equals(
+                Environment.GetEnvironmentVariable("AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED"),
+                "true",
+                StringComparison.OrdinalIgnoreCase),
+            MaxTokens = int.TryParse(Environment.GetEnvironmentVariable("BEDROCK_MAX_TOKENS"), out var maxTokens)
+                ? maxTokens
+                : 180
         };
 
         var imageStorage = new S3StorageService(new AmazonS3Client(), s3Options, new S3KeyBuilder());

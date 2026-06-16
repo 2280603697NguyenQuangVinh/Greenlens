@@ -7,6 +7,22 @@ namespace GreenLens.Infrastructure.AWS.Rekognition;
 
 public sealed class RekognitionService : IRekognitionService
 {
+    private static readonly string[] PreferredWasteLabels =
+    [
+        "Battery",
+        "Paper",
+        "Cardboard",
+        "Bottle",
+        "Plastic Bottle",
+        "Plastic Bag",
+        "Plastic",
+        "Can",
+        "Aluminium",
+        "Food",
+        "Banana",
+        "Trash"
+    ];
+
     private readonly IAmazonRekognition _rekognitionClient;
     private readonly RekognitionOptions _options;
 
@@ -43,8 +59,12 @@ public sealed class RekognitionService : IRekognitionService
             cancellationToken);
 
         var label = response.Labels
+            .Where(IsPreferredWasteLabel)
             .OrderByDescending(item => item.Confidence)
-            .FirstOrDefault();
+            .FirstOrDefault() ??
+            response.Labels
+                .OrderByDescending(item => item.Confidence)
+                .FirstOrDefault();
 
         if (label is null || string.IsNullOrWhiteSpace(label.Name))
         {
@@ -52,5 +72,16 @@ public sealed class RekognitionService : IRekognitionService
         }
 
         return new DetectedLabelDto(label.Name, label.Confidence);
+    }
+
+    private static bool IsPreferredWasteLabel(Label label)
+    {
+        if (string.IsNullOrWhiteSpace(label.Name))
+        {
+            return false;
+        }
+
+        return PreferredWasteLabels.Any(preferred =>
+            label.Name.Contains(preferred, StringComparison.OrdinalIgnoreCase));
     }
 }
