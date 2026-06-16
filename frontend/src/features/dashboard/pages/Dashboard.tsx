@@ -1,4 +1,6 @@
-﻿import { Link } from "react-router";
+import { Link } from "react-router";
+import { MASCOT_IMAGE } from "@/assets";
+
 import { Star, Lock, Play } from "lucide-react";
 import { useAuth } from "@/redux/authStore";
 import { useReward } from "@/redux/rewardStore";
@@ -45,9 +47,12 @@ export default function Dashboard() {
 
       {/* Mascot + speech */}
       <div className="px-4 flex items-end gap-2 mb-4">
-        <div className="w-16 h-16 shrink-0 text-5xl leading-none" aria-hidden>
-          ☕
-        </div>
+        <img
+          src={MASCOT_IMAGE}
+          alt="Mascot"
+          className="h-16 w-auto shrink-0 object-contain"
+          draggable={false}
+        />
         <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border-2 border-green-100 flex-1">
           <p className="text-sm font-semibold text-slate-700 leading-snug">
             Chào {name}! Sẵn sàng cho thử thách hôm nay chưa? 🔥

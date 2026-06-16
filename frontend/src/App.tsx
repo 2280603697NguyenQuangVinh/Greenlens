@@ -1,16 +1,16 @@
-﻿"use client"
+"use client"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { loadStoredProfile } from "@/services/greenLensApi"
+import { loadStoredProfile } from "@/services/greenLens"
 import { useGreenLens } from "@/hooks/useGreenLens"
 import { hasChildProfile } from "@/services/childProfileStorage"
-import { SCREEN_LABELS, FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
+import { BRAND_MINT_BG, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { AvatarScreen } from "@/features/avatar/pages/AvatarScreen"
 import { SplashScreen } from "@/features/splash/pages/SplashScreen"
 import { AdminLoginScreen } from "@/features/auth/pages/AdminLoginScreen"
 import { DashboardScreen } from "@/features/dashboard/pages/DashboardScreen"
-import { ScannerScreen } from "@/features/scanner/pages/ScannerScreen"
+import CameraModule from "@/features/camera/pages/CameraModule"
 import { QuizScreen } from "@/features/quiz/pages/QuizScreen"
 import { GameScreen } from "@/features/game/pages/GameScreen"
 import { ProfileScreen } from "@/features/profile/pages/ProfileScreen"
@@ -148,27 +148,26 @@ export default function App() {
   return (
     <div
       className="min-h-screen flex flex-col items-center p-0 sm:p-4 gap-2 overflow-auto"
-      style={{ background: "linear-gradient(135deg,#BBF7D0 0%,#A7F3D0 30%,#D1FAE5 60%,#ECFDF5 100%)" }}
+      style={{
+        background:
+          phase === "splash"
+            ? BRAND_MINT_BG
+            : "linear-gradient(135deg,#BBF7D0 0%,#A7F3D0 30%,#D1FAE5 60%,#ECFDF5 100%)",
+      }}
     >
-      {/* Decorative background leaves */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {["🌿", "🍃", "🌱", "🌿", "🍀", "🌲"].map((e, i) => (
-          <div
-            key={i}
-            className="absolute text-2xl opacity-20 select-none"
-            style={{ left: `${10 + i * 16}%`, top: `${5 + i * 15}%`, transform: `rotate(${i * 37}deg)`, fontSize: 20 + i * 4 }}
-          >
-            {e}
-          </div>
-        ))}
-      </div>
-
-      {phase !== "splash" ? (
-        <div className="text-green-800 font-bold text-sm flex items-center gap-2 opacity-80" style={FF_FREDOKA}>
-          🌍 GreenLens Kids
-          {gl.busy && <span className="text-xs font-normal opacity-70">· đang xử lý...</span>}
+      {phase !== "splash" && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          {["🌿", "🍃", "🌱", "🌿", "🍀", "🌲"].map((e, i) => (
+            <div
+              key={i}
+              className="absolute text-2xl opacity-20 select-none"
+              style={{ left: `${10 + i * 16}%`, top: `${5 + i * 15}%`, transform: `rotate(${i * 37}deg)`, fontSize: 20 + i * 4 }}
+            >
+              {e}
+            </div>
+          ))}
         </div>
-      ) : null}
+      )}
 
       {phase !== "splash" && gl.error && (
         <p className="text-red-600 text-xs px-4 text-center max-w-md" style={FF_COMFORTAA}>
@@ -176,9 +175,14 @@ export default function App() {
         </p>
       )}
 
-      {/* Responsive app container (no rigid phone mockup frame) */}
-      <div className="relative w-full max-w-[430px] min-h-screen sm:min-h-[860px] sm:rounded-[28px] sm:shadow-2xl overflow-hidden bg-[#F0FDF4]">
-          <div className="absolute inset-0 overflow-hidden" style={{ background: "#F0FDF4" }}>
+      <div
+        className="relative w-full max-w-[430px] min-h-screen sm:min-h-[860px] sm:rounded-[28px] sm:shadow-2xl overflow-hidden"
+        style={{ background: phase === "splash" ? BRAND_MINT_BG : "#F0FDF4" }}
+      >
+          <div
+            className="absolute inset-0 overflow-hidden"
+            style={{ background: phase === "splash" ? BRAND_MINT_BG : "#F0FDF4" }}
+          >
             <AnimatePresence mode="wait">
               {phase === "splash" && (
                 <motion.div
@@ -219,13 +223,11 @@ export default function App() {
               )}
               {phase === "app" && screen === 2 && gl.profile && (
                 <motion.div key="s2" className="absolute inset-0" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ duration: 0.25 }}>
-                  <ScannerScreen
-                    busy={gl.busy}
+                  <CameraModule
+                    avatarCfg={cfg}
                     onBack={() => go(1)}
-                    onAnalyze={gl.analyzeImage}
-                    onSpeak={gl.speak}
                     onGoQuiz={() => go(3)}
-                    scanResult={gl.lastScan}
+                    onResult={gl.handleCameraResult}
                   />
                 </motion.div>
               )}
@@ -273,26 +275,6 @@ export default function App() {
             ) : null}
           </div>
       </div>
-
-      {/* Screen dots (only for app phase) */}
-      {phase === "app" && (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-green-700 text-xs font-semibold opacity-70" style={FF_COMFORTAA}>
-            {SCREEN_LABELS[screen] ?? ""}
-          </p>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <button
-                key={i}
-                onClick={() => (gl.profile ? go(i) : undefined)}
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  screen === i ? "bg-green-600 w-7" : "bg-green-300 hover:bg-green-400 w-2.5"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Avatar phase label */}
       {phase === "avatar" && (

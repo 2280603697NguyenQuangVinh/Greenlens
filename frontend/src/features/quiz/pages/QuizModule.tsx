@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { BrainCircuit, Check, X, ArrowRight, Trophy } from "lucide-react";
-import { fetchDailyQuiz, submitQuizAnswers, type QuizQuestion } from "@/services/quizApi";
+import { fetchDailyQuiz, submitQuizAnswers, type QuizQuestion } from "@/services/quiz";
 import { useQuiz } from "@/redux/quizStore";
 import { useReward } from "@/redux/rewardStore";
 

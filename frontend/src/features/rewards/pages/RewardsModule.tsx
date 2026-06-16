@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Trophy, Star, Medal, Flame, Lock } from "lucide-react";
-import { fetchRewardProfile } from "@/services/rewardApi";
+import { fetchRewardProfile } from "@/services/rewards";
 import { useReward } from "@/redux/rewardStore";
-import type { Badge } from "@/services/rewardApi";
+import type { Badge } from "@/services/rewards";
 
 export default function RewardsModule() {
   const { level, xp, xpToNextLevel, streak, badges, setProfile, addXp } = useReward();

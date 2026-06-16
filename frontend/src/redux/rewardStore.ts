@@ -7,7 +7,7 @@ import {
   createElement,
   type ReactNode,
 } from "react";
-import type { Badge } from "@/services/rewardApi";
+import type { Badge } from "@/services/rewards";
 
 export interface RewardState {
   level: number;

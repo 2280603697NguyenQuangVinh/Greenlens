@@ -16,6 +16,11 @@ export const BACKGROUND_IMAGE = new URL(
   import.meta.url,
 ).href
 
+export const MASCOT_IMAGE = new URL(
+  "./Character/mascot/mascot.png",
+  import.meta.url,
+).href
+
 export function getUiAsset(fileName: string) {
   return UI_BY_NAME[fileName] ?? ""
 }

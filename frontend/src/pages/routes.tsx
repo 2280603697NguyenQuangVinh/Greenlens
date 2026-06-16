@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import ProtectedRoute from "@/layout/ProtectedRoute";
 import Layout from "@/layout/Layout";
 import Splash from "@/features/splash/pages/Splash";
@@ -6,7 +6,7 @@ import Login from "@/features/auth/pages/Login";
 import Register from "@/features/auth/pages/Register";
 import Dashboard from "@/features/dashboard/pages/Dashboard";
 import DailyActivity from "@/features/daily/pages/DailyActivity";
-import CameraModule from "@/features/camera/pages/CameraModule";
+import CameraRoute from "@/features/camera/pages/CameraRoute";
 import QuizModule from "@/features/quiz/pages/QuizModule";
 import RewardsModule from "@/features/rewards/pages/RewardsModule";
 import MiniGameModule from "@/features/mini-games/pages/MiniGameModule";
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, Component: Dashboard },
           { path: "daily", Component: DailyActivity },
-          { path: "camera", Component: CameraModule },
+          { path: "camera", Component: CameraRoute },
           { path: "quiz", Component: QuizModule },
           { path: "rewards", Component: RewardsModule },
           { path: "game", Component: MiniGameModule },

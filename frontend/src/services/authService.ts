@@ -1,13 +1,13 @@
-import * as authApi from "@/services/authApi"
+import * as auth from "@/services/auth"
 import {
   setToken,
   setStoredUser,
   clearSession,
 } from "@/services/tokenStorage"
-import type { AuthUser } from "@/services/authApi"
+import type { AuthUser } from "@/services/auth"
 
 export async function login(email: string, password: string): Promise<AuthUser> {
-  const { token, user } = await authApi.login(email, password)
+  const { token, user } = await auth.login(email, password)
   setToken(token)
   setStoredUser({ email: user.email, name: user.name })
   return user
@@ -18,13 +18,13 @@ export async function register(
   password: string,
   name?: string,
 ): Promise<AuthUser> {
-  const { token, user } = await authApi.register(email, password, name)
+  const { token, user } = await auth.register(email, password, name)
   setToken(token)
   setStoredUser({ email: user.email, name: user.name })
   return user
 }
 
 export async function logout(): Promise<void> {
-  await authApi.logout()
+  await auth.logout()
   clearSession()
 }

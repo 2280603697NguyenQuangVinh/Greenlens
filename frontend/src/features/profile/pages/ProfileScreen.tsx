@@ -1,11 +1,12 @@
-﻿import React from "react"
-import type { UserProfile } from "@/services/greenLensApi"
+import React from "react"
+import type { UserProfile } from "@/services/greenLens"
 import { Mascot } from "@/features/dashboard/components/Mascot"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
 import { FF_FREDOKA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 
-import { BACKGROUND_IMAGE } from "@/assets"
+import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
+import { AchievementBadgeCard } from "@/features/dashboard/components/AchievementBadge"
 
 const BG = BACKGROUND_IMAGE
 
@@ -29,14 +30,12 @@ export function ProfileScreen({
   const xp = profile.xp || 1280
   const xpMax = 2500
   const xpPct = Math.min(100, Math.round((xp / xpMax) * 100))
-  const badgeCards = [
-    { title: "Quét Rác\nLần Đầu", date: "05/11/2026", unlocked: true, icon: "♻️" },
-    { title: "Siêu Sao\nCâu Đố", date: "Chưa h/thành", unlocked: false, icon: "⭐" },
-    { title: "Vua Trò\nChơi", date: "Chưa h/thành", unlocked: false, icon: "👑" },
-    { title: "Nhà Vệ\nSinh Nhỏ", date: "Chưa h/thành", unlocked: false, icon: "🧹" },
-    { title: "Thách Thức\n7 ngày", date: "Chưa h/thành", unlocked: false, icon: "📅" },
-    { title: "Vệ Sĩ Cây\nXanh", date: "Chưa h/thành", unlocked: false, icon: "🛡️" },
-  ]
+  const isUnlocked = (id: string) => DEFAULT_UNLOCKED.includes(id as (typeof DEFAULT_UNLOCKED)[number])
+  const badgeCards = ACHIEVEMENTS.map((achievement) => ({
+    achievement,
+    unlocked: isUnlocked(achievement.id),
+    date: isUnlocked(achievement.id) ? "05/11/2026" : "Chưa h/thành",
+  }))
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
@@ -83,20 +82,13 @@ export function ProfileScreen({
 
       <div className="flex-1 overflow-y-auto px-4 pb-2">
         <div className="grid grid-cols-3 gap-3">
-          {badgeCards.map((b, i) => (
-            <div
-              key={i}
-              className={`relative rounded-3xl border border-slate-200 px-2 py-3 text-center ${
-                b.unlocked ? "bg-[#d9eebf]" : "bg-[#aab8ac]/60 opacity-70"
-              }`}
-            >
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#d8d8d8] text-4xl">
-                {b.icon}
-              </div>
-              <p className="mt-2 whitespace-pre-line text-[13px] font-bold leading-tight">{b.title}</p>
-              <p className="mt-1 text-[12px] font-semibold text-slate-700">{b.date}</p>
-              {!b.unlocked && <div className="absolute right-2 top-2 text-2xl">🔒</div>}
-            </div>
+          {badgeCards.map(({ achievement, unlocked, date }) => (
+            <AchievementBadgeCard
+              key={achievement.id}
+              achievement={achievement}
+              unlocked={unlocked}
+              date={date}
+            />
           ))}
         </div>
 
