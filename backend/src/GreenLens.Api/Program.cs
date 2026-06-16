@@ -18,6 +18,7 @@ using GreenLens.Application.Modules.ChildProfiles.Validators;
 using GreenLens.Domain.Common.Interfaces;
 using GreenLens.Infrastructure.AWS.Bedrock;
 using GreenLens.Infrastructure.AWS.Cognito;
+using GreenLens.Infrastructure.AWS.DynamoDB;
 using GreenLens.Infrastructure.AWS.Rekognition;
 using GreenLens.Infrastructure.AWS.S3;
 using GreenLens.Infrastructure.Repositories;
@@ -45,6 +46,12 @@ builder.Services.AddSingleton(new BedrockOptions
     SkipBedrockWhenFallbackEnabled = builder.Configuration.GetValue<bool>("AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED"),
     MaxTokens = builder.Configuration.GetValue<int?>("BEDROCK_MAX_TOKENS") ?? 180
 });
+builder.Services.AddSingleton(new AiCameraUsageLimiterOptions
+{
+    TableName = builder.Configuration["AI_CAMERA_USAGE_TABLE_NAME"] ?? "GreenLens-AiUsage",
+    PerMinuteLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_PER_MINUTE_LIMIT") ?? 3,
+    PerDayLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_DAILY_LIMIT") ?? 20
+});
 builder.Services.AddSingleton(new CognitoAuthOptions
 {
     UserPoolId = builder.Configuration["COGNITO_USER_POOL_ID"] ?? string.Empty,
@@ -56,6 +63,22 @@ builder.Services.AddSingleton<IImageStorageService, S3StorageService>();
 builder.Services.AddSingleton<IRekognitionService, RekognitionService>();
 builder.Services.AddSingleton<IWasteMappingService, WasteMappingService>();
 builder.Services.AddSingleton<IBedrockGuidanceService, BedrockGuidanceService>();
+builder.Services.AddSingleton<IAiCameraUsageLimiter>(serviceProvider =>
+{
+    if (!builder.Configuration.GetValue("AI_CAMERA_USAGE_LIMITER_ENABLED", true))
+    {
+        return new NoopAiCameraUsageLimiter();
+    }
+
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    return new DynamoDbAiCameraUsageLimiter(
+        dynamoDb,
+        serviceProvider.GetRequiredService<AiCameraUsageLimiterOptions>());
+});
 builder.Services.AddSingleton<IAiCameraService, AiCameraService>();
 builder.Services.AddSingleton<IAuthService>(serviceProvider =>
 {
@@ -322,12 +345,14 @@ app.MapPost("/ai-camera/analyze", async (
         }
 
         await using var imageStream = image.OpenReadStream();
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
         var response = await aiCameraService.AnalyzeAsync(
             new AiCameraAnalyzeRequest(
                 childId,
                 imageStream,
                 image.FileName,
-                image.ContentType),
+                image.ContentType,
+                cognitoSub),
             httpRequest.HttpContext.RequestAborted);
 
         return Results.Ok(response);
@@ -335,6 +360,10 @@ app.MapPost("/ai-camera/analyze", async (
     catch (ArgumentException exception)
     {
         return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (AiCameraQuotaExceededException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status429TooManyRequests);
     }
     catch (InvalidOperationException exception)
     {

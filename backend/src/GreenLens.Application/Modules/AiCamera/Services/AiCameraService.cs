@@ -9,17 +9,20 @@ public sealed class AiCameraService : IAiCameraService
     private readonly IRekognitionService _rekognitionService;
     private readonly IWasteMappingService _wasteMappingService;
     private readonly IBedrockGuidanceService _bedrockGuidanceService;
+    private readonly IAiCameraUsageLimiter _usageLimiter;
 
     public AiCameraService(
         IImageStorageService imageStorageService,
         IRekognitionService rekognitionService,
         IWasteMappingService wasteMappingService,
-        IBedrockGuidanceService bedrockGuidanceService)
+        IBedrockGuidanceService bedrockGuidanceService,
+        IAiCameraUsageLimiter usageLimiter)
     {
         _imageStorageService = imageStorageService;
         _rekognitionService = rekognitionService;
         _wasteMappingService = wasteMappingService;
         _bedrockGuidanceService = bedrockGuidanceService;
+        _usageLimiter = usageLimiter;
     }
 
     public async Task<AiCameraAnalyzeResponse> AnalyzeAsync(
@@ -29,6 +32,17 @@ public sealed class AiCameraService : IAiCameraService
         if (string.IsNullOrWhiteSpace(request.ChildId))
         {
             throw new ArgumentException("childId is required.", nameof(request));
+        }
+
+        var quota = await _usageLimiter.CheckAndConsumeAsync(
+            request.CognitoSub ?? string.Empty,
+            request.ChildId,
+            cancellationToken);
+
+        if (!quota.Allowed)
+        {
+            throw new AiCameraQuotaExceededException(
+                quota.Message ?? "AI Camera usage limit reached.");
         }
 
         if (request.ImageStream is null || !request.ImageStream.CanRead)

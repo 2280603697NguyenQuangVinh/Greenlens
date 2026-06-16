@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Amazon.BedrockRuntime;
+using Amazon.DynamoDBv2;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using Amazon.Rekognition;
@@ -11,6 +12,7 @@ using GreenLens.Application.Modules.AiCamera.Interfaces;
 using GreenLens.Application.Modules.AiCamera.Services;
 using GreenLens.Application.Modules.AiCamera.WasteMapping;
 using GreenLens.Infrastructure.AWS.Bedrock;
+using GreenLens.Infrastructure.AWS.DynamoDB;
 using GreenLens.Infrastructure.AWS.Rekognition;
 using GreenLens.Infrastructure.AWS.S3;
 using Microsoft.AspNetCore.WebUtilities;
@@ -41,6 +43,7 @@ public sealed class AiCameraFunction
         try
         {
             var analyzeRequest = await ParseMultipartRequestAsync(request);
+            analyzeRequest = analyzeRequest with { CognitoSub = GetCognitoSub(request) };
             await using (analyzeRequest.ImageStream)
             {
                 context.Logger.LogLine($"AI camera analyze started for childId={analyzeRequest.ChildId}.");
@@ -57,6 +60,11 @@ public sealed class AiCameraFunction
         {
             context.Logger.LogLine($"Invalid AI camera request: {exception.Message}");
             return JsonResponse(HttpStatusCode.BadRequest, new { message = exception.Message });
+        }
+        catch (AiCameraQuotaExceededException exception)
+        {
+            context.Logger.LogLine($"AI camera quota exceeded: {exception.Message}");
+            return JsonResponse(HttpStatusCode.TooManyRequests, new { message = exception.Message });
         }
         catch (InvalidOperationException exception)
         {
@@ -173,6 +181,18 @@ public sealed class AiCameraFunction
         return null;
     }
 
+    private static string? GetCognitoSub(APIGatewayProxyRequest request)
+    {
+        if (request.RequestContext?.Authorizer?.Claims is null)
+        {
+            return null;
+        }
+
+        return request.RequestContext.Authorizer.Claims.TryGetValue("sub", out var sub)
+            ? sub
+            : null;
+    }
+
     private static IAiCameraService CreateService()
     {
         var region = Environment.GetEnvironmentVariable("AWS_REGION")
@@ -205,8 +225,31 @@ public sealed class AiCameraFunction
         var rekognition = new RekognitionService(new AmazonRekognitionClient(), new RekognitionOptions());
         var wasteMapping = new WasteMappingService();
         var bedrock = new BedrockGuidanceService(new AmazonBedrockRuntimeClient(), bedrockOptions);
+        IAiCameraUsageLimiter usageLimiter;
+        if (string.Equals(
+                Environment.GetEnvironmentVariable("AI_CAMERA_USAGE_LIMITER_ENABLED"),
+                "false",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            usageLimiter = new NoopAiCameraUsageLimiter();
+        }
+        else
+        {
+            usageLimiter = new DynamoDbAiCameraUsageLimiter(
+                new AmazonDynamoDBClient(),
+                new AiCameraUsageLimiterOptions
+                {
+                    TableName = Environment.GetEnvironmentVariable("AI_CAMERA_USAGE_TABLE_NAME") ?? "GreenLens-AiUsage",
+                    PerMinuteLimit = int.TryParse(Environment.GetEnvironmentVariable("AI_CAMERA_PER_MINUTE_LIMIT"), out var perMinuteLimit)
+                        ? perMinuteLimit
+                        : 3,
+                    PerDayLimit = int.TryParse(Environment.GetEnvironmentVariable("AI_CAMERA_DAILY_LIMIT"), out var perDayLimit)
+                        ? perDayLimit
+                        : 20
+                });
+        }
 
-        return new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock);
+        return new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
     }
 
     private static APIGatewayProxyResponse JsonResponse(HttpStatusCode statusCode, object body)

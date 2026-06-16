@@ -71,6 +71,46 @@ Xem log:
 docker compose logs -f api
 ```
 
+## S3 lifecycle cho AI Camera
+
+Anh upload cua AI Camera duoc luu duoi prefix:
+
+```text
+uploads/yyyy/MM/dd/
+```
+
+Bucket S3 nen co lifecycle rule xoa prefix `uploads/` sau 1 ngay de tranh luu anh test qua lau. Chay lenh sau de ap dung rule cho bucket trong `AI_CAMERA_BUCKET_NAME`:
+
+```bash
+./scripts/configure-ai-camera-s3-lifecycle.sh
+```
+
+Rule nay khong anh huong Rekognition trong request hien tai, vi backend da doc anh vao memory de upload S3 va goi Rekognition truoc khi object het han.
+
+## Security va cost guard cho AI Camera
+
+AI Camera co 2 lop chong spam:
+
+- AWS WAF trong `serverless.yml` de rate limit API Gateway theo IP.
+- DynamoDB quota trong backend de gioi han theo `cognitoSub` + `childId`.
+
+Mac dinh local/dev:
+
+```env
+AI_CAMERA_USAGE_LIMITER_ENABLED=true
+AI_CAMERA_USAGE_TABLE_NAME=GreenLens-AiUsage
+AI_CAMERA_PER_MINUTE_LIMIT=3
+AI_CAMERA_DAILY_LIMIT=20
+```
+
+Neu vuot quota, API tra ve:
+
+```http
+429 Too Many Requests
+```
+
+Bang `GreenLens-AiUsage` dung TTL `expiresAt` de tu don counter cu. Tao bang bang CloudFormation khi deploy `serverless.yml`, hoac tao bang that tren AWS neu test local voi DynamoDB that.
+
 Dung API:
 
 ```bash

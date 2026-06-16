@@ -14,14 +14,16 @@ public sealed class AiCameraServiceTests
         var rekognition = new FakeRekognitionService();
         var wasteMapping = new FakeWasteMappingService();
         var bedrock = new FakeBedrockGuidanceService();
-        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock);
+        var usageLimiter = new FakeUsageLimiter();
+        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
 
-        await using var image = new MemoryStream(new byte[] { 1, 2, 3 });
+        await using var image = new MemoryStream(PngBytes());
         var response = await service.AnalyzeAsync(new AiCameraAnalyzeRequest(
             "child_123",
             image,
             "bottle.png",
-            "image/png"));
+            "image/png",
+            "cognito-sub-123"));
 
         Assert.Equal("child_123", response.ChildId);
         Assert.Equal("Bottle", response.Label);
@@ -32,6 +34,38 @@ public sealed class AiCameraServiceTests
         Assert.True(imageStorage.WasCalled);
         Assert.True(rekognition.WasCalled);
         Assert.True(bedrock.WasCalled);
+        Assert.True(usageLimiter.WasCalled);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_WhenQuotaExceeded_DoesNotCallPipeline()
+    {
+        var imageStorage = new FakeImageStorageService();
+        var rekognition = new FakeRekognitionService();
+        var wasteMapping = new FakeWasteMappingService();
+        var bedrock = new FakeBedrockGuidanceService();
+        var usageLimiter = new FakeUsageLimiter(false);
+        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
+
+        await using var image = new MemoryStream(PngBytes());
+        var exception = await Assert.ThrowsAsync<AiCameraQuotaExceededException>(() =>
+            service.AnalyzeAsync(new AiCameraAnalyzeRequest(
+                "child_123",
+                image,
+                "bottle.png",
+                "image/png",
+                "cognito-sub-123")));
+
+        Assert.Equal("Daily limit reached.", exception.Message);
+        Assert.True(usageLimiter.WasCalled);
+        Assert.False(imageStorage.WasCalled);
+        Assert.False(rekognition.WasCalled);
+        Assert.False(bedrock.WasCalled);
+    }
+
+    private static byte[] PngBytes()
+    {
+        return [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
     }
 
     private sealed class FakeImageStorageService : IImageStorageService
@@ -93,6 +127,32 @@ public sealed class AiCameraServiceTests
                 "Rửa sạch trước khi bỏ vào thùng tái chế.",
                 "Có thể dùng làm chậu cây nhỏ.",
                 "Tái chế giúp giảm rác ngoài môi trường."));
+        }
+    }
+
+    private sealed class FakeUsageLimiter : IAiCameraUsageLimiter
+    {
+        private readonly bool _allowed;
+
+        public FakeUsageLimiter(bool allowed = true)
+        {
+            _allowed = allowed;
+        }
+
+        public bool WasCalled { get; private set; }
+
+        public Task<AiCameraUsageQuotaResult> CheckAndConsumeAsync(
+            string cognitoSub,
+            string childId,
+            CancellationToken cancellationToken = default)
+        {
+            WasCalled = true;
+            Assert.Equal("cognito-sub-123", cognitoSub);
+            Assert.Equal("child_123", childId);
+
+            return Task.FromResult(_allowed
+                ? new AiCameraUsageQuotaResult(true)
+                : new AiCameraUsageQuotaResult(false, "Daily limit reached."));
         }
     }
 }

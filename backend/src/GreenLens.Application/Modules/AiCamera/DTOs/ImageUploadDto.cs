@@ -4,7 +4,8 @@ public sealed record AiCameraAnalyzeRequest(
     string ChildId,
     Stream ImageStream,
     string FileName,
-    string ContentType);
+    string ContentType,
+    string? CognitoSub = null);
 
 public sealed record S3UploadResultDto(
     string S3ImageKey,

@@ -17,6 +17,10 @@ provider:
     BEDROCK_MAX_TOKENS: ${env:BEDROCK_MAX_TOKENS, '180'}
     AI_CAMERA_GUIDANCE_FALLBACK_ENABLED: ${env:AI_CAMERA_GUIDANCE_FALLBACK_ENABLED, 'false'}
     AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED: ${env:AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED, 'false'}
+    AI_CAMERA_USAGE_LIMITER_ENABLED: ${env:AI_CAMERA_USAGE_LIMITER_ENABLED, 'true'}
+    AI_CAMERA_USAGE_TABLE_NAME: GreenLens-AiUsage
+    AI_CAMERA_PER_MINUTE_LIMIT: ${env:AI_CAMERA_PER_MINUTE_LIMIT, '3'}
+    AI_CAMERA_DAILY_LIMIT: ${env:AI_CAMERA_DAILY_LIMIT, '20'}
   apiGateway:
     binaryMediaTypes:
       - multipart/form-data
@@ -29,6 +33,13 @@ provider:
           Resource:
             - Fn::GetAtt:
                 - ChildProfilesTable
+                - Arn
+        - Effect: Allow
+          Action:
+            - dynamodb:UpdateItem
+          Resource:
+            - Fn::GetAtt:
+                - AiCameraUsageTable
                 - Arn
         - Effect: Allow
           Action:
@@ -50,6 +61,7 @@ provider:
         - Effect: Allow
           Action:
             - bedrock:InvokeModel
+            - bedrock:Converse
           Resource: "*"
 
 package:
@@ -120,3 +132,114 @@ resources:
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
+
+    AiCameraUsageTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-AiUsage
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: quotaKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: quotaKey
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    GreenLensApiWebAcl:
+      Type: AWS::WAFv2::WebACL
+      Properties:
+        Name: GreenLensApiWebAcl-${sls:stage}
+        Scope: REGIONAL
+        DefaultAction:
+          Allow: {}
+        VisibilityConfig:
+          CloudWatchMetricsEnabled: true
+          MetricName: GreenLensApiWebAcl
+          SampledRequestsEnabled: true
+        Rules:
+          - Name: AWSManagedCommonRules
+            Priority: 0
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesCommonRuleSet
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedCommonRules
+              SampledRequestsEnabled: true
+          - Name: AWSManagedKnownBadInputs
+            Priority: 1
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesKnownBadInputsRuleSet
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedKnownBadInputs
+              SampledRequestsEnabled: true
+          - Name: AWSManagedAmazonIpReputation
+            Priority: 2
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAmazonIpReputationList
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedAmazonIpReputation
+              SampledRequestsEnabled: true
+          - Name: AiCameraAnalyzeIpRateLimit
+            Priority: 3
+            Action:
+              Block: {}
+            Statement:
+              RateBasedStatement:
+                Limit: 100
+                AggregateKeyType: IP
+                ScopeDownStatement:
+                  ByteMatchStatement:
+                    SearchString: /ai-camera/analyze
+                    FieldToMatch:
+                      UriPath: {}
+                    TextTransformations:
+                      - Priority: 0
+                        Type: NONE
+                    PositionalConstraint: EXACTLY
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: AiCameraAnalyzeIpRateLimit
+              SampledRequestsEnabled: true
+          - Name: GlobalIpRateLimit
+            Priority: 4
+            Action:
+              Block: {}
+            Statement:
+              RateBasedStatement:
+                Limit: 300
+                AggregateKeyType: IP
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: GlobalIpRateLimit
+              SampledRequestsEnabled: true
+
+    GreenLensApiWebAclAssociation:
+      Type: AWS::WAFv2::WebACLAssociation
+      Properties:
+        ResourceArn:
+          Fn::Sub:
+            - arn:aws:apigateway:${AWS::Region}::/restapis/${RestApiId}/stages/${StageName}
+            - RestApiId:
+                Ref: ApiGatewayRestApi
+              StageName: ${sls:stage}
+        WebACLArn:
+          Fn::GetAtt:
+            - GreenLensApiWebAcl
+            - Arn
