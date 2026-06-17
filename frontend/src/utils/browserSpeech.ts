@@ -1,5 +1,16 @@
 const VI_VOICES = ["vi-VN", "vi"]
 const EN_VOICES = ["en-US", "en-GB", "en"]
+const PREFERRED_VI_VOICE_HINTS = [
+  "microsoft an",
+  "an - vietnamese",
+  "linh",
+  "hoai my",
+  "female",
+  "nữ",
+  "google vietnamese",
+  "google",
+]
+const SEGMENT_PAUSE_MS = 350
 
 export type SpeechSegment = { lang: "vi" | "en"; text: string }
 
@@ -9,14 +20,30 @@ export function isBrowserSpeechSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window
 }
 
+function vietnameseVoices(): SpeechSynthesisVoice[] {
+  if (!isBrowserSpeechSupported()) return []
+  return window.speechSynthesis
+    .getVoices()
+    .filter(
+      (v) =>
+        v.lang.startsWith("vi") ||
+        VI_VOICES.some((lang) => v.lang.startsWith(lang)),
+    )
+}
+
 export function pickVietnameseVoice(): SpeechSynthesisVoice | null {
-  if (!isBrowserSpeechSupported()) return null
-  const voices = window.speechSynthesis.getVoices()
-  return (
-    voices.find((v) => VI_VOICES.some((lang) => v.lang.startsWith(lang))) ??
-    voices.find((v) => v.lang.startsWith("vi")) ??
-    null
-  )
+  const viVoices = vietnameseVoices()
+  if (viVoices.length === 0) return null
+
+  for (const hint of PREFERRED_VI_VOICE_HINTS) {
+    const match = viVoices.find((v) => v.name.toLowerCase().includes(hint))
+    if (match) return match
+  }
+
+  const local = viVoices.find((v) => v.localService)
+  if (local) return local
+
+  return viVoices[0] ?? null
 }
 
 export function pickEnglishVoice(): SpeechSynthesisVoice | null {
@@ -51,10 +78,21 @@ function speechLangForText(text: string): "vi" | "en" {
 
 export function segmentsToDisplayText(segments: SpeechSegment[]): string {
   return segments
-    .map((s) => s.text)
-    .join("")
+    .map((s) => s.text.trim())
+    .filter(Boolean)
+    .join(" ")
     .replace(/\s{2,}/g, " ")
     .trim()
+}
+
+function delayMs(ms: number, runId: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (runId !== speechRunId) {
+      resolve()
+      return
+    }
+    window.setTimeout(() => resolve(), ms)
+  })
 }
 
 function speakOneSegment(
@@ -70,8 +108,9 @@ function speakOneSegment(
 
     const utterance = new SpeechSynthesisUtterance(segment.text)
     utterance.lang = segment.lang === "vi" ? "vi-VN" : "en-US"
-    utterance.rate = segment.lang === "vi" ? 0.92 : 0.95
-    utterance.pitch = 1.05
+    utterance.rate = segment.lang === "vi" ? 0.86 : 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
 
     const voice =
       segment.lang === "vi" ? pickVietnameseVoice() : pickEnglishVoice()
@@ -127,15 +166,18 @@ export async function speakBilingual(
 
   let started = false
   try {
-    for (const segment of queue) {
+    for (let i = 0; i < queue.length; i++) {
       if (runId !== speechRunId) return
-      await speakOneSegment(segment, runId, () => {
+      await speakOneSegment(queue[i], runId, () => {
         if (!started) {
           started = true
           handlers?.onStart?.()
         }
       })
       if (runId !== speechRunId) return
+      if (i < queue.length - 1) {
+        await delayMs(SEGMENT_PAUSE_MS, runId)
+      }
     }
     if (runId === speechRunId) handlers?.onEnd?.()
   } catch {

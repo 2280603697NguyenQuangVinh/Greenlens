@@ -157,7 +157,7 @@ Static assets live in `src/assets/` — not in `dist/`. The `dist/` folder is bu
 | Certificate warning | Expected in dev — proceed / trust for localhost or your LAN IP |
 | Camera still fails | Use **gallery upload** (image button on camera screen) |
 | 404 on `/api/*` in console | Backend route not implemented yet; app uses mock fallback |
-| No TTS voice | Uses browser Web Speech API; try Chrome, or read text on screen |
+| No TTS voice | Enable `VITE_USE_SUPERTONIC_TTS=true` in `.env` (Supertonic, ~400MB first load), or Web Speech fallback |
 
 ---
 
@@ -166,4 +166,4 @@ Static assets live in `src/assets/` — not in `dist/`. The `dist/` folder is bu
 - React 18, TypeScript, Vite 6
 - Tailwind CSS 4
 - Motion (animations)
-- Web Speech API (mascot voice guidance)
+- Web Speech API + optional Supertonic on-device TTS (browser)

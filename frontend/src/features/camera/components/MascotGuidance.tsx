@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react"
 import { Volume2, VolumeX } from "lucide-react"
-import { Mascot } from "@/features/dashboard/components/Mascot"
 import { CharacterSpeechBubble } from "@/features/dashboard/components/CharacterSpeechBubble"
 import type { SpeechSegment } from "@/utils/browserSpeech"
 import type { AvatarConfig } from "@/utils/types"
+import mascotPng from "@/assets/Character/mascot/mascot.png"
 
 type Props = {
   speechText: string
@@ -19,7 +19,6 @@ type Props = {
 export function MascotGuidance({
   speechText,
   speechSegments,
-  avatarCfg,
   isSupported,
   isSpeaking,
   onSpeak,
@@ -40,7 +39,12 @@ export function MascotGuidance({
   return (
     <div className="mb-4">
       <div className="flex items-end gap-3">
-        <Mascot cfg={avatarCfg} size={72} />
+        <img
+          src={mascotPng}
+          alt="Mascot"
+          className="h-[72px] w-[72px] shrink-0 object-contain"
+          draggable={false}
+        />
         <CharacterSpeechBubble>
           <p>{speechText}</p>
           {!isSupported && (

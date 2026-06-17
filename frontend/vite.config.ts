@@ -48,6 +48,10 @@ export default defineConfig(({ mode }) => {
 
     plugins: [figmaAssetResolver(), react(), tailwindcss(), basicSsl()],
 
+    optimizeDeps: {
+      exclude: ["onnxruntime-web"],
+    },
+
     resolve: {
 
       alias: {
@@ -95,6 +99,20 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
 
           changeOrigin: true,
+
+        },
+
+        '/supertonic-assets': {
+
+          target: 'https://huggingface.co',
+
+          changeOrigin: true,
+
+          rewrite: (path) =>
+            path.replace(
+              /^\/supertonic-assets/,
+              '/Supertone/supertonic-3/resolve/main',
+            ),
 
         },
 

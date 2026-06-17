@@ -1,7 +1,8 @@
-﻿import { FF_COMFORTAA } from "@/utils/constants"
+import { FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { AvatarPreview } from "@/features/avatar/components/AvatarPreview"
 import { getUiAsset } from "@/assets"
+import { unlockSupertonicOnGesture } from "@/services/supertonic/preload"
 
 const NAV_HOME = getUiAsset("dashbroad homescreen.png")
 const NAV_QUIZ = getUiAsset("dashbroad quiz.png")
@@ -27,7 +28,14 @@ export function BottomNav({ screen, go, avatarCfg }: { screen: number; go: (s: n
         <NavIconImage src={NAV_QUIZ} alt="Câu Đố" active={screen === 3} />
         <span className="text-[10px] font-semibold" style={FF_COMFORTAA}>Câu Đố</span>
       </button>
-      <button onClick={() => go(2)} className="relative -top-5 w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-xl shadow-green-300 border-4 border-white">
+      <button
+        type="button"
+        onClick={() => {
+          void unlockSupertonicOnGesture()
+          go(2)
+        }}
+        className="relative -top-5 w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-xl shadow-green-300 border-4 border-white"
+      >
         <img src={NAV_CAMERA} alt="Camera" className="h-8 w-8 object-contain drop-shadow-sm" />
       </button>
       <button onClick={() => go(4)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 4 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>

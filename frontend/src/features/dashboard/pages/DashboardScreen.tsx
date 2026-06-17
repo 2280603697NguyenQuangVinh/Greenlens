@@ -1,13 +1,15 @@
-﻿import { motion } from "motion/react"
+import { motion } from "motion/react"
 import type { UserProfile } from "@/services/greenLens"
-import { Mascot } from "@/features/dashboard/components/Mascot"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
 import { FF_FREDOKA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
+import { Mascot } from "@/features/dashboard/components/Mascot"
 
+import mascotPng from "@/assets/Character/mascot/mascot.png"
 import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
 import { AchievementBadgeCircle } from "@/features/dashboard/components/AchievementBadge"
 import { CharacterSpeechBubble } from "@/features/dashboard/components/CharacterSpeechBubble"
+import { unlockSupertonicOnGesture } from "@/services/supertonic/preload"
 
 const BG = BACKGROUND_IMAGE
 
@@ -32,7 +34,7 @@ export function DashboardScreen({
     <div className="h-full flex flex-col" style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="h-16 w-16 rounded-full border-2 border-[#1b3a1b] bg-[#a8dcae] shadow-sm flex items-center justify-center overflow-hidden">
-          <Mascot cfg={cfg} size={58} />
+          <Mascot cfg={cfg} size={56} rounded />
         </div>
         <h1 className="flex-1 text-2xl font-black text-black tracking-tight leading-tight" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
           Chào, {displayName}!
@@ -55,7 +57,12 @@ export function DashboardScreen({
       <div className="flex-1 overflow-y-auto px-3 pb-2">
         <div className="mb-3 flex items-center gap-3">
           <div className="shrink-0">
-            <Mascot cfg={cfg} size={100} />
+            <img
+              src={mascotPng}
+              alt="Mascot"
+              className="h-[100px] w-auto object-contain"
+              draggable={false}
+            />
           </div>
           <CharacterSpeechBubble>
             Chào {displayName}! Sẵn sàng cho thử thách hôm nay chưa? 🔥
@@ -96,7 +103,11 @@ export function DashboardScreen({
               </span>
             </div>
             <button
-              onClick={() => go(2)}
+              type="button"
+              onClick={() => {
+                void unlockSupertonicOnGesture()
+                go(2)
+              }}
               className="mt-3 w-full rounded-full bg-[#2dd62d] py-2 text-[16px] font-black text-white active:scale-[0.99]"
               style={{ ...FF_FREDOKA, fontWeight: 700 }}
             >

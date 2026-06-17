@@ -3,14 +3,22 @@ import { motion, AnimatePresence } from "motion/react";
 import { Camera as CameraIcon, X, RotateCcw, Image, Home } from "lucide-react";
 import {
   analyzeAiCameraImage,
+  buildCameraLoadingMascotSpeech,
+  buildCameraLoadingMascotSpeechSegments,
+  buildCameraUnavailableMascotSpeech,
+  buildCameraUnavailableMascotSpeechSegments,
+  buildIdleMascotSpeech,
+  buildIdleMascotSpeechSegments,
   buildMascotSpeech,
   buildMascotSpeechSegments,
   type AiCameraResult,
 } from "@/services/aiCamera";
+import { prefetchSupertonicSpeech } from "@/services/supertonic";
 import { loadStoredProfile } from "@/services/greenLens";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
-import { MascotGuidance } from "@/features/camera/components/MascotGuidance";
+import { FloatingMascot } from "@/features/camera/components/FloatingMascot";
 import { CameraResultCard } from "@/features/camera/components/CameraResultCard";
+import { pickRandomMascotSpot, type MascotSpot } from "@/features/camera/utils/mascotSpots";
 import type { AvatarConfig } from "@/utils/types";
 
 const DEFAULT_AVATAR: AvatarConfig = {
@@ -93,11 +101,27 @@ export default function CameraModule({
   const [error, setError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [resultSpot, setResultSpot] = useState<MascotSpot | null>(null);
+  const [suppressIdleGreeting, setSuppressIdleGreeting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { isSupported, isSpeaking, speak, cancel } = useSpeechSynthesis();
+  const {
+    isSupported,
+    voicesReady,
+    supertonicLoading,
+    supertonicReady,
+    supertonicFailed,
+    speak,
+    cancel,
+    cancelPlayback,
+    unlockAudio,
+  } = useSpeechSynthesis();
+
+  const handleUserGesture = useCallback(() => {
+    void unlockAudio();
+  }, [unlockAudio]);
 
   const avatarCfg = useMemo(() => {
     if (avatarCfgProp) return avatarCfgProp;
@@ -115,7 +139,65 @@ export default function CameraModule({
     [result],
   );
 
+  const displayName = avatarCfg.characterName?.trim() || "bạn";
+
+  const idleSpeechText = useMemo(() => buildIdleMascotSpeech(displayName), [displayName]);
+
+  const loadingSpeechText = useMemo(
+    () => buildCameraLoadingMascotSpeech(displayName),
+    [displayName],
+  );
+
+  const unavailableSpeechText = useMemo(
+    () => buildCameraUnavailableMascotSpeech(displayName),
+    [displayName],
+  );
+
   const cameraUnavailable = Boolean(cameraError);
+
+  const preCaptureSpeech = useMemo(() => {
+    if (cameraUnavailable) {
+      return {
+        text: unavailableSpeechText,
+        segments: buildCameraUnavailableMascotSpeechSegments(displayName),
+        key: "pre-unavailable",
+      };
+    }
+    if (cameraReady) {
+      return {
+        text: idleSpeechText,
+        segments: buildIdleMascotSpeechSegments(displayName),
+        key: "pre-ready",
+      };
+    }
+    return {
+      text: loadingSpeechText,
+      segments: buildCameraLoadingMascotSpeechSegments(displayName),
+      key: "pre-loading",
+    };
+  }, [
+    cameraReady,
+    cameraUnavailable,
+    displayName,
+    idleSpeechText,
+    loadingSpeechText,
+    unavailableSpeechText,
+  ]);
+
+  const showPreCaptureMascot = !capturedImage && !isProcessing;
+
+  useEffect(() => {
+    if (!supertonicReady || !showPreCaptureMascot) return
+
+    const ttsText = preCaptureSpeech.segments[0]?.text.trim()
+    if (!ttsText) return
+
+    const timer = window.setTimeout(() => {
+      void prefetchSupertonicSpeech(ttsText, { lang: "vi" })
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [supertonicReady, showPreCaptureMascot, preCaptureSpeech.segments, preCaptureSpeech.key])
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -137,6 +219,19 @@ export default function CameraModule({
       if (!navigator.mediaDevices?.getUserMedia) {
         setCameraError(formatCameraError("not supported"));
         setCameraReady(false);
+        return;
+      }
+
+      const video = videoRef.current;
+      const existingStream = video?.srcObject as MediaStream | null;
+      if (
+        existingStream?.active &&
+        video &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+      ) {
+        setCameraReady(true);
+        setCameraError(null);
         return;
       }
 
@@ -194,12 +289,18 @@ export default function CameraModule({
       setIsProcessing(true);
       setError(null);
       setResult(null);
-      cancel();
+      setResultSpot(null);
+      cancelPlayback();
 
       try {
         const imageBlob = imageFile ?? dataUrlToBlob(imageDataUrl);
         const analysis = await analyzeAiCameraImage(imageBlob);
+        const resultSpeech = buildMascotSpeechSegments(analysis)[0]?.text
+        if (resultSpeech) {
+          void prefetchSupertonicSpeech(resultSpeech, { lang: "vi" });
+        }
         setResult(analysis);
+        setResultSpot(pickRandomMascotSpot());
         await onResult?.(analysis);
       } catch (err: unknown) {
         const message =
@@ -212,11 +313,12 @@ export default function CameraModule({
         setIsProcessing(false);
       }
     },
-    [cancel, onResult],
+    [cancelPlayback, onResult],
   );
 
   const handleCapture = () => {
     if (isProcessing) return;
+    void unlockAudio();
 
     if (cameraUnavailable) {
       handleGalleryClick();
@@ -245,13 +347,15 @@ export default function CameraModule({
 
   const resetCamera = () => {
     cancel();
+    setSuppressIdleGreeting(true);
     setCapturedImage(null);
     setResult(null);
+    setResultSpot(null);
     setError(null);
-    setCameraReady(false);
   };
 
   const handleGalleryClick = () => {
+    void unlockAudio();
     fileInputRef.current?.click();
   };
 
@@ -275,6 +379,7 @@ export default function CameraModule({
   return (
     <div
       className={`flex flex-col h-full bg-black relative font-['Nunito',sans-serif] ${showResult ? "" : "overflow-hidden"}`}
+      onPointerDown={handleUserGesture}
     >
       <input
         ref={fileInputRef}
@@ -352,8 +457,8 @@ export default function CameraModule({
         )}
 
         {!cameraUnavailable && !cameraReady && !capturedImage && !isProcessing && (
-          <div className="absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm text-white">
-            Đang bật camera...
+          <div className="absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm text-white pointer-events-none">
+            {supertonicLoading ? "Đang tải giọng mascot…" : "Đang bật camera..."}
           </div>
         )}
 
@@ -407,6 +512,7 @@ export default function CameraModule({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute inset-0 flex flex-col z-40 bg-green-50"
+              onPointerDown={handleUserGesture}
             >
               <div className="flex-1 relative min-h-[200px] overflow-hidden">
                 <img
@@ -414,11 +520,27 @@ export default function CameraModule({
                   alt="Captured"
                   className="w-full h-full object-cover"
                 />
+                {resultSpot && (
+                  <FloatingMascot
+                    variant="result"
+                    spot={resultSpot}
+                    text={speechText}
+                    speechSegments={speechSegments}
+                    speechKey={`${speechText}-${resultSpot.top}-${resultSpot.left ?? ""}-${resultSpot.right ?? ""}`}
+                    isSupported={isSupported}
+                    voicesReady={voicesReady}
+                    supertonicReady={supertonicReady}
+                    onSpeak={speak}
+                    onStopPlayback={cancelPlayback}
+                    mascotSize={80}
+                  />
+                )}
               </div>
 
               <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
+                transition={{ delay: 0.9, type: "spring", stiffness: 220, damping: 28 }}
                 className="relative z-10 -mt-6 rounded-t-3xl bg-green-50 p-6 pt-8 shadow-2xl"
               >
                 <div className="flex items-center justify-between mb-4">
@@ -432,17 +554,22 @@ export default function CameraModule({
                   </button>
                 </div>
 
-                <MascotGuidance
-                  speechText={speechText}
-                  speechSegments={speechSegments}
-                  avatarCfg={avatarCfg}
-                  isSupported={isSupported}
-                  isSpeaking={isSpeaking}
-                  onSpeak={speak}
-                  onStop={cancel}
-                />
-
                 <CameraResultCard result={result} />
+
+                {isSupported && (
+                  <div className="mb-3 space-y-2">
+                    {supertonicFailed && (
+                      <p className="text-center text-sm font-semibold text-red-600">
+                        Không tải được giọng. Hãy tải lại trang nhé!
+                      </p>
+                    )}
+                    {!supertonicFailed && supertonicLoading && !voicesReady && (
+                      <p className="text-center text-sm text-green-700">
+                        Đang tải giọng mascot…
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button
@@ -467,6 +594,22 @@ export default function CameraModule({
           )}
         </AnimatePresence>
       </div>
+
+      {showPreCaptureMascot && (
+        <FloatingMascot
+          variant="idle"
+          text={preCaptureSpeech.text}
+          speechSegments={preCaptureSpeech.segments}
+          speechKey={preCaptureSpeech.key}
+          isSupported={isSupported}
+          voicesReady={voicesReady}
+          supertonicReady={supertonicReady}
+          onSpeak={speak}
+          onStopPlayback={cancelPlayback}
+          autoSpeak={preCaptureSpeech.key !== "pre-loading" && !suppressIdleGreeting}
+          mascotSize={64}
+        />
+      )}
 
       <canvas ref={canvasRef} className="hidden" />
 

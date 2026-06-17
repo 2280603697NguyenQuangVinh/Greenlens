@@ -1,56 +1,128 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  cancelBrowserSpeech,
-  isBrowserSpeechSupported,
-  pickEnglishVoice,
-  pickVietnameseVoice,
-  speakBilingual,
-  type SpeechSegment,
-} from "@/utils/browserSpeech"
+import type { SpeechSegment } from "@/utils/browserSpeech"
+import { startSupertonicPreload } from "@/services/supertonic/preload"
+
+const SUPERTONIC_ON =
+  import.meta.env.VITE_USE_SUPERTONIC_TTS === "true" &&
+  import.meta.env.VITE_USE_MOCK !== "true"
 
 export function useSpeechSynthesis() {
-  const [isSupported] = useState(isBrowserSpeechSupported)
+  const [isSupported] = useState(() => SUPERTONIC_ON)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const speakingRef = useRef(false)
+  const [supertonicReady, setSupertonicReady] = useState(false)
+  const [supertonicLoading, setSupertonicLoading] = useState(SUPERTONIC_ON)
+  const [supertonicFailed, setSupertonicFailed] = useState(false)
+  const supertonicRef = useRef<Awaited<
+    ReturnType<typeof import("@/services/supertonic")>
+  > | null>(null)
 
-  const cancel = useCallback(() => {
-    cancelBrowserSpeech()
-    speakingRef.current = false
-    setIsSpeaking(false)
+  const voicesReady = supertonicReady
+
+  const setSpeaking = useCallback((speaking: boolean) => {
+    setIsSpeaking(speaking)
   }, [])
 
-  const speak = useCallback((segments: SpeechSegment[]) => {
-    if (!isSupported || segments.length === 0) return
+  const loadSupertonic = useCallback(async () => {
+    if (!SUPERTONIC_ON) return null
+    if (!supertonicRef.current) {
+      supertonicRef.current = await import("@/services/supertonic")
+    }
+    return supertonicRef.current
+  }, [])
 
-    void speakBilingual(segments, {
-      onStart: () => {
-        speakingRef.current = true
-        setIsSpeaking(true)
-      },
-      onEnd: () => {
-        speakingRef.current = false
-        setIsSpeaking(false)
-      },
-      onError: () => {
-        speakingRef.current = false
-        setIsSpeaking(false)
-      },
-    })
-  }, [isSupported])
+  const cancelPlayback = useCallback(() => {
+    supertonicRef.current?.cancelSupertonicPlayback()
+    setSpeaking(false)
+  }, [setSpeaking])
+
+  const cancel = useCallback(() => {
+    supertonicRef.current?.cancelSupertonicSpeech()
+    setSpeaking(false)
+  }, [setSpeaking])
+
+  const unlockAudio = useCallback(async () => {
+    if (!SUPERTONIC_ON) return false
+    const supertonic = await loadSupertonic()
+    if (!supertonic) return false
+    return supertonic.unlockSupertonicAudio()
+  }, [loadSupertonic])
+
+  const speak = useCallback(
+    async (segments: SpeechSegment[]): Promise<boolean> => {
+      if (!SUPERTONIC_ON || segments.length === 0 || supertonicFailed) {
+        return false
+      }
+
+      const queue = segments
+        .map((segment) => ({
+          text: segment.text.trim(),
+          lang: segment.lang === "en" ? "en" : "vi",
+        }))
+        .filter((segment) => segment.text)
+
+      if (!queue.length) return false
+
+      const supertonic = await loadSupertonic()
+      if (!supertonic) return false
+
+      return supertonic.speakSupertonicSegments(queue, {
+        onStart: () => setSpeaking(true),
+        onEnd: () => setSpeaking(false),
+        onError: () => setSpeaking(false),
+      })
+    },
+    [loadSupertonic, setSpeaking, supertonicFailed],
+  )
 
   useEffect(() => {
-    if (!isSupported) return
-    const loadVoices = () => {
-      pickVietnameseVoice()
-      pickEnglishVoice()
-    }
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices)
-    loadVoices()
-    return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices)
-      cancel()
-    }
-  }, [cancel, isSupported])
+    if (!SUPERTONIC_ON) return
 
-  return { isSupported, isSpeaking, speak, cancel }
+    startSupertonicPreload()
+
+    let unsubscribe: (() => void) | undefined
+
+    void loadSupertonic().then((supertonic) => {
+      if (!supertonic) return
+      unsubscribe = supertonic.subscribeSupertonicInit((state) => {
+        setSupertonicLoading(state.loading)
+        if (state.ready) {
+          setSupertonicReady(true)
+          setSupertonicFailed(false)
+        }
+        if (state.error && !state.loading) {
+          setSupertonicFailed(true)
+          setSupertonicReady(false)
+        }
+      })
+    })
+
+    return () => unsubscribe?.()
+  }, [loadSupertonic])
+
+  const replay = useCallback(
+    async (segments: SpeechSegment[]): Promise<boolean> => {
+      await unlockAudio()
+      return speak(segments)
+    },
+    [speak, unlockAudio],
+  )
+
+  useEffect(() => {
+    if (!SUPERTONIC_ON) return
+    return () => cancelPlayback()
+  }, [cancelPlayback])
+
+  return {
+    isSupported,
+    isSpeaking,
+    voicesReady,
+    supertonicLoading,
+    supertonicReady,
+    supertonicFailed,
+    unlockAudio,
+    speak,
+    replay,
+    cancel,
+    cancelPlayback,
+  }
 }

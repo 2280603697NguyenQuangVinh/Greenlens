@@ -2,7 +2,7 @@ import { ApiError, NetworkError } from "@/services/errors"
 import { apiUrl } from "@/services/http"
 import { ensureBearerToken, mapAuthErrorMessage } from "@/services/authToken"
 import { getChildId } from "@/services/childProfileStorage"
-import { segmentsToDisplayText, type SpeechSegment } from "@/utils/browserSpeech"
+import type { SpeechSegment } from "@/utils/browserSpeech"
 
 export interface AiCameraResult {
   wasteName: string
@@ -43,6 +43,7 @@ const WASTE_LABEL_VI: Record<string, string> = {
   banana: "chuối",
   battery: "pin",
   diaper: "tã",
+  baby: "tã em bé",
   trash: "rác thải",
 }
 
@@ -58,8 +59,9 @@ const MOCK_RESULT: AiCameraResult = {
   wasteCategory: "Tái Chế",
   binColor: "Xanh",
   recyclingInstruction:
-    "Con hãy rửa sạch chai và bỏ vào thùng tái chế màu xanh nhé.",
-  reuseSuggestion: "Tái sử dụng chai làm chậu cây nhỏ",
+    "Rửa sạch chai, để khô rồi bỏ vào thùng tái chế màu xanh.",
+  reuseSuggestion:
+    "Con có thể biến chai sạch thành chậu cây nhỏ, ống cắm bút hoặc bình tưới cây.",
   environmentalImpact: "Giảm ô nhiễm nhựa, bảo vệ đại dương",
   emoji: "🥤",
   confidence: 97,
@@ -117,22 +119,19 @@ function ensureSentence(text: string): string {
   return trimmed.endsWith(".") ? trimmed : `${trimmed}.`
 }
 
-function buildReuseSentence(reuse: string): string {
-  const body = reuse.trim()
-  if (!body) return ""
-  if (/^(nếu|không|hãy|bỏ|con|tái)/i.test(body)) {
-    return ensureSentence(body)
-  }
-  if (/^tái\s/i.test(body)) {
-    return ensureSentence(`Con cũng có thể ${body.charAt(0).toLowerCase() + body.slice(1)}`)
-  }
-  return ensureSentence(`Con cũng có thể tái sử dụng: ${body}`)
+function joinSpeechParts(parts: string[]): string {
+  return parts.filter(Boolean).join("\n\n")
+}
+
+function toSpeechSegment(parts: string[]): SpeechSegment[] {
+  const text = joinSpeechParts(parts)
+  return text ? [{ lang: "vi" as const, text }] : []
 }
 
 export function buildMascotSpeechSegments(result: AiCameraResult): SpeechSegment[] {
   const name = translateWasteLabel(result.wasteName)
-  const instruction = result.recyclingInstruction.trim()
-  const reuse = result.reuseSuggestion.trim()
+  const instruction = localizeGuidanceText(result.recyclingInstruction.trim())
+  const reuse = localizeGuidanceText(result.reuseSuggestion.trim())
 
   const parts: string[] = [ensureSentence(`Đây là ${name}`)]
 
@@ -141,14 +140,55 @@ export function buildMascotSpeechSegments(result: AiCameraResult): SpeechSegment
   }
 
   if (reuse) {
-    parts.push(buildReuseSentence(reuse))
+    parts.push(ensureSentence(reuse))
   }
 
-  return [{ lang: "vi", text: parts.join(" ") }]
+  return toSpeechSegment(parts)
 }
 
 export function buildMascotSpeech(result: AiCameraResult): string {
-  return segmentsToDisplayText(buildMascotSpeechSegments(result))
+  const segments = buildMascotSpeechSegments(result)
+  return segments[0]?.text.replace(/\n\n+/g, " ").trim() ?? ""
+}
+
+export function buildIdleMascotSpeech(displayName: string): string {
+  const name = displayName.trim() || "bạn"
+  return `Chào ${name}! Hãy đưa rác vào khung và bấm chụp nhé.`
+}
+
+export function buildIdleMascotSpeechSegments(displayName: string): SpeechSegment[] {
+  const name = displayName.trim() || "bạn"
+  return toSpeechSegment([
+    `Chào ${name}!`,
+    "Hãy đưa rác vào khung và bấm chụp nhé.",
+  ])
+}
+
+export function buildCameraLoadingMascotSpeech(displayName: string): string {
+  const name = displayName.trim() || "bạn"
+  return `Chào ${name}! Đợi chút nhé, đang bật camera...`
+}
+
+export function buildCameraLoadingMascotSpeechSegments(displayName: string): SpeechSegment[] {
+  const name = displayName.trim() || "bạn"
+  return toSpeechSegment([
+    `Chào ${name}!`,
+    "Đợi chút nhé, đang bật camera.",
+  ])
+}
+
+export function buildCameraUnavailableMascotSpeech(displayName: string): string {
+  const name = displayName.trim() || "bạn"
+  return `Chào ${name}! Camera chưa mở được. Con chọn ảnh từ thư viện nhé.`
+}
+
+export function buildCameraUnavailableMascotSpeechSegments(displayName: string): SpeechSegment[] {
+  const name = displayName.trim() || "bạn"
+  return toSpeechSegment([
+    `Chào ${name}!`,
+    "Camera chưa mở được.",
+    "Con chọn ảnh từ thư viện nhé.",
+  ])
 }
 
 function emojiForWaste(label: string, category: string): string {
