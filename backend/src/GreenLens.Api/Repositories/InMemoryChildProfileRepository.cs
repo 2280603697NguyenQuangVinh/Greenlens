@@ -12,4 +12,12 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
         _profiles[profile.ChildId] = profile;
         return Task.CompletedTask;
     }
+
+    public Task<ChildProfile?> GetAsync(
+        string childId,
+        CancellationToken cancellationToken = default)
+    {
+        _profiles.TryGetValue(childId, out var profile);
+        return Task.FromResult(profile);
+    }
 }

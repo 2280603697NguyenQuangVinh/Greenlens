@@ -11,6 +11,53 @@ public sealed class ChildProfileService(
     IChildIdentityService childIdentityService,
     CreateChildProfileValidator validator) : IChildProfileService
 {
+    private const int FirstScanTarget = 1;
+    private const int Streak7Target = 7;
+    private const int Streak30Target = 30;
+    private const int QuizGeniusTarget = 3;
+    private const int LeaderboardChampionTarget = 1;
+    private const int EnvironmentHeroTarget = 100;
+
+    private static readonly IReadOnlyList<BadgeDefinition> BadgeDefinitions =
+    [
+        new(
+            "first_scan",
+            "First Scan",
+            "Chup va phan loai rac thanh cong lan dau tien.",
+            "Phan loai thanh cong vat dau tien bang AI Camera.",
+            FirstScanTarget),
+        new(
+            "streak_7_days",
+            "Streak 7 ngày",
+            "Hoan thanh hoat dong moi ngay trong 7 ngay lien tiep.",
+            "Hoan thanh daily activity 7 ngay lien tiep.",
+            Streak7Target),
+        new(
+            "streak_30_days",
+            "Streak 30 ngày",
+            "Hoan thanh hoat dong moi ngay trong 30 ngay lien tiep.",
+            "Hoan thanh daily activity 30 ngay lien tiep.",
+            Streak30Target),
+        new(
+            "quiz_genius",
+            "Thiên tài quiz",
+            "Tra loi dung tat ca cau hoi trong mot lan quiz.",
+            "Tra loi dung 3/3 cau trong mot lan quiz.",
+            QuizGeniusTarget),
+        new(
+            "mini_game_champion",
+            "Vô địch mini game",
+            "Dung dau bang xep hang tong hop giua quiz va cac mini game.",
+            "Dat hang nhat tren bang xep hang tong hop quiz va mini game keo tha rac.",
+            LeaderboardChampionTarget),
+        new(
+            "environment_hero",
+            "Anh hùng môi trường",
+            "Kien tri phan loai that nhieu vat dung.",
+            "Tong cong phan loai dung 100 vat bang AI Camera.",
+            EnvironmentHeroTarget)
+    ];
+
     public async Task<ChildProfileResponse> CreateAsync(
         CreateChildProfileRequest request,
         string? cognitoSub = null,
@@ -44,6 +91,7 @@ public sealed class ChildProfileService(
             Xp = 0,
             Level = 1,
             Streak = 0,
+            AiCameraScanCount = 0,
             Badges = [],
             Rewards = [],
             CreatedAt = now,
@@ -51,6 +99,69 @@ public sealed class ChildProfileService(
         };
 
         await childProfileRepository.SaveAsync(profile, cancellationToken);
+
+        return ToResponse(profile);
+    }
+
+    public async Task<ChildProfileResponse> GetAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await GetOwnedProfileAsync(childId, cognitoSub, cancellationToken);
+
+        return ToResponse(profile);
+    }
+
+    public async Task<ChildStreakResponse> GetStreakAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await GetOwnedProfileAsync(childId, cognitoSub, cancellationToken);
+        var currentStreak = Math.Max(profile.Streak, 0);
+        var badge = BuildBadgeCatalog(profile.Badges, profile)
+            .First(item => item.Code == "streak_30_days");
+
+        return new ChildStreakResponse(
+            profile.ChildId,
+            currentStreak,
+            Streak30Target,
+            Math.Max(Streak30Target - currentStreak, 0),
+            Math.Clamp((int)Math.Round(currentStreak * 100d / Streak30Target), 0, 100),
+            badge.IsUnlocked,
+            badge);
+    }
+
+    private async Task<ChildProfile> GetOwnedProfileAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(childId))
+        {
+            throw new ArgumentException("childId is required.", nameof(childId));
+        }
+
+        if (string.IsNullOrWhiteSpace(cognitoSub))
+        {
+            throw new UnauthorizedAccessException("Bearer token is required.");
+        }
+
+        var profile = await childProfileRepository.GetAsync(childId.Trim(), cancellationToken)
+            ?? throw new InvalidOperationException("Child profile was not found.");
+
+        if (!string.Equals(profile.CognitoSub, cognitoSub.Trim(), StringComparison.Ordinal))
+        {
+            throw new UnauthorizedAccessException("Child profile does not belong to this user.");
+        }
+
+        return profile;
+    }
+
+    private static ChildProfileResponse ToResponse(ChildProfile profile)
+    {
+        var level = ChildLeveling.GetLevel(profile.Xp);
 
         return new ChildProfileResponse(
             profile.ChildId,
@@ -62,11 +173,57 @@ public sealed class ChildProfileService(
             profile.Outfit,
             profile.AvatarPreview,
             profile.Xp,
-            profile.Level,
+            level,
+            ChildLeveling.BuildProgress(profile.Xp),
+            ChildLeveling.Milestones,
             profile.Streak,
             profile.Badges,
+            BuildBadgeCatalog(profile.Badges, profile),
             profile.Rewards,
             profile.CreatedAt,
             profile.UpdatedAt);
     }
+
+    private static IReadOnlyList<BadgeStatusDto> BuildBadgeCatalog(
+        IReadOnlyList<string> unlockedBadges,
+        ChildProfile profile)
+    {
+        var unlocked = unlockedBadges.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return BadgeDefinitions
+            .Select(badge => (Badge: badge, Progress: GetBadgeProgress(badge.Code, profile, unlocked)))
+            .Select(badge => new BadgeStatusDto(
+                badge.Badge.Code,
+                badge.Badge.Name,
+                badge.Badge.Description,
+                badge.Badge.UnlockCondition,
+                unlocked.Contains(badge.Badge.Name) || badge.Progress >= badge.Badge.ProgressTarget,
+                Math.Min(badge.Progress, badge.Badge.ProgressTarget),
+                badge.Badge.ProgressTarget))
+            .ToList();
+    }
+
+    private static int GetBadgeProgress(
+        string badgeCode,
+        ChildProfile profile,
+        IReadOnlySet<string> unlockedBadges)
+    {
+        return badgeCode switch
+        {
+            "first_scan" => profile.AiCameraScanCount,
+            "streak_7_days" => profile.Streak,
+            "streak_30_days" => profile.Streak,
+            "quiz_genius" => unlockedBadges.Contains("Thiên tài quiz") ? QuizGeniusTarget : 0,
+            "mini_game_champion" => unlockedBadges.Contains("Vô địch mini game") ? LeaderboardChampionTarget : 0,
+            "environment_hero" => profile.AiCameraScanCount,
+            _ => 0
+        };
+    }
+
+    private sealed record BadgeDefinition(
+        string Code,
+        string Name,
+        string Description,
+        string UnlockCondition,
+        int ProgressTarget);
 }

@@ -1,5 +1,6 @@
 using GreenLens.Application.Modules.AiCamera.DTOs;
 using GreenLens.Application.Modules.AiCamera.Interfaces;
+using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 
 namespace GreenLens.Application.Modules.AiCamera.Services;
 
@@ -10,19 +11,22 @@ public sealed class AiCameraService : IAiCameraService
     private readonly IWasteMappingService _wasteMappingService;
     private readonly IBedrockGuidanceService _bedrockGuidanceService;
     private readonly IAiCameraUsageLimiter _usageLimiter;
+    private readonly IChildProgressService _childProgressService;
 
     public AiCameraService(
         IImageStorageService imageStorageService,
         IRekognitionService rekognitionService,
         IWasteMappingService wasteMappingService,
         IBedrockGuidanceService bedrockGuidanceService,
-        IAiCameraUsageLimiter usageLimiter)
+        IAiCameraUsageLimiter usageLimiter,
+        IChildProgressService childProgressService)
     {
         _imageStorageService = imageStorageService;
         _rekognitionService = rekognitionService;
         _wasteMappingService = wasteMappingService;
         _bedrockGuidanceService = bedrockGuidanceService;
         _usageLimiter = usageLimiter;
+        _childProgressService = childProgressService;
     }
 
     public async Task<AiCameraAnalyzeResponse> AnalyzeAsync(
@@ -75,6 +79,14 @@ public sealed class AiCameraService : IAiCameraService
             detectedLabel.Label,
             wasteCategory.Category,
             cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(request.CognitoSub))
+        {
+            await _childProgressService.AwardAiCameraScanAsync(
+                request.ChildId,
+                request.CognitoSub,
+                cancellationToken);
+        }
 
         return new AiCameraAnalyzeResponse(
             request.ChildId,

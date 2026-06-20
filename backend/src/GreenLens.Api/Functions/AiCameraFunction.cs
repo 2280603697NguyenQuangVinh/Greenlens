@@ -11,6 +11,7 @@ using GreenLens.Application.Modules.AiCamera.DTOs;
 using GreenLens.Application.Modules.AiCamera.Interfaces;
 using GreenLens.Application.Modules.AiCamera.Services;
 using GreenLens.Application.Modules.AiCamera.WasteMapping;
+using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using GreenLens.Infrastructure.AWS.Bedrock;
 using GreenLens.Infrastructure.AWS.DynamoDB;
 using GreenLens.Infrastructure.AWS.Rekognition;
@@ -225,6 +226,12 @@ public sealed class AiCameraFunction
         var rekognition = new RekognitionService(new AmazonRekognitionClient(), new RekognitionOptions());
         var wasteMapping = new WasteMappingService();
         var bedrock = new BedrockGuidanceService(new AmazonBedrockRuntimeClient(), bedrockOptions);
+        var childProfilesTableName = Environment.GetEnvironmentVariable("CHILD_PROFILES_TABLE_NAME")
+            ?? Environment.GetEnvironmentVariable("DYNAMODB_CHILD_PROFILES_TABLE")
+            ?? "GreenLens-ChildProfiles";
+        IChildProgressService childProgress = new DynamoDbChildProgressService(
+            new AmazonDynamoDBClient(),
+            childProfilesTableName);
         IAiCameraUsageLimiter usageLimiter;
         if (string.Equals(
                 Environment.GetEnvironmentVariable("AI_CAMERA_USAGE_LIMITER_ENABLED"),
@@ -249,7 +256,7 @@ public sealed class AiCameraFunction
                 });
         }
 
-        return new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
+        return new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, childProgress);
     }
 
     private static APIGatewayProxyResponse JsonResponse(HttpStatusCode statusCode, object body)

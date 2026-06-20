@@ -15,6 +15,9 @@ using GreenLens.Application.Modules.ChildProfiles.DTOs;
 using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using GreenLens.Application.Modules.ChildProfiles.Services;
 using GreenLens.Application.Modules.ChildProfiles.Validators;
+using GreenLens.Application.Modules.Quiz.DTOs;
+using GreenLens.Application.Modules.Quiz.Interfaces;
+using GreenLens.Application.Modules.Quiz.Services;
 using GreenLens.Domain.Common.Interfaces;
 using GreenLens.Infrastructure.AWS.Bedrock;
 using GreenLens.Infrastructure.AWS.Cognito;
@@ -22,9 +25,54 @@ using GreenLens.Infrastructure.AWS.DynamoDB;
 using GreenLens.Infrastructure.AWS.Rekognition;
 using GreenLens.Infrastructure.AWS.S3;
 using GreenLens.Infrastructure.Repositories;
+using GreenLens.Api.Swagger;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc(
+        "v1",
+        new OpenApiInfo
+        {
+            Title = "GreenLens Kids API",
+            Version = "v1",
+            Description = "Backend APIs for GreenLens Kids auth, child profiles, AI Camera, and quiz flows."
+        });
+
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Paste only the access token. Swagger will send it as: Bearer {token}"
+        });
+
+    options.AddSecurityRequirement(
+        new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                []
+            }
+        });
+
+    options.OperationFilter<AiCameraAnalyzeOperationFilter>();
+});
 
 builder.Services.AddSingleton<CognitoSubExtractor>();
 builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
@@ -51,6 +99,23 @@ builder.Services.AddSingleton(new AiCameraUsageLimiterOptions
     TableName = builder.Configuration["AI_CAMERA_USAGE_TABLE_NAME"] ?? "GreenLens-AiUsage",
     PerMinuteLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_PER_MINUTE_LIMIT") ?? 3,
     PerDayLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_DAILY_LIMIT") ?? 20
+});
+builder.Services.AddSingleton(new BedrockQuizOptions
+{
+    ModelId = builder.Configuration["QUIZ_BEDROCK_MODEL_ID"] ??
+        builder.Configuration["BEDROCK_MODEL_ID"] ??
+        "apac.amazon.nova-micro-v1:0",
+    MaxTokens = builder.Configuration.GetValue<int?>("QUIZ_BEDROCK_MAX_TOKENS") ?? 700,
+    TimeoutSeconds = builder.Configuration.GetValue<int?>("QUIZ_BEDROCK_TIMEOUT_SECONDS") ?? 10
+});
+builder.Services.AddSingleton(new QuizDynamoDbOptions
+{
+    ChildProfilesTableName = builder.Configuration["CHILD_PROFILES_TABLE_NAME"] ??
+        builder.Configuration["DYNAMODB_CHILD_PROFILES_TABLE"] ??
+        "GreenLens-ChildProfiles",
+    QuizSessionsTableName = builder.Configuration["QUIZ_SESSIONS_TABLE_NAME"] ?? "GreenLens-QuizSessions",
+    QuizFallbackTableName = builder.Configuration["QUIZ_FALLBACK_TABLE_NAME"] ?? "GreenLens-QuizFallbacks",
+    DefaultAge = builder.Configuration.GetValue<int?>("QUIZ_DEFAULT_AGE") ?? 8
 });
 builder.Services.AddSingleton(new CognitoAuthOptions
 {
@@ -79,7 +144,49 @@ builder.Services.AddSingleton<IAiCameraUsageLimiter>(serviceProvider =>
         dynamoDb,
         serviceProvider.GetRequiredService<AiCameraUsageLimiterOptions>());
 });
+builder.Services.AddSingleton<IChildProgressService>(serviceProvider =>
+{
+    if (builder.Configuration.GetValue<bool>("USE_IN_MEMORY_CHILD_PROFILES"))
+    {
+        return new NoopChildProgressService();
+    }
+
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    var tableName = builder.Configuration["CHILD_PROFILES_TABLE_NAME"] ??
+        builder.Configuration["DYNAMODB_CHILD_PROFILES_TABLE"] ??
+        "GreenLens-ChildProfiles";
+
+    return new DynamoDbChildProgressService(dynamoDb, tableName);
+});
 builder.Services.AddSingleton<IAiCameraService, AiCameraService>();
+builder.Services.AddSingleton<IQuizGenerator, BedrockQuizGenerator>();
+builder.Services.AddSingleton<IChildQuizContextReader>(serviceProvider =>
+{
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    return new DynamoDbChildQuizContextReader(
+        dynamoDb,
+        serviceProvider.GetRequiredService<QuizDynamoDbOptions>());
+});
+builder.Services.AddSingleton<IQuizRepository>(serviceProvider =>
+{
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    return new DynamoDbQuizRepository(
+        dynamoDb,
+        serviceProvider.GetRequiredService<QuizDynamoDbOptions>());
+});
+builder.Services.AddSingleton<IQuizService, QuizService>();
 builder.Services.AddSingleton<IAuthService>(serviceProvider =>
 {
     var useInMemoryAuth = builder.Configuration.GetValue<bool?>("USE_IN_MEMORY_AUTH");
@@ -131,9 +238,22 @@ builder.Services.AddSingleton<IChildProfileService, ChildProfileService>();
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "GreenLens Kids API v1");
+        options.RoutePrefix = "swagger";
+        options.DocumentTitle = "GreenLens Kids API";
+    });
+}
+
 app.Use(async (context, next) =>
 {
-    if (HttpMethods.IsOptions(context.Request.Method) || IsPublicAuthPath(context.Request.Path))
+    if (HttpMethods.IsOptions(context.Request.Method) ||
+        IsPublicAuthPath(context.Request.Path) ||
+        IsSwaggerPath(context.Request.Path))
     {
         await next();
         return;
@@ -321,6 +441,62 @@ app.MapPost("/child-profiles", async (
     }
 });
 
+app.MapGet("/child-profiles/{childId}", async (
+    HttpRequest httpRequest,
+    string childId,
+    IChildProfileService childProfileService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var profile = await childProfileService.GetAsync(
+            childId,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+        return Results.Ok(profile);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
+app.MapGet("/child-profiles/{childId}/streak", async (
+    HttpRequest httpRequest,
+    string childId,
+    IChildProfileService childProfileService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var streak = await childProfileService.GetStreakAsync(
+            childId,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+        return Results.Ok(streak);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
 app.MapPost("/ai-camera/analyze", async (
     HttpRequest httpRequest,
     IAiCameraService aiCameraService,
@@ -380,6 +556,116 @@ app.MapPost("/ai-camera/analyze", async (
     }
 }).DisableAntiforgery();
 
+app.MapPost("/quiz/generate", async (
+    HttpRequest httpRequest,
+    GenerateQuizRequest request,
+    IQuizService quizService,
+    IWebHostEnvironment environment,
+    ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("QuizGenerate");
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var response = await quizService.GenerateAsync(
+            request,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        logger.LogError(exception, "Quiz generation failed with a known pipeline error.");
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "Quiz generation failed with an unexpected error.");
+        var message = environment.IsDevelopment()
+            ? exception.Message
+            : "Quiz generation failed.";
+        return Results.Problem(message, statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+app.MapGet("/quiz/sessions/{sessionId}", async (
+    HttpRequest httpRequest,
+    string sessionId,
+    IQuizService quizService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var response = await quizService.GetSessionAsync(
+            sessionId,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
+app.MapPost("/quiz/complete", async (
+    HttpRequest httpRequest,
+    CompleteQuizRequest request,
+    IQuizService quizService,
+    IWebHostEnvironment environment,
+    ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("QuizComplete");
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var response = await quizService.CompleteAsync(
+            request,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "Quiz completion failed with an unexpected error.");
+        var message = environment.IsDevelopment()
+            ? exception.Message
+            : "Quiz completion failed.";
+        return Results.Problem(message, statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
 app.Run();
 
 static bool IsPublicAuthPath(PathString path)
@@ -389,4 +675,9 @@ static bool IsPublicAuthPath(PathString path)
         path.StartsWithSegments("/auth/login", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWithSegments("/auth/refresh", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWithSegments("/auth/dev-login", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool IsSwaggerPath(PathString path)
+{
+    return path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase);
 }

@@ -67,6 +67,74 @@ public sealed class ChildProfileFunction
         }
     }
 
+    public async Task<APIGatewayProxyResponse> GetAsync(
+        APIGatewayProxyRequest request,
+        ILambdaContext context)
+    {
+        try
+        {
+            var cognitoSub = _cognitoSubExtractor.Extract(request);
+            if (string.IsNullOrWhiteSpace(cognitoSub))
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Authorization Bearer token is required." });
+            }
+
+            var childId = request.PathParameters is not null &&
+                request.PathParameters.TryGetValue("childId", out var value)
+                    ? value
+                    : string.Empty;
+
+            var profile = await _childProfileService.GetAsync(childId, cognitoSub);
+            return JsonResponse(HttpStatusCode.OK, profile);
+        }
+        catch (ArgumentException exception)
+        {
+            return JsonResponse(HttpStatusCode.BadRequest, new { message = exception.Message });
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return JsonResponse(HttpStatusCode.Forbidden, new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return JsonResponse(HttpStatusCode.NotFound, new { message = exception.Message });
+        }
+    }
+
+    public async Task<APIGatewayProxyResponse> GetStreakAsync(
+        APIGatewayProxyRequest request,
+        ILambdaContext context)
+    {
+        try
+        {
+            var cognitoSub = _cognitoSubExtractor.Extract(request);
+            if (string.IsNullOrWhiteSpace(cognitoSub))
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Authorization Bearer token is required." });
+            }
+
+            var childId = request.PathParameters is not null &&
+                request.PathParameters.TryGetValue("childId", out var value)
+                    ? value
+                    : string.Empty;
+
+            var streak = await _childProfileService.GetStreakAsync(childId, cognitoSub);
+            return JsonResponse(HttpStatusCode.OK, streak);
+        }
+        catch (ArgumentException exception)
+        {
+            return JsonResponse(HttpStatusCode.BadRequest, new { message = exception.Message });
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return JsonResponse(HttpStatusCode.Forbidden, new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return JsonResponse(HttpStatusCode.NotFound, new { message = exception.Message });
+        }
+    }
+
     private static IChildProfileService CreateService()
     {
         var dynamoDb = new AmazonDynamoDBClient();

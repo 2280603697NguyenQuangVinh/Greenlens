@@ -21,6 +21,12 @@ provider:
     AI_CAMERA_USAGE_TABLE_NAME: GreenLens-AiUsage
     AI_CAMERA_PER_MINUTE_LIMIT: ${env:AI_CAMERA_PER_MINUTE_LIMIT, '3'}
     AI_CAMERA_DAILY_LIMIT: ${env:AI_CAMERA_DAILY_LIMIT, '20'}
+    QUIZ_BEDROCK_MODEL_ID: ${env:QUIZ_BEDROCK_MODEL_ID, 'apac.amazon.nova-micro-v1:0'}
+    QUIZ_BEDROCK_MAX_TOKENS: ${env:QUIZ_BEDROCK_MAX_TOKENS, '700'}
+    QUIZ_BEDROCK_TIMEOUT_SECONDS: ${env:QUIZ_BEDROCK_TIMEOUT_SECONDS, '10'}
+    QUIZ_SESSIONS_TABLE_NAME: GreenLens-QuizSessions
+    QUIZ_FALLBACK_TABLE_NAME: GreenLens-QuizFallbacks
+    QUIZ_DEFAULT_AGE: ${env:QUIZ_DEFAULT_AGE, '8'}
   apiGateway:
     binaryMediaTypes:
       - multipart/form-data
@@ -30,9 +36,17 @@ provider:
         - Effect: Allow
           Action:
             - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
           Resource:
             - Fn::GetAtt:
                 - ChildProfilesTable
+                - Arn
+            - Fn::GetAtt:
+                - QuizSessionsTable
+                - Arn
+            - Fn::GetAtt:
+                - QuizFallbacksTable
                 - Arn
         - Effect: Allow
           Action:
@@ -99,11 +113,61 @@ functions:
           authorizer:
             arn:
               Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  getChildProfile:
+    handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetAsync
+    events:
+      - http:
+          path: child-profiles/{childId}
+          method: get
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  getChildProfileStreak:
+    handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetStreakAsync
+    events:
+      - http:
+          path: child-profiles/{childId}/streak
+          method: get
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
   aiCameraAnalyze:
     handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
     events:
       - http:
           path: ai-camera/analyze
+          method: post
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  quizGenerate:
+    handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::GenerateAsync
+    events:
+      - http:
+          path: quiz/generate
+          method: post
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  quizGetSession:
+    handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::GetSessionAsync
+    events:
+      - http:
+          path: quiz/sessions/{sessionId}
+          method: get
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  quizComplete:
+    handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::CompleteAsync
+    events:
+      - http:
+          path: quiz/complete
           method: post
           cors: true
           authorizer:
@@ -147,6 +211,33 @@ resources:
         TimeToLiveSpecification:
           AttributeName: expiresAt
           Enabled: true
+
+    QuizSessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-QuizSessions
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: sessionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sessionId
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    QuizFallbacksTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-QuizFallbacks
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: fallbackKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: fallbackKey
+            KeyType: HASH
 
     GreenLensApiWebAcl:
       Type: AWS::WAFv2::WebACL

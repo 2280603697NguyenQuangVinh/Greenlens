@@ -8,4 +8,14 @@ public interface IChildProfileService
         CreateChildProfileRequest request,
         string? cognitoSub = null,
         CancellationToken cancellationToken = default);
+
+    Task<ChildProfileResponse> GetAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default);
+
+    Task<ChildStreakResponse> GetStreakAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default);
 }

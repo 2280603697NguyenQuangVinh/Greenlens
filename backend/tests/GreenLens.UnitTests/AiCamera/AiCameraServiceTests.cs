@@ -1,6 +1,7 @@
 using GreenLens.Application.Modules.AiCamera.DTOs;
 using GreenLens.Application.Modules.AiCamera.Interfaces;
 using GreenLens.Application.Modules.AiCamera.Services;
+using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using Xunit;
 
 namespace GreenLens.UnitTests.AiCamera;
@@ -15,7 +16,8 @@ public sealed class AiCameraServiceTests
         var wasteMapping = new FakeWasteMappingService();
         var bedrock = new FakeBedrockGuidanceService();
         var usageLimiter = new FakeUsageLimiter();
-        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
+        var progress = new FakeChildProgressService();
+        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, progress);
 
         await using var image = new MemoryStream(PngBytes());
         var response = await service.AnalyzeAsync(new AiCameraAnalyzeRequest(
@@ -35,6 +37,7 @@ public sealed class AiCameraServiceTests
         Assert.True(rekognition.WasCalled);
         Assert.True(bedrock.WasCalled);
         Assert.True(usageLimiter.WasCalled);
+        Assert.True(progress.WasCalled);
     }
 
     [Fact]
@@ -45,7 +48,8 @@ public sealed class AiCameraServiceTests
         var wasteMapping = new FakeWasteMappingService();
         var bedrock = new FakeBedrockGuidanceService();
         var usageLimiter = new FakeUsageLimiter(false);
-        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter);
+        var progress = new FakeChildProgressService();
+        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, progress);
 
         await using var image = new MemoryStream(PngBytes());
         var exception = await Assert.ThrowsAsync<AiCameraQuotaExceededException>(() =>
@@ -61,6 +65,7 @@ public sealed class AiCameraServiceTests
         Assert.False(imageStorage.WasCalled);
         Assert.False(rekognition.WasCalled);
         Assert.False(bedrock.WasCalled);
+        Assert.False(progress.WasCalled);
     }
 
     private static byte[] PngBytes()
@@ -153,6 +158,32 @@ public sealed class AiCameraServiceTests
             return Task.FromResult(_allowed
                 ? new AiCameraUsageQuotaResult(true)
                 : new AiCameraUsageQuotaResult(false, "Daily limit reached."));
+        }
+    }
+
+    private sealed class FakeChildProgressService : IChildProgressService
+    {
+        public bool WasCalled { get; private set; }
+
+        public Task AwardAiCameraScanAsync(
+            string childId,
+            string cognitoSub,
+            CancellationToken cancellationToken = default)
+        {
+            WasCalled = true;
+            Assert.Equal("child_123", childId);
+            Assert.Equal("cognito-sub-123", cognitoSub);
+            return Task.CompletedTask;
+        }
+
+        public Task AwardQuizAsync(
+            string childId,
+            string cognitoSub,
+            int correctAnswers,
+            int totalQuestions,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

@@ -65,6 +65,14 @@ Neu chay thanh cong, API se lang nghe tai:
 http://localhost:5001
 ```
 
+Swagger UI:
+
+```text
+http://localhost:5001/swagger/index.html
+```
+
+Trong Swagger UI, bam nut `Authorize`, dan access token vao o Bearer de test cac API can xac thuc. Chi dan token, khong can tu go chu `Bearer`.
+
 Xem log:
 
 ```bash
@@ -110,6 +118,194 @@ Neu vuot quota, API tra ve:
 ```
 
 Bang `GreenLens-AiUsage` dung TTL `expiresAt` de tu don counter cu. Tao bang bang CloudFormation khi deploy `serverless.yml`, hoac tao bang that tren AWS neu test local voi DynamoDB that.
+
+## Quiz API
+
+Tat ca API Quiz can header:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Tao quiz 3 cau hoi:
+
+```http
+POST http://localhost:5001/quiz/generate
+```
+
+```json
+{
+  "childId": "child_...",
+  "wasteType": "paper"
+}
+```
+
+Response gom `sessionId`, `questions` va `usedFallback`. Backend se goi Bedrock Nova Micro voi timeout 10 giay. Neu Bedrock timeout, het quota, hoac tra ve noi dung khong phu hop, backend dung bo cau hoi fallback trong DynamoDB `GreenLens-QuizFallbacks`.
+
+Lay lai session dang lam do:
+
+```http
+GET http://localhost:5001/quiz/sessions/{sessionId}
+```
+
+Hoan thanh quiz va cong XP:
+
+```http
+POST http://localhost:5001/quiz/complete
+```
+
+```json
+{
+  "sessionId": "quiz_...",
+  "childId": "child_...",
+  "correctAnswers": 2,
+  "totalQuestions": 3
+}
+```
+
+XP quiz:
+
+- Cau dung: 10 XP.
+- Cau sai: 5 XP.
+- Dung 3/3 trong mot lan quiz: them badge `Thiên tài quiz`.
+
+Response mau:
+
+```json
+{
+  "sessionId": "quiz_...",
+  "correctAnswers": 2,
+  "totalQuestions": 3,
+  "xpAwarded": 25,
+  "status": "Completed"
+}
+```
+
+## Profile API
+
+Tat ca API profile can header:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Lay profile hien tai cua tre:
+
+```http
+GET http://localhost:5001/child-profiles/{childId}
+```
+
+Response gom XP, level, tien do len level, cac moc XP, streak, `badges` da mo khoa, `badgeCatalog` de hien thi ca badge da mo khoa va chua mo khoa:
+
+```json
+{
+  "childId": "child_...",
+  "cognitoSub": "f99ad55c-f081-70ed-66dc-ed3e8abcf6fd",
+  "characterName": "Be Xanh",
+  "gender": "male",
+  "hair": "hair_01",
+  "eyes": "eyes_01",
+  "outfit": "outfit_01",
+  "avatarPreview": "character_preview_01",
+  "xp": 80,
+  "level": 2,
+  "levelProgress": {
+    "currentLevel": 2,
+    "currentLevelXp": 50,
+    "nextLevel": 3,
+    "nextLevelXp": 120,
+    "xpIntoCurrentLevel": 30,
+    "xpToNextLevel": 40,
+    "progressPercent": 43
+  },
+  "levelMilestones": [
+    { "level": 1, "requiredXp": 0 },
+    { "level": 2, "requiredXp": 50 },
+    { "level": 3, "requiredXp": 120 },
+    { "level": 4, "requiredXp": 220 },
+    { "level": 5, "requiredXp": 350 },
+    { "level": 6, "requiredXp": 520 },
+    { "level": 7, "requiredXp": 750 },
+    { "level": 8, "requiredXp": 1050 },
+    { "level": 9, "requiredXp": 1450 },
+    { "level": 10, "requiredXp": 2000 }
+  ],
+  "streak": 0,
+  "badges": ["Thiên tài quiz"],
+  "badgeCatalog": [
+    {
+      "code": "first_scan",
+      "name": "First Scan",
+      "description": "Chup va phan loai rac thanh cong lan dau tien.",
+      "unlockCondition": "Phan loai thanh cong vat dau tien bang AI Camera.",
+      "isUnlocked": false,
+      "progressCurrent": 0,
+      "progressTarget": 1
+    },
+    {
+      "code": "quiz_genius",
+      "name": "Thiên tài quiz",
+      "description": "Tra loi dung tat ca cau hoi trong mot lan quiz.",
+      "unlockCondition": "Tra loi dung 3/3 cau trong mot lan quiz.",
+      "isUnlocked": true,
+      "progressCurrent": 3,
+      "progressTarget": 3
+    }
+  ],
+  "rewards": [],
+  "createdAt": "2026-06-13T06:42:08Z",
+  "updatedAt": "2026-06-18T07:08:31Z"
+}
+```
+
+Nguoi dung chi doc duoc profile thuoc dung `cognitoSub` trong access token. Neu token khac chu profile, API tra ve `403 Forbidden`.
+
+Lay rieng streak de FE hien thi streak card:
+
+```http
+GET http://localhost:5001/child-profiles/{childId}/streak
+```
+
+Response mau:
+
+```json
+{
+  "childId": "child_...",
+  "currentStreak": 12,
+  "targetStreakDays": 30,
+  "daysToStreak30": 18,
+  "progressPercent": 40,
+  "isStreak30Unlocked": false,
+  "badge": {
+    "code": "streak_30_days",
+    "name": "Streak 30 ngày",
+    "description": "Hoan thanh hoat dong moi ngay trong 30 ngay lien tiep.",
+    "unlockCondition": "Hoan thanh daily activity 30 ngay lien tiep.",
+    "isUnlocked": false,
+    "progressCurrent": 12,
+    "progressTarget": 30
+  }
+}
+```
+
+## XP va badge hien tai
+
+Da thiet lap trong backend:
+
+- AI Camera phan loai thanh cong: 15 XP moi lan.
+- Quiz: cau dung 10 XP, cau sai 5 XP.
+- Badge `First Scan`: lan dau tien AI Camera phan loai thanh cong.
+- Badge `Streak 30 ngày`: hoan thanh daily activity 30 ngay lien tiep.
+- Badge `Thiên tài quiz`: dung 3/3 cau trong mot lan quiz.
+- Badge `Vô địch mini game`: dat hang nhat tren bang xep hang tong hop quiz va mini game keo tha rac.
+- Badge `Anh hùng môi trường`: tong cong AI Camera phan loai thanh cong 100 vat.
+
+Chua lam trong phase nay:
+
+- Mini game: tren 80 diem +20 XP, duoi 80 diem +10 XP.
+- Daily activity: +5 XP bonus.
+- Badge streak 7 ngay va 30 ngay.
+- Badge `Vô địch mini game`.
 
 Dung API:
 
@@ -182,15 +378,27 @@ Response mau:
 }
 ```
 
-## Che do local hien tai
+## Che do local
 
-Trong `docker-compose.yml`, backend dang bat:
+`docker-compose.yml` hien tai dang ep backend dung DynamoDB/Cognito that:
+
+```yaml
+USE_IN_MEMORY_CHILD_PROFILES=false
+```
+
+Voi che do AWS that:
+
+- Can AWS credentials trong `.env`.
+- Profile, XP va badges duoc luu vao DynamoDB `GreenLens-ChildProfiles`.
+- Restart container khong lam mat du lieu.
+
+Neu muon test nhanh khong can AWS, co the doi thanh:
 
 ```yaml
 USE_IN_MEMORY_CHILD_PROFILES=true
 ```
 
-Voi che do nay:
+Voi che do in-memory:
 
 - Khong can AWS credentials.
 - Khong goi Cognito AWS.
