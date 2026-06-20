@@ -1,3 +1,4 @@
+using GreenLens.Api;
 using Amazon.DynamoDBv2;
 using Amazon.CognitoIdentityProvider;
 using Amazon.BedrockRuntime;
@@ -15,18 +16,35 @@ using GreenLens.Application.Modules.ChildProfiles.DTOs;
 using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using GreenLens.Application.Modules.ChildProfiles.Services;
 using GreenLens.Application.Modules.ChildProfiles.Validators;
+using GreenLens.Application.Modules.MiniGame.Interfaces;
+using GreenLens.Application.Modules.MiniGame.DTOs;
+using GreenLens.Application.Modules.MiniGame.Services;
+using GreenLens.Application.Modules.MiniGame.Validators;
 using GreenLens.Domain.Common.Interfaces;
 using GreenLens.Infrastructure.AWS.Bedrock;
 using GreenLens.Infrastructure.AWS.Cognito;
 using GreenLens.Infrastructure.AWS.DynamoDB;
 using GreenLens.Infrastructure.AWS.Rekognition;
 using GreenLens.Infrastructure.AWS.S3;
+using GreenLens.Infrastructure.Configurations;
+using GreenLens.Infrastructure.Persistence;
 using GreenLens.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<CognitoSubExtractor>();
+builder.Services.AddSingleton<IAmazonDynamoDB>(_ => DynamoDbClientFactory.Create(builder.Configuration));
+builder.Services.AddSingleton(new DynamoDbOptions
+{
+    ChildProfilesTableName = builder.Configuration["CHILD_PROFILES_TABLE_NAME"]
+        ?? builder.Configuration["DYNAMODB_CHILD_PROFILES_TABLE"]
+        ?? TableNames.ChildProfiles,
+    ActivityHistoryTableName = builder.Configuration["ACTIVITY_HISTORY_TABLE_NAME"]
+        ?? TableNames.ActivityHistory,
+    DailyActivitiesTableName = builder.Configuration["DAILY_ACTIVITIES_TABLE_NAME"]
+        ?? TableNames.DailyActivities
+});
 builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
 builder.Services.AddSingleton<IAmazonRekognition>(_ => new AmazonRekognitionClient());
 builder.Services.AddSingleton<IAmazonBedrockRuntime>(_ => new AmazonBedrockRuntimeClient());
@@ -72,7 +90,7 @@ builder.Services.AddSingleton<IAiCameraUsageLimiter>(serviceProvider =>
 
     var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
     var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
-        ? new AmazonDynamoDBClient()
+        ? serviceProvider.GetRequiredService<IAmazonDynamoDB>()
         : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
 
     return new DynamoDbAiCameraUsageLimiter(
@@ -105,15 +123,36 @@ builder.Services.AddSingleton<IChildProfileRepository>(serviceProvider =>
         return new InMemoryChildProfileRepository();
     }
 
-    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
-    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
-        ? new AmazonDynamoDBClient()
-        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
-
+    var options = serviceProvider.GetRequiredService<DynamoDbOptions>();
     return new ChildProfileRepository(
-        dynamoDb,
-        builder.Configuration["CHILD_PROFILES_TABLE_NAME"] ??
-            builder.Configuration["DYNAMODB_CHILD_PROFILES_TABLE"]);
+        serviceProvider.GetRequiredService<IAmazonDynamoDB>(),
+        options.ChildProfilesTableName);
+});
+builder.Services.AddSingleton<IActivityHistoryRepository>(serviceProvider =>
+{
+    var useInMemory = builder.Configuration.GetValue<bool>("USE_IN_MEMORY_CHILD_PROFILES");
+    if (useInMemory)
+    {
+        return new InMemoryActivityHistoryRepository();
+    }
+
+    var options = serviceProvider.GetRequiredService<DynamoDbOptions>();
+    return new ActivityHistoryRepository(
+        serviceProvider.GetRequiredService<IAmazonDynamoDB>(),
+        options.ActivityHistoryTableName);
+});
+builder.Services.AddSingleton<IDailyActivityRepository>(serviceProvider =>
+{
+    var useInMemory = builder.Configuration.GetValue<bool>("USE_IN_MEMORY_CHILD_PROFILES");
+    if (useInMemory)
+    {
+        return new InMemoryDailyActivityRepository();
+    }
+
+    var options = serviceProvider.GetRequiredService<DynamoDbOptions>();
+    return new DailyActivityRepository(
+        serviceProvider.GetRequiredService<IAmazonDynamoDB>(),
+        options.DailyActivitiesTableName);
 });
 builder.Services.AddSingleton<IChildIdentityService>(serviceProvider =>
 {
@@ -128,6 +167,8 @@ builder.Services.AddSingleton<IChildIdentityService>(serviceProvider =>
     return new CognitoChildIdentityService(new AmazonCognitoIdentityProviderClient());
 });
 builder.Services.AddSingleton<IChildProfileService, ChildProfileService>();
+builder.Services.AddSingleton<CompleteMiniGameValidator>();
+builder.Services.AddSingleton<IMiniGameService, MiniGameService>();
 
 var app = builder.Build();
 
@@ -301,11 +342,14 @@ app.MapPost("/auth/dev-login", (
     }
 });
 
-app.MapPost("/child-profiles", async (
+app.MapPost("/child-profiles", async Task<IResult> (
     HttpRequest httpRequest,
     CreateChildProfileRequest request,
-    IChildProfileService childProfileService) =>
+    IChildProfileService childProfileService,
+    IWebHostEnvironment environment,
+    ILoggerFactory loggerFactory) =>
 {
+    var logger = loggerFactory.CreateLogger("ChildProfiles");
     try
     {
         var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
@@ -315,9 +359,30 @@ app.MapPost("/child-profiles", async (
             httpRequest.HttpContext.RequestAborted);
         return Results.Created($"/child-profiles/{profile.ChildId}", profile);
     }
-    catch (ArgumentException exception)
+    catch (Exception exception)
     {
-        return Results.BadRequest(new { message = exception.Message });
+        return ApiErrorResults.FromException(exception, environment, logger, "Create child profile");
+    }
+});
+
+app.MapPost("/mini-game/complete", async Task<IResult> (
+    CompleteMiniGameRequest request,
+    IMiniGameService miniGameService,
+    IWebHostEnvironment environment,
+    ILoggerFactory loggerFactory,
+    HttpContext httpContext) =>
+{
+    var logger = loggerFactory.CreateLogger("MiniGame");
+    try
+    {
+        var response = await miniGameService.CompleteAsync(
+            request,
+            httpContext.RequestAborted);
+        return Results.Ok(response);
+    }
+    catch (Exception exception)
+    {
+        return ApiErrorResults.FromException(exception, environment, logger, "Complete mini game");
     }
 });
 

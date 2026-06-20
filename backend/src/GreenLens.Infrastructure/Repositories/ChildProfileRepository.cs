@@ -21,6 +21,66 @@ public sealed class ChildProfileRepository : IChildProfileRepository
 
     public Task SaveAsync(ChildProfile profile, CancellationToken cancellationToken = default)
     {
+        var request = new PutItemRequest
+        {
+            TableName = _tableName,
+            Item = ToItem(profile),
+            ConditionExpression = "attribute_not_exists(childId)"
+        };
+
+        return _dynamoDb.PutItemAsync(request, cancellationToken);
+    }
+
+    public async Task<ChildProfile?> GetByIdAsync(string childId, CancellationToken cancellationToken = default)
+    {
+        var response = await _dynamoDb.GetItemAsync(new GetItemRequest
+        {
+            TableName = _tableName,
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["childId"] = new() { S = childId }
+            }
+        }, cancellationToken);
+
+        return response.Item is null || response.Item.Count == 0
+            ? null
+            : FromItem(response.Item);
+    }
+
+    public Task UpdateProgressAsync(
+        string childId,
+        int xp,
+        int level,
+        int streak,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new UpdateItemRequest
+        {
+            TableName = _tableName,
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["childId"] = new() { S = childId }
+            },
+            UpdateExpression = "SET xp = :xp, #level = :level, streak = :streak, updatedAt = :updatedAt",
+            ExpressionAttributeNames = new Dictionary<string, string>
+            {
+                ["#level"] = "level"
+            },
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":xp"] = new() { N = xp.ToString() },
+                [":level"] = new() { N = level.ToString() },
+                [":streak"] = new() { N = streak.ToString() },
+                [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") }
+            },
+            ConditionExpression = "attribute_exists(childId)"
+        };
+
+        return _dynamoDb.UpdateItemAsync(request, cancellationToken);
+    }
+
+    private static Dictionary<string, AttributeValue> ToItem(ChildProfile profile)
+    {
         var item = new Dictionary<string, AttributeValue>
         {
             ["childId"] = RequiredString(profile.ChildId, nameof(profile.ChildId)),
@@ -41,14 +101,29 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         AddStringList(item, "badges", profile.Badges);
         AddStringList(item, "rewards", profile.Rewards);
 
-        var request = new PutItemRequest
-        {
-            TableName = _tableName,
-            Item = item,
-            ConditionExpression = "attribute_not_exists(childId)"
-        };
+        return item;
+    }
 
-        return _dynamoDb.PutItemAsync(request, cancellationToken);
+    private static ChildProfile FromItem(Dictionary<string, AttributeValue> item)
+    {
+        return new ChildProfile
+        {
+            ChildId = item["childId"].S,
+            CognitoSub = item["cognitoSub"].S,
+            CharacterName = item["characterName"].S,
+            Gender = item["gender"].S,
+            Hair = item["hair"].S,
+            Eyes = item["eyes"].S,
+            Outfit = item["outfit"].S,
+            AvatarPreview = item["avatarPreview"].S,
+            Xp = int.Parse(item["xp"].N),
+            Level = int.Parse(item["level"].N),
+            Streak = int.Parse(item["streak"].N),
+            Badges = ReadStringList(item, "badges"),
+            Rewards = ReadStringList(item, "rewards"),
+            CreatedAt = DateTime.Parse(item["createdAt"].S, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            UpdatedAt = DateTime.Parse(item["updatedAt"].S, null, System.Globalization.DateTimeStyles.RoundtripKind)
+        };
     }
 
     private static AttributeValue RequiredString(string value, string fieldName)
@@ -75,5 +150,20 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         {
             item[fieldName] = new AttributeValue { L = nonEmptyValues };
         }
+    }
+
+    private static IReadOnlyList<string> ReadStringList(
+        IReadOnlyDictionary<string, AttributeValue> item,
+        string fieldName)
+    {
+        if (!item.TryGetValue(fieldName, out var value) || value.L is null)
+        {
+            return [];
+        }
+
+        return value.L
+            .Where(attribute => !string.IsNullOrWhiteSpace(attribute.S))
+            .Select(attribute => attribute.S)
+            .ToList();
     }
 }
