@@ -24,22 +24,22 @@ export function CharacterSpeechBubble({
         {pointRight ? (
           <>
             <span
-              className="pointer-events-none absolute -right-[13px] top-[42%] block h-0 w-0 -translate-y-1/2 border-y-[11px] border-l-[14px] border-y-transparent border-l-black"
+              className="pointer-events-none absolute -right-[13px] top-1/2 block h-0 w-0 -translate-y-1/2 border-y-[11px] border-l-[14px] border-y-transparent border-l-black"
               aria-hidden
             />
             <span
-              className="pointer-events-none absolute -right-[9px] top-[42%] block h-0 w-0 -translate-y-1/2 border-y-[9px] border-l-[11px] border-y-transparent border-l-white"
+              className="pointer-events-none absolute -right-[9px] top-1/2 block h-0 w-0 -translate-y-1/2 border-y-[9px] border-l-[11px] border-y-transparent border-l-white"
               aria-hidden
             />
           </>
         ) : (
           <>
             <span
-              className="pointer-events-none absolute -left-[13px] top-[42%] block h-0 w-0 -translate-y-1/2 border-y-[11px] border-r-[14px] border-y-transparent border-r-black"
+              className="pointer-events-none absolute -left-[13px] top-1/2 block h-0 w-0 -translate-y-1/2 border-y-[11px] border-r-[14px] border-y-transparent border-r-black"
               aria-hidden
             />
             <span
-              className="pointer-events-none absolute -left-[9px] top-[42%] block h-0 w-0 -translate-y-1/2 border-y-[9px] border-r-[11px] border-y-transparent border-r-white"
+              className="pointer-events-none absolute -left-[9px] top-1/2 block h-0 w-0 -translate-y-1/2 border-y-[9px] border-r-[11px] border-y-transparent border-r-white"
               aria-hidden
             />
           </>

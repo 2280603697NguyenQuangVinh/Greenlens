@@ -97,11 +97,13 @@ export function FloatingMascot({
   const positionStyle: CSSProperties =
     isIdle || isInline
       ? {}
-      : {
-          top: spot?.top ?? "10%",
-          left: spot?.left,
-          right: spot?.right,
-        }
+      : className?.includes("left-3") && className?.includes("right-3")
+        ? { top: spot?.top ?? "8%", left: "12px", right: "12px" }
+        : {
+            top: spot?.top ?? "10%",
+            left: spot?.left,
+            right: spot?.right,
+          }
 
   const containerClass =
     className ??
@@ -109,7 +111,10 @@ export function FloatingMascot({
       ? "mb-3 w-full"
       : isIdle
         ? "pointer-events-none absolute bottom-52 left-3 right-3 z-[60] max-w-[min(100%,22rem)]"
-        : "pointer-events-none absolute z-30 max-w-[min(88vw,20rem)]")
+        : "pointer-events-none absolute z-30 max-w-[min(calc(100vw-20px),26rem)]")
+
+  const rowAlign =
+    isInline ? "items-start" : isResult ? "items-center" : "items-end"
 
   return (
     <motion.div
@@ -122,19 +127,19 @@ export function FloatingMascot({
       style={isIdle || isInline ? undefined : positionStyle}
     >
       <div
-        className={`relative flex gap-2 ${isInline ? "items-start" : "items-end"} ${alignRight ? "flex-row-reverse" : ""}`}
+        className={`relative flex shrink-0 gap-1.5 ${rowAlign} ${alignRight ? "flex-row-reverse" : ""}`}
       >
         <motion.img
           src={mascotPng}
           alt="Mascot"
-          className="shrink-0 object-contain drop-shadow-lg"
+          className="shrink-0 self-center object-contain drop-shadow-lg"
           style={{ height: mascotSize, width: mascotSize }}
           draggable={false}
           initial={isResult ? { scale: 0.6, rotate: -8 } : false}
           animate={
             entered
               ? isResult
-                ? { scale: [1, 1.08, 1], y: [0, -6, 0], rotate: 0 }
+                ? { scale: [1, 1.05, 1], rotate: 0 }
                 : { y: [0, -4, 0] }
               : undefined
           }
@@ -150,7 +155,7 @@ export function FloatingMascot({
           tail={alignRight ? "right" : "left"}
           className={
             isResult
-              ? `drop-shadow-lg [&>div:first-child]:bg-white ${isInline ? "min-w-0 flex-1" : ""}`
+              ? `self-center drop-shadow-lg [&>div:first-child]:bg-white ${isInline ? "min-w-0 flex-1" : ""}`
               : isIdle
                 ? "drop-shadow-lg [&>div:first-child]:bg-white/95"
                 : "drop-shadow-md [&>div:first-child]:bg-white/95"
@@ -161,7 +166,7 @@ export function FloatingMascot({
               isResult
                 ? isInline
                   ? "max-h-[88px] overflow-y-auto text-[13px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  : "max-h-[120px] overflow-y-auto text-[14px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "text-[13px] sm:text-[14px]"
                 : "text-[15px]"
             }`}
           >

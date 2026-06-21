@@ -7,18 +7,19 @@ import { ResultActionBar } from "@/features/camera/components/result/ResultActio
 
 type Props = {
   result: AiCameraResult
+  capturedImage: string
   onRetake: () => void
   onQuiz?: () => void
 }
 
-export function CameraResultCard({ result, onRetake, onQuiz }: Props) {
+export function CameraResultCard({ result, capturedImage, onRetake, onQuiz }: Props) {
   return (
     <>
-      <ResultHeroCard result={result} />
+      <ResultHeroCard result={result} capturedImage={capturedImage} />
       <BinCharacterPicker result={result} />
       <ScanRewardBanner />
       <p className="mb-2 text-center text-[12px] font-semibold text-[#95A5A6]">
-        Vuốt xem thêm câu chuyện nhé 👇
+        Vuốt xem thêm câu chuyện nhé
       </p>
       <StoryCardStack result={result} />
       <ResultActionBar onRetake={onRetake} onQuiz={onQuiz} />

@@ -25,7 +25,7 @@ export function BinCharacterPicker({ result }: Props) {
         Giúp Robo chọn đúng thùng rác nhé!
       </h3>
       <p className="mt-0.5 text-center text-[12px] font-semibold text-[#52796F]">
-        Thùng đúng đang sáng lên nè ✨
+        Thùng đúng đang sáng lên nè
       </p>
 
       <div className="mt-3 grid grid-cols-4 gap-1.5">
@@ -42,7 +42,7 @@ export function BinCharacterPicker({ result }: Props) {
           className={`mt-3 flex h-[36px] w-full items-center justify-center rounded-full ${activeBin.chipClass}`}
         >
           <span className="text-[13px] font-black text-white">
-            👉 {activeBin.label} {activeBin.emoji}
+            {activeBin.label}
           </span>
         </motion.div>
       )}

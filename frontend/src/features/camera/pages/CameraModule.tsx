@@ -525,17 +525,20 @@ export default function CameraModule({
               className="absolute inset-0 flex flex-col z-40 bg-[#E8F8EF]"
               onPointerDown={handleUserGesture}
             >
-              <div className="relative min-h-[48vh] max-h-[52vh] shrink-0 overflow-hidden">
-                <img
-                  src={capturedImage}
-                  alt="Captured"
-                  className="h-full w-full object-cover"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#F7FFF9]/90 via-transparent to-black/5" />
+              <div className="relative min-h-[48vh] max-h-[52vh] shrink-0">
+                <div className="absolute inset-0 overflow-hidden">
+                  <img
+                    src={capturedImage}
+                    alt="Captured"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#F7FFF9]/90 via-transparent to-black/5" />
+                </div>
                 {resultSpot && (
                   <FloatingMascot
                     variant="result"
                     spot={resultSpot}
+                    className="pointer-events-none absolute z-30 left-3 right-3 max-w-none"
                     text={speechText}
                     speechSegments={speechSegments}
                     speechKey={`result-${result.wasteName}-${result.confidence}-${resultSpot.top}-${resultSpot.left ?? ""}-${resultSpot.right ?? ""}`}
@@ -562,6 +565,7 @@ export default function CameraModule({
                 <div className="flex-1 overflow-y-auto px-4 pb-6 pt-1">
                   <CameraResultCard
                     result={result}
+                    capturedImage={capturedImage}
                     onRetake={resetCamera}
                     onQuiz={onGoQuiz}
                   />
