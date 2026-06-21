@@ -16,9 +16,11 @@ type FloatingMascotProps = {
   onStopPlayback?: () => void
   autoSpeak?: boolean
   variant: "idle" | "result"
+  layout?: "overlay" | "inline"
   spot?: MascotSpot
   mascotSize?: number
   className?: string
+  pointDown?: boolean
 }
 
 export function FloatingMascot({
@@ -32,9 +34,11 @@ export function FloatingMascot({
   onStopPlayback,
   autoSpeak = true,
   variant,
+  layout = "overlay",
   spot,
   mascotSize = 72,
   className,
+  pointDown = false,
 }: FloatingMascotProps) {
   const spokenKeyRef = useRef<string | null>(null)
   const onSpeakRef = useRef(onSpeak)
@@ -45,6 +49,9 @@ export function FloatingMascot({
   onStopPlaybackRef.current = onStopPlayback
 
   const segmentsFingerprint = speechSegments.map((segment) => segment.text).join("\n")
+  const isIdle = variant === "idle"
+  const isResult = variant === "result"
+  const isInline = layout === "inline"
 
   useEffect(() => {
     setEntered(false)
@@ -85,54 +92,93 @@ export function FloatingMascot({
     }
   }, [variant])
 
-  const isIdle = variant === "idle"
   const alignRight = spot?.align === "right"
 
-  const positionStyle: CSSProperties = isIdle
-    ? {}
-    : {
-        top: spot?.top ?? "10%",
-        left: spot?.left,
-        right: spot?.right,
-      }
+  const positionStyle: CSSProperties =
+    isIdle || isInline
+      ? {}
+      : {
+          top: spot?.top ?? "10%",
+          left: spot?.left,
+          right: spot?.right,
+        }
 
   const containerClass =
     className ??
-    (isIdle
-      ? "pointer-events-none absolute bottom-52 left-3 right-3 z-[60] max-w-[min(100%,22rem)]"
-      : "pointer-events-none absolute z-30 max-w-[min(88vw,20rem)]")
+    (isInline
+      ? "mb-3 w-full"
+      : isIdle
+        ? "pointer-events-none absolute bottom-52 left-3 right-3 z-[60] max-w-[min(100%,22rem)]"
+        : "pointer-events-none absolute z-30 max-w-[min(88vw,20rem)]")
 
   return (
     <motion.div
       key={speechKey}
-      initial={{ scale: 0, opacity: 0, y: 28 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
+      initial={isInline ? { opacity: 0, y: 12 } : { scale: 0, opacity: 0, y: 28 }}
+      animate={isInline ? { opacity: 1, y: 0 } : { scale: 1, opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 20 }}
       onAnimationComplete={() => setEntered(true)}
       className={containerClass}
-      style={isIdle ? undefined : positionStyle}
+      style={isIdle || isInline ? undefined : positionStyle}
     >
-      <div className={`flex items-end gap-2 ${alignRight ? "flex-row-reverse" : ""}`}>
+      <div
+        className={`relative flex gap-2 ${isInline ? "items-start" : "items-end"} ${alignRight ? "flex-row-reverse" : ""}`}
+      >
         <motion.img
           src={mascotPng}
           alt="Mascot"
           className="shrink-0 object-contain drop-shadow-lg"
           style={{ height: mascotSize, width: mascotSize }}
           draggable={false}
-          animate={entered ? { y: [0, -4, 0] } : undefined}
+          initial={isResult ? { scale: 0.6, rotate: -8 } : false}
+          animate={
+            entered
+              ? isResult
+                ? { scale: [1, 1.08, 1], y: [0, -6, 0], rotate: 0 }
+                : { y: [0, -4, 0] }
+              : undefined
+          }
           transition={
             entered
-              ? { repeat: Infinity, duration: 2.4, ease: "easeInOut" }
+              ? isResult
+                ? { repeat: 2, duration: 0.45, ease: "easeOut" }
+                : { repeat: Infinity, duration: 2.4, ease: "easeInOut" }
               : undefined
           }
         />
         <CharacterSpeechBubble
           tail={alignRight ? "right" : "left"}
-          className={isIdle ? "drop-shadow-lg [&_div]:bg-white/95" : "drop-shadow-md [&_div]:bg-white/95"}
+          className={
+            isResult
+              ? `drop-shadow-lg [&>div:first-child]:bg-white ${isInline ? "min-w-0 flex-1" : ""}`
+              : isIdle
+                ? "drop-shadow-lg [&>div:first-child]:bg-white/95"
+                : "drop-shadow-md [&>div:first-child]:bg-white/95"
+          }
         >
-          <p className="text-[15px] leading-snug">{text}</p>
+          <p
+            className={`leading-snug font-bold ${
+              isResult
+                ? isInline
+                  ? "max-h-[88px] overflow-y-auto text-[13px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "max-h-[120px] overflow-y-auto text-[14px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                : "text-[15px]"
+            }`}
+          >
+            {text}
+          </p>
         </CharacterSpeechBubble>
       </div>
+
+      {pointDown && !isInline && (
+        <motion.div
+          className="absolute -bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center"
+          animate={{ y: [0, 6, 0] }}
+          transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+        >
+          <span className="text-2xl drop-shadow-md">👇</span>
+        </motion.div>
+      )}
     </motion.div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Camera as CameraIcon, X, RotateCcw, Image, Home } from "lucide-react";
+import { Camera as CameraIcon, Image, Home } from "lucide-react";
 import {
   analyzeAiCameraImage,
   buildCameraLoadingMascotSpeech,
@@ -18,6 +18,7 @@ import { loadStoredProfile } from "@/services/greenLens";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { FloatingMascot } from "@/features/camera/components/FloatingMascot";
 import { CameraResultCard } from "@/features/camera/components/CameraResultCard";
+import { fireScanConfetti } from "@/features/camera/utils/scanConfetti";
 import { pickRandomMascotSpot, type MascotSpot } from "@/features/camera/utils/mascotSpots";
 import type { AvatarConfig } from "@/utils/types";
 
@@ -101,6 +102,7 @@ export default function CameraModule({
   const [error, setError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const confettiKeyRef = useRef<string | null>(null);
   const [resultSpot, setResultSpot] = useState<MascotSpot | null>(null);
   const [suppressIdleGreeting, setSuppressIdleGreeting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -138,6 +140,14 @@ export default function CameraModule({
     () => (result ? buildMascotSpeechSegments(result) : []),
     [result],
   );
+
+  useEffect(() => {
+    if (!result || !capturedImage) return;
+    const key = `${result.wasteName}-${result.confidence}`;
+    if (confettiKeyRef.current === key) return;
+    confettiKeyRef.current = key;
+    fireScanConfetti();
+  }, [result, capturedImage]);
 
   const displayName = avatarCfg.characterName?.trim() || "bạn";
 
@@ -351,6 +361,7 @@ export default function CameraModule({
     setCapturedImage(null);
     setResult(null);
     setResultSpot(null);
+    confettiKeyRef.current = null;
     setError(null);
   };
 
@@ -511,22 +522,23 @@ export default function CameraModule({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 flex flex-col z-40 bg-green-50"
+              className="absolute inset-0 flex flex-col z-40 bg-[#E8F8EF]"
               onPointerDown={handleUserGesture}
             >
-              <div className="flex-1 relative min-h-[200px] overflow-hidden">
+              <div className="relative min-h-[48vh] max-h-[52vh] shrink-0 overflow-hidden">
                 <img
                   src={capturedImage}
                   alt="Captured"
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#F7FFF9]/90 via-transparent to-black/5" />
                 {resultSpot && (
                   <FloatingMascot
                     variant="result"
                     spot={resultSpot}
                     text={speechText}
                     speechSegments={speechSegments}
-                    speechKey={`${speechText}-${resultSpot.top}-${resultSpot.left ?? ""}-${resultSpot.right ?? ""}`}
+                    speechKey={`result-${result.wasteName}-${result.confidence}-${resultSpot.top}-${resultSpot.left ?? ""}-${resultSpot.right ?? ""}`}
                     isSupported={isSupported}
                     voicesReady={voicesReady}
                     supertonicReady={supertonicReady}
@@ -540,53 +552,29 @@ export default function CameraModule({
               <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
-                transition={{ delay: 0.9, type: "spring", stiffness: 220, damping: 28 }}
-                className="relative z-10 -mt-6 rounded-t-3xl bg-green-50 p-6 pt-8 shadow-2xl"
+                transition={{ delay: 0.35, type: "spring", stiffness: 260, damping: 26 }}
+                className="relative z-10 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#F7FFF9] shadow-[0_-8px_32px_rgba(45,106,79,0.15)]"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-black text-green-800">Kết Quả AI Camera</h2>
-                  <button
-                    type="button"
-                    onClick={resetCamera}
-                    className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center"
-                  >
-                    <X size={20} className="text-green-700" />
-                  </button>
+                <div className="flex shrink-0 justify-center pt-3 pb-1">
+                  <div className="h-1.5 w-12 rounded-full bg-[#95D5B2]/60" />
                 </div>
 
-                <CameraResultCard result={result} />
+                <div className="flex-1 overflow-y-auto px-4 pb-6 pt-1">
+                  <CameraResultCard
+                    result={result}
+                    onRetake={resetCamera}
+                    onQuiz={onGoQuiz}
+                  />
 
-                {isSupported && (
-                  <div className="mb-3 space-y-2">
-                    {supertonicFailed && (
-                      <p className="text-center text-sm font-semibold text-red-600">
-                        Không tải được giọng. Hãy tải lại trang nhé!
-                      </p>
-                    )}
-                    {!supertonicFailed && supertonicLoading && !voicesReady && (
-                      <p className="text-center text-sm text-green-700">
-                        Đang tải giọng mascot…
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={resetCamera}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-bold flex items-center justify-center gap-2"
-                  >
-                    <RotateCcw size={20} /> Chụp lại
-                  </button>
-                  {onGoQuiz && (
-                    <button
-                      type="button"
-                      onClick={onGoQuiz}
-                      className="flex-1 bg-green-500 text-white py-3 rounded-2xl font-bold shadow-lg"
-                    >
-                      Làm câu đố
-                    </button>
+                  {isSupported && supertonicFailed && (
+                    <p className="mt-3 text-center text-sm font-semibold text-red-600">
+                      Không tải được giọng. Hãy tải lại trang nhé!
+                    </p>
+                  )}
+                  {isSupported && !supertonicFailed && supertonicLoading && !voicesReady && (
+                    <p className="mt-3 text-center text-sm text-green-700">
+                      Đang tải giọng mascot…
+                    </p>
                   )}
                 </div>
               </motion.div>

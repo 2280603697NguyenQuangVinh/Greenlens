@@ -34,17 +34,21 @@ const WASTE_LABEL_VI: Record<string, string> = {
   bottle: "chai nhựa",
   plastic: "nhựa",
   "plastic bag": "túi nhựa",
+  bag: "túi",
   paper: "giấy",
   cardboard: "bìa carton",
   can: "lon",
   aluminium: "nhôm",
   aluminum: "nhôm",
+  aerosol: "bình xịt",
+  "spray can": "lon xịt",
   food: "thực phẩm",
   banana: "chuối",
   battery: "pin",
   diaper: "tã",
   baby: "tã em bé",
   trash: "rác thải",
+  waste: "rác thải",
 }
 
 const CATEGORY_VI: Record<string, string> = {
@@ -85,8 +89,12 @@ export function translateWasteLabel(label: string): string {
   return trimmed
 }
 
-function translateCategory(category: string): string {
-  const key = category.trim().toLowerCase().replace(/\s+/g, "")
+function normalizeCategoryKey(category: string): string {
+  return category.trim().toLowerCase().replace(/[\s\-_]+/g, "")
+}
+
+export function translateCategory(category: string): string {
+  const key = normalizeCategoryKey(category)
   return CATEGORY_VI[key] ?? category
 }
 
@@ -149,6 +157,22 @@ export function buildMascotSpeechSegments(result: AiCameraResult): SpeechSegment
 export function buildMascotSpeech(result: AiCameraResult): string {
   const segments = buildMascotSpeechSegments(result)
   return segments[0]?.text.replace(/\n\n+/g, " ").trim() ?? ""
+}
+
+export function buildMascotBubbleShort(result: AiCameraResult): string {
+  const name = translateWasteLabel(result.wasteName)
+  const category = result.wasteCategory.toLowerCase()
+
+  if (category.includes("nguy") || category.includes("hazard")) {
+    return `Cẩn thận nhé! ${name} cần thùng đỏ! ⚠️`
+  }
+  if (category.includes("hữu") || category.includes("organic")) {
+    return `Ui! ${name} là rác hữu cơ nè! 🍂`
+  }
+  if (category.includes("tái") || category.includes("recycl")) {
+    return `Yay! Đây là ${name} tái chế được đó! ♻️`
+  }
+  return `Đây là ${name}! Bỏ đúng thùng nhé! 🗑️`
 }
 
 export function buildIdleMascotSpeech(displayName: string): string {
