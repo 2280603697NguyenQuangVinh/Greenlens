@@ -47,26 +47,7 @@ public sealed class DynamoDbChildQuizContextReader : IChildQuizContextReader
 
         return new ChildQuizContext(
             childId,
-            cognitoSub,
-            ReadAge(response.Item));
-    }
-
-    private int ReadAge(Dictionary<string, AttributeValue> item)
-    {
-        if (item.TryGetValue("age", out var age) &&
-            int.TryParse(age.N ?? age.S, out var parsedAge))
-        {
-            return Math.Clamp(parsedAge, 6, 12);
-        }
-
-        if (item.TryGetValue("birthYear", out var birthYear) &&
-            int.TryParse(birthYear.N ?? birthYear.S, out var parsedBirthYear))
-        {
-            var ageFromYear = DateTime.UtcNow.Year - parsedBirthYear;
-            return Math.Clamp(ageFromYear, 6, 12);
-        }
-
-        return _options.DefaultAge;
+            cognitoSub);
     }
 
     private static string? GetString(Dictionary<string, AttributeValue> item, string name)

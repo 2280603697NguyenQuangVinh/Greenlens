@@ -17,16 +17,18 @@ public sealed record QuizQuestionDto(
 public sealed record GenerateQuizResponse(
     string SessionId,
     string ChildId,
+    string GameType,
     string WasteType,
-    int Age,
+    int TargetAge,
     IReadOnlyList<QuizQuestionDto> Questions,
     bool UsedFallback);
 
 public sealed record QuizSessionDto(
     string SessionId,
     string ChildId,
+    string GameType,
     string WasteType,
-    int Age,
+    int TargetAge,
     string Status,
     IReadOnlyList<QuizQuestionDto> Questions,
     DateTime CreatedAt,
@@ -34,6 +36,8 @@ public sealed record QuizSessionDto(
 
 public sealed record CompleteQuizResponse(
     string SessionId,
+    string GameType,
+    int Score,
     int CorrectAnswers,
     int TotalQuestions,
     int XpAwarded,
@@ -41,5 +45,4 @@ public sealed record CompleteQuizResponse(
 
 public sealed record ChildQuizContext(
     string ChildId,
-    string CognitoSub,
-    int Age);
+    string CognitoSub);

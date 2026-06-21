@@ -185,5 +185,15 @@ public sealed class AiCameraServiceTests
         {
             throw new NotSupportedException();
         }
+
+        public Task AwardMiniGameAsync(
+            string childId,
+            string cognitoSub,
+            int score,
+            int xpAwarded,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

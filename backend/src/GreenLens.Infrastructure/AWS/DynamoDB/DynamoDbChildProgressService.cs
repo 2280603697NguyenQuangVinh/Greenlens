@@ -10,6 +10,7 @@ public sealed class DynamoDbChildProgressService : IChildProgressService
     private const int AiCameraScanXp = 15;
     private const int QuizCorrectXp = 10;
     private const int QuizWrongXp = 5;
+    private const int TrashSortMasterScore = 81;
 
     private readonly IAmazonDynamoDB _dynamoDb;
     private readonly string _childProfilesTableName;
@@ -86,6 +87,30 @@ public sealed class DynamoDbChildProgressService : IChildProgressService
         }
     }
 
+    public async Task AwardMiniGameAsync(
+        string childId,
+        string cognitoSub,
+        int score,
+        int xpAwarded,
+        CancellationToken cancellationToken = default)
+    {
+        if (xpAwarded > 0)
+        {
+            await AddXpAsync(childId, cognitoSub, xpAwarded, cancellationToken);
+        }
+
+        await UpdateMiniGameHighScoreAsync(
+            childId,
+            cognitoSub,
+            Math.Max(score, 0),
+            cancellationToken);
+
+        if (score >= TrashSortMasterScore)
+        {
+            await AddBadgeAsync(childId, cognitoSub, "Rác Kỳ Thủ", cancellationToken);
+        }
+    }
+
     private async Task AddXpAsync(
         string childId,
         string cognitoSub,
@@ -146,6 +171,35 @@ public sealed class DynamoDbChildProgressService : IChildProgressService
                 }
             },
             cancellationToken);
+    }
+
+    private async Task UpdateMiniGameHighScoreAsync(
+        string childId,
+        string cognitoSub,
+        int score,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _dynamoDb.UpdateItemAsync(
+                new UpdateItemRequest
+                {
+                    TableName = _childProfilesTableName,
+                    Key = Key(childId),
+                    UpdateExpression = "SET miniGameHighScore = :score, updatedAt = :updatedAt",
+                    ConditionExpression = "cognitoSub = :cognitoSub AND (attribute_not_exists(miniGameHighScore) OR miniGameHighScore < :score)",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":score"] = new() { N = score.ToString() },
+                        [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
+                        [":cognitoSub"] = new() { S = cognitoSub }
+                    }
+                },
+                cancellationToken);
+        }
+        catch (ConditionalCheckFailedException)
+        {
+        }
     }
 
     private async Task AddBadgeAsync(

@@ -27,6 +27,10 @@ provider:
     QUIZ_SESSIONS_TABLE_NAME: GreenLens-QuizSessions
     QUIZ_FALLBACK_TABLE_NAME: GreenLens-QuizFallbacks
     QUIZ_DEFAULT_AGE: ${env:QUIZ_DEFAULT_AGE, '8'}
+    MINI_GAME_RESULTS_TABLE_NAME: GreenLens-MiniGameResults
+    MINI_GAME_ITEMS_TABLE_NAME: GreenLens-MiniGameItems
+    MINI_GAME_ASSET_BUCKET_NAME: ${env:MINI_GAME_ASSET_BUCKET_NAME, ''}
+    MINI_GAME_ASSET_BASE_URL: ${env:MINI_GAME_ASSET_BASE_URL, ''}
   apiGateway:
     binaryMediaTypes:
       - multipart/form-data
@@ -38,6 +42,8 @@ provider:
             - dynamodb:PutItem
             - dynamodb:GetItem
             - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
           Resource:
             - Fn::GetAtt:
                 - ChildProfilesTable
@@ -48,6 +54,18 @@ provider:
             - Fn::GetAtt:
                 - QuizFallbacksTable
                 - Arn
+            - Fn::GetAtt:
+                - MiniGameResultsTable
+                - Arn
+            - Fn::GetAtt:
+                - MiniGameItemsTable
+                - Arn
+            - Fn::Sub:
+                - ${TableArn}/index/*
+                - TableArn:
+                    Fn::GetAtt:
+                      - MiniGameResultsTable
+                      - Arn
         - Effect: Allow
           Action:
             - dynamodb:UpdateItem
@@ -173,6 +191,26 @@ functions:
           authorizer:
             arn:
               Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  miniGameTrashSortItems:
+    handler: GreenLens.Api::GreenLens.Api.Functions.MiniGameFunction::GetTrashSortItemsAsync
+    events:
+      - http:
+          path: mini-games/trash-sort/items
+          method: get
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  miniGameTrashSortResult:
+    handler: GreenLens.Api::GreenLens.Api.Functions.MiniGameFunction::SubmitTrashSortResultAsync
+    events:
+      - http:
+          path: mini-games/trash-sort/results
+          method: post
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
 
 resources:
   Resources:
@@ -237,6 +275,43 @@ resources:
             AttributeType: S
         KeySchema:
           - AttributeName: fallbackKey
+            KeyType: HASH
+
+    MiniGameResultsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-MiniGameResults
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: resultId
+            AttributeType: S
+          - AttributeName: childId
+            AttributeType: S
+          - AttributeName: gameType
+            AttributeType: S
+        KeySchema:
+          - AttributeName: resultId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: GSI-childId-gameType
+            KeySchema:
+              - AttributeName: childId
+                KeyType: HASH
+              - AttributeName: gameType
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    MiniGameItemsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-MiniGameItems
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: itemId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: itemId
             KeyType: HASH
 
     GreenLensApiWebAcl:

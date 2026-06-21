@@ -21,4 +21,14 @@ public sealed class NoopChildProgressService : IChildProgressService
     {
         return Task.CompletedTask;
     }
+
+    public Task AwardMiniGameAsync(
+        string childId,
+        string cognitoSub,
+        int score,
+        int xpAwarded,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }

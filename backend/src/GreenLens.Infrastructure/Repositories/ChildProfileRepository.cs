@@ -35,6 +35,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             ["level"] = new() { N = profile.Level.ToString() },
             ["streak"] = new() { N = profile.Streak.ToString() },
             ["aiCameraScanCount"] = new() { N = profile.AiCameraScanCount.ToString() },
+            ["miniGameHighScore"] = new() { N = profile.MiniGameHighScore.ToString() },
             ["createdAt"] = new() { S = profile.CreatedAt.ToString("O") },
             ["updatedAt"] = new() { S = profile.UpdatedAt.ToString("O") }
         };
@@ -86,6 +87,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             Level = GetInt(response.Item, "level", 1),
             Streak = GetInt(response.Item, "streak"),
             AiCameraScanCount = GetInt(response.Item, "aiCameraScanCount"),
+            MiniGameHighScore = GetInt(response.Item, "miniGameHighScore"),
             Badges = GetStringList(response.Item, "badges"),
             Rewards = GetStringList(response.Item, "rewards"),
             CreatedAt = GetDate(response.Item, "createdAt"),

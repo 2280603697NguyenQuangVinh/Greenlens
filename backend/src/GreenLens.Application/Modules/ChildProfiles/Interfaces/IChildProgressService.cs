@@ -13,4 +13,11 @@ public interface IChildProgressService
         int correctAnswers,
         int totalQuestions,
         CancellationToken cancellationToken = default);
+
+    Task AwardMiniGameAsync(
+        string childId,
+        string cognitoSub,
+        int score,
+        int xpAwarded,
+        CancellationToken cancellationToken = default);
 }

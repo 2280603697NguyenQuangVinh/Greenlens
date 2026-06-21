@@ -15,6 +15,7 @@ public sealed class ChildProfileService(
     private const int Streak7Target = 7;
     private const int Streak30Target = 30;
     private const int QuizGeniusTarget = 3;
+    private const int TrashSortMasterTarget = 81;
     private const int LeaderboardChampionTarget = 1;
     private const int EnvironmentHeroTarget = 100;
 
@@ -44,6 +45,12 @@ public sealed class ChildProfileService(
             "Tra loi dung tat ca cau hoi trong mot lan quiz.",
             "Tra loi dung 3/3 cau trong mot lan quiz.",
             QuizGeniusTarget),
+        new(
+            "trash_sort_master",
+            "Rác Kỳ Thủ",
+            "Dat diem cao trong mini game keo tha rac.",
+            "Dat tren 80 diem trong mini game keo tha rac.",
+            TrashSortMasterTarget),
         new(
             "mini_game_champion",
             "Vô địch mini game",
@@ -92,6 +99,7 @@ public sealed class ChildProfileService(
             Level = 1,
             Streak = 0,
             AiCameraScanCount = 0,
+            MiniGameHighScore = 0,
             Badges = [],
             Rewards = [],
             CreatedAt = now,
@@ -214,6 +222,7 @@ public sealed class ChildProfileService(
             "streak_7_days" => profile.Streak,
             "streak_30_days" => profile.Streak,
             "quiz_genius" => unlockedBadges.Contains("Thiên tài quiz") ? QuizGeniusTarget : 0,
+            "trash_sort_master" => profile.MiniGameHighScore,
             "mini_game_champion" => unlockedBadges.Contains("Vô địch mini game") ? LeaderboardChampionTarget : 0,
             "environment_hero" => profile.AiCameraScanCount,
             _ => 0

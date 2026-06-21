@@ -14,6 +14,7 @@ public sealed class ChildProfile
     public int Level { get; init; }
     public int Streak { get; init; }
     public int AiCameraScanCount { get; init; }
+    public int MiniGameHighScore { get; init; }
     public IReadOnlyList<string> Badges { get; init; } = [];
     public IReadOnlyList<string> Rewards { get; init; } = [];
     public required DateTime CreatedAt { get; init; }

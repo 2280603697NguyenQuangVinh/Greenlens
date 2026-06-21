@@ -6,9 +6,12 @@ namespace GreenLens.Application.Modules.Quiz.Services;
 
 public sealed class QuizService : IQuizService
 {
+    private const string QuizGameType = "quiz";
     private const int QuestionCount = 3;
     private const int XpPerCorrectAnswer = 10;
     private const int XpPerWrongAnswer = 5;
+    private const int MinTargetAge = 6;
+    private const int MaxTargetAge = 12;
 
     private readonly IChildQuizContextReader _childContextReader;
     private readonly IQuizGenerator _quizGenerator;
@@ -51,6 +54,7 @@ public sealed class QuizService : IQuizService
             request.ChildId.Trim(),
             cognitoSub,
             cancellationToken);
+        var targetAge = Random.Shared.Next(MinTargetAge, MaxTargetAge + 1);
 
         IReadOnlyList<QuizQuestionDto> questions;
         var usedFallback = false;
@@ -59,14 +63,14 @@ public sealed class QuizService : IQuizService
         {
             questions = await _quizGenerator.GenerateAsync(
                 request.WasteType.Trim(),
-                childContext.Age,
+                targetAge,
                 cancellationToken);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             questions = await _quizRepository.GetFallbackQuestionsAsync(
                 request.WasteType.Trim(),
-                childContext.Age,
+                targetAge,
                 cancellationToken);
             usedFallback = true;
         }
@@ -76,7 +80,7 @@ public sealed class QuizService : IQuizService
         {
             questions = NormalizeQuestions(await _quizRepository.GetFallbackQuestionsAsync(
                 request.WasteType.Trim(),
-                childContext.Age,
+                targetAge,
                 cancellationToken));
             usedFallback = true;
         }
@@ -85,8 +89,9 @@ public sealed class QuizService : IQuizService
         var session = new QuizSessionDto(
             $"quiz_{Guid.NewGuid():N}",
             childContext.ChildId,
+            QuizGameType,
             request.WasteType.Trim(),
-            childContext.Age,
+            targetAge,
             "InProgress",
             questions,
             now,
@@ -97,8 +102,9 @@ public sealed class QuizService : IQuizService
         return new GenerateQuizResponse(
             session.SessionId,
             session.ChildId,
+            session.GameType,
             session.WasteType,
-            session.Age,
+            session.TargetAge,
             session.Questions,
             usedFallback);
     }
@@ -136,6 +142,8 @@ public sealed class QuizService : IQuizService
         {
             return new CompleteQuizResponse(
                 session.SessionId,
+                session.GameType,
+                0,
                 request.CorrectAnswers,
                 session.Questions.Count,
                 0,
@@ -144,6 +152,7 @@ public sealed class QuizService : IQuizService
 
         var correctAnswers = Math.Clamp(request.CorrectAnswers, 0, session.Questions.Count);
         var wrongAnswers = Math.Max(session.Questions.Count - correctAnswers, 0);
+        var score = correctAnswers * XpPerCorrectAnswer;
         var xpAwarded = correctAnswers * XpPerCorrectAnswer + wrongAnswers * XpPerWrongAnswer;
 
         await _quizRepository.MarkSessionCompletedAsync(
@@ -162,6 +171,8 @@ public sealed class QuizService : IQuizService
 
         return new CompleteQuizResponse(
             session.SessionId,
+            session.GameType,
+            score,
             correctAnswers,
             session.Questions.Count,
             xpAwarded,

@@ -140,7 +140,21 @@ POST http://localhost:5001/quiz/generate
 }
 ```
 
-Response gom `sessionId`, `questions` va `usedFallback`. Backend se goi Bedrock Nova Micro voi timeout 10 giay. Neu Bedrock timeout, het quota, hoac tra ve noi dung khong phu hop, backend dung bo cau hoi fallback trong DynamoDB `GreenLens-QuizFallbacks`.
+Response gom `gameType`, `targetAge`, `sessionId`, `questions` va `usedFallback`. `targetAge` la do tuoi random tu 6-12 de tao noi dung quiz, khong phai tuoi that trong profile. Backend se goi Bedrock Nova Micro voi timeout 10 giay. Neu Bedrock timeout, het quota, hoac tra ve noi dung khong phu hop, backend dung bo cau hoi fallback trong DynamoDB `GreenLens-QuizFallbacks`.
+
+Response mau:
+
+```json
+{
+  "sessionId": "quiz_...",
+  "childId": "child_...",
+  "gameType": "quiz",
+  "wasteType": "paper",
+  "targetAge": 9,
+  "questions": [],
+  "usedFallback": true
+}
+```
 
 Lay lai session dang lam do:
 
@@ -174,12 +188,135 @@ Response mau:
 ```json
 {
   "sessionId": "quiz_...",
+  "gameType": "quiz",
+  "score": 20,
   "correctAnswers": 2,
   "totalQuestions": 3,
   "xpAwarded": 25,
   "status": "Completed"
 }
 ```
+
+## Mini Game API
+
+Tat ca API Mini Game can header:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Lay danh sach vat rac va thung rac cho game keo tha:
+
+```http
+GET http://localhost:5001/mini-games/trash-sort/items
+```
+
+Response mau:
+
+```json
+{
+  "items": [
+    {
+      "itemId": "banana_peel",
+      "name": "Vỏ chuối",
+      "category": "Organic",
+      "binColor": "Brown",
+      "iconUrl": "https://greenlens-storage1.s3.ap-southeast-1.amazonaws.com/mini-games/trash-sort/icons/banana.svg",
+      "difficulty": "easy"
+    }
+  ],
+  "bins": [
+    {
+      "category": "Recyclable",
+      "binColor": "Green",
+      "label": "Tái chế"
+    },
+    {
+      "category": "Organic",
+      "binColor": "Brown",
+      "label": "Hữu cơ"
+    },
+    {
+      "category": "Hazardous",
+      "binColor": "Red",
+      "label": "Nguy hại"
+    }
+  ]
+}
+```
+
+Seed OpenMoji SVG len S3 va metadata vao DynamoDB:
+
+```bash
+./scripts/seed-trash-sort-items.sh
+```
+
+Script nay doc `.env`, tao table `GreenLens-MiniGameItems` neu chua co, upload SVG vao S3 prefix `mini-games/trash-sort/icons/`, va insert metadata item. Bo seed hien co 36 item: 12 huu co, 12 tai che, 12 nguy hai.
+
+Cho phep FE doc icon SVG tu S3 prefix mini game:
+
+```bash
+./scripts/configure-trash-sort-icons-public-read.sh
+```
+
+Script nay chi mo public read cho:
+
+```text
+s3://<bucket>/mini-games/trash-sort/icons/*
+```
+
+Khong mo public read cho prefix upload anh AI Camera.
+
+Gui ket qua mini game keo tha rac:
+
+```http
+POST http://localhost:5001/mini-games/trash-sort/results
+```
+
+Request:
+
+```json
+{
+  "childId": "child_...",
+  "correctCount": 10,
+  "wrongCount": 2,
+  "durationSeconds": 60,
+  "completedFromDailyActivity": false
+}
+```
+
+Backend tu tinh diem:
+
+```text
+score = max(correctCount * 10 - wrongCount * 5, 0)
+```
+
+XP:
+
+- Score tren 80: 20 XP.
+- Score tu 80 tro xuong: 10 XP.
+- Score tren 80 mo badge `Rác Kỳ Thủ`.
+
+Response mau:
+
+```json
+{
+  "resultId": "minigame_...",
+  "childId": "child_...",
+  "gameType": "trash_sort",
+  "score": 90,
+  "correctCount": 10,
+  "wrongCount": 2,
+  "durationSeconds": 60,
+  "xpAwarded": 20,
+  "isPersonalBest": true,
+  "unlockedBadges": ["Rác Kỳ Thủ"],
+  "dailyActivityUpdated": false,
+  "createdAt": "2026-06-20T08:00:00Z"
+}
+```
+
+Ket qua duoc luu vao DynamoDB table `GreenLens-MiniGameResults`. `dailyActivityUpdated` hien tam thoi la `false`; khi lam Daily Activity API thi se noi tiep flag nay.
 
 ## Profile API
 
@@ -294,15 +431,16 @@ Da thiet lap trong backend:
 
 - AI Camera phan loai thanh cong: 15 XP moi lan.
 - Quiz: cau dung 10 XP, cau sai 5 XP.
+- Mini game keo tha rac: score tren 80 duoc 20 XP, score tu 80 tro xuong duoc 10 XP.
 - Badge `First Scan`: lan dau tien AI Camera phan loai thanh cong.
 - Badge `Streak 30 ngày`: hoan thanh daily activity 30 ngay lien tiep.
 - Badge `Thiên tài quiz`: dung 3/3 cau trong mot lan quiz.
+- Badge `Rác Kỳ Thủ`: dat tren 80 diem trong mini game keo tha rac.
 - Badge `Vô địch mini game`: dat hang nhat tren bang xep hang tong hop quiz va mini game keo tha rac.
 - Badge `Anh hùng môi trường`: tong cong AI Camera phan loai thanh cong 100 vat.
 
 Chua lam trong phase nay:
 
-- Mini game: tren 80 diem +20 XP, duoi 80 diem +10 XP.
 - Daily activity: +5 XP bonus.
 - Badge streak 7 ngay va 30 ngay.
 - Badge `Vô địch mini game`.

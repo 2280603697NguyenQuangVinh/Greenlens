@@ -15,6 +15,9 @@ using GreenLens.Application.Modules.ChildProfiles.DTOs;
 using GreenLens.Application.Modules.ChildProfiles.Interfaces;
 using GreenLens.Application.Modules.ChildProfiles.Services;
 using GreenLens.Application.Modules.ChildProfiles.Validators;
+using GreenLens.Application.Modules.MiniGames.DTOs;
+using GreenLens.Application.Modules.MiniGames.Interfaces;
+using GreenLens.Application.Modules.MiniGames.Services;
 using GreenLens.Application.Modules.Quiz.DTOs;
 using GreenLens.Application.Modules.Quiz.Interfaces;
 using GreenLens.Application.Modules.Quiz.Services;
@@ -117,6 +120,12 @@ builder.Services.AddSingleton(new QuizDynamoDbOptions
     QuizFallbackTableName = builder.Configuration["QUIZ_FALLBACK_TABLE_NAME"] ?? "GreenLens-QuizFallbacks",
     DefaultAge = builder.Configuration.GetValue<int?>("QUIZ_DEFAULT_AGE") ?? 8
 });
+builder.Services.AddSingleton(new MiniGameDynamoDbOptions
+{
+    ResultsTableName = builder.Configuration["MINI_GAME_RESULTS_TABLE_NAME"] ?? "GreenLens-MiniGameResults",
+    ItemsTableName = builder.Configuration["MINI_GAME_ITEMS_TABLE_NAME"] ?? "GreenLens-MiniGameItems",
+    AssetBaseUrl = ResolveMiniGameAssetBaseUrl(builder.Configuration)
+});
 builder.Services.AddSingleton(new CognitoAuthOptions
 {
     UserPoolId = builder.Configuration["COGNITO_USER_POOL_ID"] ?? string.Empty,
@@ -187,6 +196,24 @@ builder.Services.AddSingleton<IQuizRepository>(serviceProvider =>
         serviceProvider.GetRequiredService<QuizDynamoDbOptions>());
 });
 builder.Services.AddSingleton<IQuizService, QuizService>();
+builder.Services.AddSingleton<IMiniGameRepository>(serviceProvider =>
+{
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    return new DynamoDbMiniGameRepository(
+        dynamoDb,
+        serviceProvider.GetRequiredService<MiniGameDynamoDbOptions>());
+});
+builder.Services.AddSingleton<IMiniGameService>(serviceProvider =>
+{
+    return new MiniGameService(
+        serviceProvider.GetRequiredService<IMiniGameRepository>(),
+        serviceProvider.GetRequiredService<IChildProgressService>(),
+        serviceProvider.GetRequiredService<MiniGameDynamoDbOptions>().AssetBaseUrl);
+});
 builder.Services.AddSingleton<IAuthService>(serviceProvider =>
 {
     var useInMemoryAuth = builder.Configuration.GetValue<bool?>("USE_IN_MEMORY_AUTH");
@@ -666,6 +693,65 @@ app.MapPost("/quiz/complete", async (
     }
 });
 
+app.MapGet("/mini-games/trash-sort/items", async (
+    HttpRequest httpRequest,
+    IMiniGameService miniGameService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var response = await miniGameService.GetTrashSortItemsAsync(
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+
+        return Results.Ok(response);
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+});
+
+app.MapPost("/mini-games/trash-sort/results", async (
+    HttpRequest httpRequest,
+    SubmitTrashSortResultRequest request,
+    IMiniGameService miniGameService,
+    IWebHostEnvironment environment,
+    ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("MiniGameTrashSort");
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var response = await miniGameService.SubmitTrashSortResultAsync(
+            request,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "Mini game trash sort submission failed.");
+        var message = environment.IsDevelopment()
+            ? exception.Message
+            : "Mini game result submission failed.";
+        return Results.Problem(message, statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
 app.Run();
 
 static bool IsPublicAuthPath(PathString path)
@@ -680,4 +766,29 @@ static bool IsPublicAuthPath(PathString path)
 static bool IsSwaggerPath(PathString path)
 {
     return path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase);
+}
+
+static string ResolveMiniGameAssetBaseUrl(IConfiguration configuration)
+{
+    var configuredBaseUrl = configuration["MINI_GAME_ASSET_BASE_URL"];
+    if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
+    {
+        return configuredBaseUrl.TrimEnd('/');
+    }
+
+    var bucketName = configuration["MINI_GAME_ASSET_BUCKET_NAME"];
+    if (string.IsNullOrWhiteSpace(bucketName))
+    {
+        bucketName = configuration["AI_CAMERA_BUCKET_NAME"];
+    }
+    if (string.IsNullOrWhiteSpace(bucketName))
+    {
+        return string.Empty;
+    }
+
+    var region = configuration["AWS_REGION"] ??
+        configuration["AWS_DEFAULT_REGION"] ??
+        "ap-southeast-1";
+
+    return $"https://{bucketName}.s3.{region}.amazonaws.com";
 }
