@@ -1,20 +1,23 @@
-﻿import { motion } from "motion/react"
-import { FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
+import { motion } from "motion/react"
+import { BRAND_MINT_BG, FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 import { getUiAsset } from "@/assets"
 
 const LOGO = getUiAsset("GreenLens Kids.png")
 
 export function SplashScreen() {
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-gradient-to-b from-[#bbf7d0] via-[#dcfce7] to-[#f0fdf4] px-8 text-center">
-      <motion.div
+    <div
+      className="h-full w-full flex flex-col items-center justify-center px-8 text-center"
+      style={{ backgroundColor: BRAND_MINT_BG }}
+    >
+      <motion.img
+        src={LOGO}
+        alt="GreenLens Kids"
         initial={{ scale: 0.92, opacity: 0.6 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="w-full max-w-[260px] rounded-3xl bg-white/80 p-3 shadow-lg"
-      >
-        <img src={LOGO} alt="GreenLens Kids" className="h-36 w-full object-contain rounded-2xl bg-white" />
-      </motion.div>
+        className="block w-full max-w-[300px] h-auto"
+      />
 
       <motion.h1
         initial={{ y: 12, opacity: 0 }}
@@ -42,4 +45,3 @@ export function SplashScreen() {
     </div>
   )
 }
-

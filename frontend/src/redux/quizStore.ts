@@ -7,7 +7,7 @@ import {
   createElement,
   type ReactNode,
 } from "react";
-import type { QuizQuestion } from "@/services/quizApi";
+import type { QuizQuestion } from "@/services/quiz";
 
 export interface QuizState {
   questions: QuizQuestion[];

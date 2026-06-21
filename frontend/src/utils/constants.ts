@@ -48,9 +48,13 @@ export const ITEM_POS = [
 
 export const FF_FREDOKA = { fontFamily: "'Fredoka', sans-serif" }
 export const FF_COMFORTAA = { fontFamily: "'Comfortaa', sans-serif" }
+export const FF_NUNITO = { fontFamily: "'Nunito', sans-serif" }
+
+/** Background mint from `GreenLens Kids.png` logo asset */
+export const BRAND_MINT_BG = "#B9F3D0"
 
 /** 1x1 PNG — valid base64 for mock scanner API */
 export const MOCK_SCAN_IMAGE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
 
-export const SCREEN_LABELS = ["👤 Avatar Creator", "🏠 Dashboard", "📸 AI Scanner", "🧠 Eco Quiz", "♻️ Sort Game", "🏅 Profile"]
+export const SCREEN_LABELS = ["👤 Avatar Creator", "🏠 Dashboard", "📸 AI Camera", "🧠 Eco Quiz", "♻️ Sort Game", "🏅 Profile"]

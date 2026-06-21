@@ -1,5 +1,5 @@
-﻿import { useRef, useState } from "react"
-import type { ClassificationResult } from "@/services/greenLensApi"
+import { useRef, useState } from "react"
+import type { ClassificationResult } from "@/services/greenLens"
 import { FF_FREDOKA, MOCK_SCAN_IMAGE } from "@/utils/constants"
 import { useCameraStream } from "@/features/scanner/hooks/useCameraStream"
 

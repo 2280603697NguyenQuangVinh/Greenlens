@@ -1,14 +1,17 @@
-﻿import { motion } from "motion/react"
-import type { UserProfile } from "@/services/greenLensApi"
-import { Mascot } from "@/features/dashboard/components/Mascot"
+import { motion } from "motion/react"
+import type { UserProfile } from "@/services/greenLens"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
 import { FF_FREDOKA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
+import { Mascot } from "@/features/dashboard/components/Mascot"
 
-import { BACKGROUND_IMAGE } from "@/assets"
+import mascotPng from "@/assets/Character/mascot/mascot.png"
+import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
+import { AchievementBadgeCircle } from "@/features/dashboard/components/AchievementBadge"
+import { CharacterSpeechBubble } from "@/features/dashboard/components/CharacterSpeechBubble"
+import { unlockSupertonicOnGesture } from "@/services/supertonic/preload"
 
 const BG = BACKGROUND_IMAGE
-const COFFEE = "☕"
 
 export function DashboardScreen({
   cfg,
@@ -22,15 +25,19 @@ export function DashboardScreen({
   const xp = profile.xp || 1280
   const xpMax = 2500
   const xpPct = Math.min(100, Math.round((xp / xpMax) * 100))
+  const displayName = profile.characterName?.trim() || cfg.characterName?.trim() || "bạn"
+  const firstScan = ACHIEVEMENTS[0]
+  const dashboardBadges = ACHIEVEMENTS.slice(0, 4)
+  const isUnlocked = (id: string) => DEFAULT_UNLOCKED.includes(id as (typeof DEFAULT_UNLOCKED)[number])
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="h-16 w-16 rounded-full border-2 border-[#1b3a1b] bg-[#a8dcae] shadow-sm flex items-center justify-center overflow-hidden">
-          <Mascot cfg={cfg} size={58} />
+          <Mascot cfg={cfg} size={56} rounded />
         </div>
-        <h1 className="flex-1 text-[42px] font-black text-black tracking-tight leading-none" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
-          Chào, Phúc!
+        <h1 className="flex-1 text-2xl font-black text-black tracking-tight leading-tight" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
+          Chào, {displayName}!
         </h1>
         <div className="flex h-11 min-w-[136px] items-center gap-2 rounded-full bg-white px-3 shadow-sm">
           <div className="h-6 flex-1 rounded-full bg-[#d7f7bf] overflow-hidden">
@@ -48,11 +55,18 @@ export function DashboardScreen({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-2">
-        <div className="mb-3 flex items-end gap-2">
-          <span className="text-7xl leading-none">{COFFEE}</span>
-          <div className="rounded-[28px] rounded-bl-sm border-2 border-black bg-[#f4f4f4] px-4 py-3 shadow-sm">
-            <p className="text-[17px] font-bold leading-tight text-black">Chào Phúc! Sẵn sàng cho thử thách hôm nay chưa?🔥</p>
+        <div className="mb-3 flex items-center gap-3">
+          <div className="shrink-0">
+            <img
+              src={mascotPng}
+              alt="Mascot"
+              className="h-[100px] w-auto object-contain"
+              draggable={false}
+            />
           </div>
+          <CharacterSpeechBubble>
+            Chào {displayName}! Sẵn sàng cho thử thách hôm nay chưa? 🔥
+          </CharacterSpeechBubble>
         </div>
 
         <section className="mb-3 rounded-t-3xl bg-white/45 p-3">
@@ -60,8 +74,13 @@ export function DashboardScreen({
             <h2 className="text-[17px] font-black text-black leading-none" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
               Nhiệm Vụ Hôm Nay
             </h2>
-            <div className="mt-2 h-28 w-52 rounded-[18px] bg-[#9fd6a6] p-3 flex items-center justify-center">
-              <span className="text-6xl">♻️</span>
+            <div className="mt-2 flex">
+              <img
+                src={firstScan.image}
+                alt={firstScan.title}
+                className="h-[88px] w-auto object-contain"
+                draggable={false}
+              />
             </div>
           </div>
           <div className="rounded-[22px] bg-[#ebebeb] p-4">
@@ -73,10 +92,22 @@ export function DashboardScreen({
             </p>
             <div className="mt-2 flex items-center gap-3">
               <span className="rounded-full bg-[#d5d5d5] px-3 py-1 text-[14px] font-black">🪙 +15 XP</span>
-              <span className="rounded-full bg-[#d5d5d5] px-3 py-1 text-[14px] font-black">♻️ Quét Lần Đầu</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d5d5d5] px-3 py-1 text-[14px] font-black">
+                <img
+                  src={firstScan.image}
+                  alt={firstScan.title}
+                  className="h-5 w-auto object-contain"
+                  draggable={false}
+                />
+                Quét Lần Đầu
+              </span>
             </div>
             <button
-              onClick={() => go(2)}
+              type="button"
+              onClick={() => {
+                void unlockSupertonicOnGesture()
+                go(2)
+              }}
               className="mt-3 w-full rounded-full bg-[#2dd62d] py-2 text-[16px] font-black text-white active:scale-[0.99]"
               style={{ ...FF_FREDOKA, fontWeight: 700 }}
             >
@@ -87,7 +118,7 @@ export function DashboardScreen({
 
         <section className="mb-3 overflow-hidden rounded-3xl border-2 border-[#f2aa58] bg-[#ffd39b]">
           <h2 className="py-1 text-center text-[16px] font-black leading-none">Xếp Hạng</h2>
-          {["1. Phúc", "2. Người A", "3. Người B"].map((name, idx) => (
+          {[`1. ${displayName}`, "2. Người A", "3. Người B"].map((name, idx) => (
             <div key={name} className={`flex items-center justify-between px-4 py-1 text-[17px] font-black ${idx === 0 ? "bg-[#b9f0af]" : ""}`}>
               <span>{name}</span>
               <span>1280 XP</span>
@@ -96,11 +127,15 @@ export function DashboardScreen({
         </section>
 
         <section className="mb-2 overflow-hidden rounded-3xl border-2 border-[#3da9f5] bg-[#63b8ff]">
-          <h2 className="py-2 text-center text-[16px] font-black">Huy Hiệu Của Phúc</h2>
-          <div className="grid grid-cols-4 gap-3 px-3 pb-3">
-            <div className="aspect-square rounded-full bg-[#d2eec7] border-2 border-[#a6c591] flex items-center justify-center text-5xl">♻️</div>
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="aspect-square rounded-full bg-[#cccccc] border border-[#bbbbbb] flex items-center justify-center text-4xl">🔒</div>
+          <h2 className="py-2 text-center text-[16px] font-black">Huy Hiệu Của {displayName}</h2>
+          <div className="flex items-end justify-around gap-1 px-3 pb-3">
+            {dashboardBadges.map((achievement) => (
+              <AchievementBadgeCircle
+                key={achievement.id}
+                achievement={achievement}
+                unlocked={isUnlocked(achievement.id)}
+                size="md"
+              />
             ))}
           </div>
         </section>

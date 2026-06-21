@@ -7,7 +7,7 @@ import {
   createElement,
   type ReactNode,
 } from "react";
-import type { AuthUser } from "@/services/authApi";
+import type { AuthUser } from "@/services/auth";
 import { getStoredUser, getToken, isAuthenticated } from "@/services/tokenStorage";
 
 export interface AuthState {

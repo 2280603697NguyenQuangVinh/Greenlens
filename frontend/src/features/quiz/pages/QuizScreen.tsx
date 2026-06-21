@@ -1,6 +1,6 @@
-﻿import { useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import type { QuizQuestion } from "@/services/greenLensApi"
+import type { QuizQuestion } from "@/services/greenLens"
 import { FALLBACK_QUIZ, FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 import type { LocalQuizItem } from "@/utils/types"
 

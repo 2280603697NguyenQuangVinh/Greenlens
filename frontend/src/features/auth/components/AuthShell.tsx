@@ -1,5 +1,6 @@
-﻿import type { ReactNode } from "react"
+import type { ReactNode } from "react"
 import { getUiAsset } from "@/assets"
+import { BRAND_MINT_BG } from "@/utils/constants"
 
 type AuthShellProps = {
   title: string
@@ -11,10 +12,10 @@ const AUTH_LOGO = getUiAsset("GreenLens Kids.png")
 
 export function AuthShell({ title, subtitle, children }: AuthShellProps) {
   return (
-    <div className="h-full overflow-y-auto bg-[#DDF7E8]">
+    <div className="h-full overflow-y-auto" style={{ backgroundColor: BRAND_MINT_BG }}>
       <div className="px-6 pt-4 pb-3">
-        <div className="mx-auto max-w-[300px] rounded-3xl bg-white/60 p-2 shadow-sm">
-          <img src={AUTH_LOGO} alt="GreenLens Kids" className="h-36 w-full rounded-2xl object-contain bg-white" />
+        <div className="mx-auto max-w-[300px]">
+          <img src={AUTH_LOGO} alt="GreenLens Kids" className="block w-full h-auto" />
         </div>
       </div>
 

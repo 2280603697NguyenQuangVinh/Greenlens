@@ -1,7 +1,7 @@
-﻿import React, { useState } from "react"
+import React, { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { RefreshCw, Save, ShieldCheck, Sparkles } from "lucide-react"
-import { validateCharacterName } from "@/services/childProfileApi"
+import { validateCharacterName } from "@/services/childProfile"
 import { FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { getHairOptionList, getOutfitOptionList, getGenderIcon } from "@/assets"
@@ -66,13 +66,6 @@ export function AvatarScreen({
   const displayError = localError ?? error
 
   const handleSaveClick = () => {
-    if (!isStartupFlow) {
-      onClearError?.()
-      setLocalError(null)
-      onSave(cfg)
-      return
-    }
-
     const validationError = validateCharacterName(cfg.characterName)
     if (validationError) {
       setLocalError(validationError)
@@ -231,7 +224,11 @@ export function AvatarScreen({
           <span style={{ fontSize: 20 }}>🌿</span>
         </div>
         <h1 className="text-green-800 text-base font-black leading-tight" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
-          Hãy Tạo Nhân Vật Cho<br />Riêng Bản Thân Nào!
+          {isStartupFlow ? (
+            <>Hãy Tạo Nhân Vật Cho<br />Riêng Bản Thân Nào!</>
+          ) : (
+            <>Chỉnh Sửa<br />Nhân Vật</>
+          )}
         </h1>
         {onAdminLogin ? (
           <button
@@ -250,26 +247,24 @@ export function AvatarScreen({
         ) : null}
       </div>
 
-      {isStartupFlow ? (
-        <div className="px-4 pb-2 flex-shrink-0">
-          <label className="block text-xs font-bold text-slate-600 mb-1" style={FF_COMFORTAA}>
-            Tên nhân vật
-          </label>
-          <input
-            type="text"
-            value={cfg.characterName}
-            onChange={(e) => {
-              setLocalError(null)
-              onClearError?.()
-              setCfg({ ...cfg, characterName: e.target.value })
-            }}
-            placeholder="Ví dụ: Gấu Xanh"
-            disabled={busy}
-            className="w-full rounded-2xl border-2 border-slate-200 px-4 py-3 text-sm font-semibold focus:border-green-500 outline-none disabled:opacity-60 bg-white"
-            style={FF_COMFORTAA}
-          />
-        </div>
-      ) : null}
+      <div className="px-4 pb-2 flex-shrink-0">
+        <label className="block text-xs font-bold text-slate-600 mb-1" style={FF_COMFORTAA}>
+          Tên nhân vật
+        </label>
+        <input
+          type="text"
+          value={cfg.characterName}
+          onChange={(e) => {
+            setLocalError(null)
+            onClearError?.()
+            setCfg({ ...cfg, characterName: e.target.value })
+          }}
+          placeholder="Ví dụ: Gấu Xanh"
+          disabled={busy}
+          className="w-full rounded-2xl border-2 border-slate-200 px-4 py-3 text-sm font-semibold focus:border-green-500 outline-none disabled:opacity-60 bg-white"
+          style={FF_COMFORTAA}
+        />
+      </div>
 
       {/* Model preview */}
       <div className="flex justify-center items-center py-3 bg-white/60 flex-shrink-0">

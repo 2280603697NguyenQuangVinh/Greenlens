@@ -1,4 +1,4 @@
-﻿import { useCallback, useState } from "react"
+import { useCallback, useState } from "react"
 import {
   api,
   clearSession,
@@ -7,15 +7,18 @@ import {
   type ClassificationResult,
   type QuizQuestion,
   type UserProfile,
-} from "@/services/greenLensApi"
+} from "@/services/greenLens"
 import type { AvatarConfig } from "@/utils/types"
 import {
-  createChildProfile,
+  setupChildProfile,
   ValidationError,
   ApiError,
   NetworkError,
-} from "@/services/childProfileApi"
+} from "@/services/childProfile"
 import { setChildId } from "@/services/childProfileStorage"
+import { getAuthToken, setAuthToken } from "@/services/authToken"
+import { speakBrowser, mapWasteCategoryKey } from "@/utils/browserSpeech"
+import type { AiCameraResult } from "@/services/aiCamera"
 
 export function useGreenLens() {
   const [profile, setProfile] = useState<UserProfile | null>(() => loadStoredProfile())
@@ -52,7 +55,8 @@ export function useGreenLens() {
     setBusy(true)
     setError(null)
     try {
-      const res = await createChildProfile(avatar, avatar.characterName)
+      const { token, profile: res } = await setupChildProfile(avatar, avatar.characterName)
+      setAuthToken(token)
       setChildId(res.childId)
 
       const next: UserProfile = {
@@ -71,14 +75,14 @@ export function useGreenLens() {
         recentActivity: [],
       }
 
-      saveSession(sessionStorage.getItem("gl_token") || "session", next)
+      saveSession(token, next)
       setProfile(next)
       return true
     } catch (e) {
       if (e instanceof ValidationError || e instanceof ApiError || e instanceof NetworkError) {
         setError(e.message)
       } else {
-        setError("Unable to create character profile. Please try again.")
+        setError("Không tạo được nhân vật. Hãy thử lại nhé!")
       }
       return false
     } finally {
@@ -131,15 +135,21 @@ export function useGreenLens() {
     [profile, run],
   )
 
-  const speak = useCallback(
-    async (text: string) => {
-      const res = await run(() => api.speak(text))
-      if (!res?.audioUrl) return
-      const audio = new Audio(res.audioUrl)
-      audio.play().catch(() => {})
-    },
-    [run],
-  )
+  const speak = useCallback(async (text: string) => {
+    if (!text.trim()) return
+    speakBrowser(text)
+  }, [])
+
+  const handleCameraResult = useCallback(async (result: AiCameraResult) => {
+    setError(null)
+    try {
+      const categoryKey = mapWasteCategoryKey(result.wasteCategory)
+      const quiz = await api.getQuiz(categoryKey)
+      setQuizQuestions(quiz)
+    } catch {
+      // Quiz preload is optional — don't show errors like "Not Found" on the app shell.
+    }
+  }, [])
 
   const logout = useCallback(() => {
     clearSession()
@@ -160,7 +170,12 @@ export function useGreenLens() {
         eyes: avatar.eyes,
         outfit: avatar.outfit,
       }
-      saveSession(sessionStorage.getItem("gl_token") || "mock-greenlens-token", next)
+      const token = getAuthToken()
+      if (token) {
+        saveSession(token, next)
+      } else {
+        sessionStorage.setItem("gl_profile", JSON.stringify(next))
+      }
       setProfile(next)
       return true
     },
@@ -180,6 +195,7 @@ export function useGreenLens() {
     completeQuiz,
     submitGame,
     speak,
+    handleCameraResult,
     logout,
     updateAvatar,
     setError,
