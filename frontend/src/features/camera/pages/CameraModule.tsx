@@ -538,7 +538,6 @@ export default function CameraModule({
                   <FloatingMascot
                     variant="result"
                     spot={resultSpot}
-                    className="pointer-events-none absolute z-30 left-3 right-3 max-w-none"
                     text={speechText}
                     speechSegments={speechSegments}
                     speechKey={`result-${result.wasteName}-${result.confidence}-${resultSpot.top}-${resultSpot.left ?? ""}-${resultSpot.right ?? ""}`}
@@ -547,7 +546,7 @@ export default function CameraModule({
                     supertonicReady={supertonicReady}
                     onSpeak={speak}
                     onStopPlayback={cancelPlayback}
-                    mascotSize={80}
+                    mascotSize={72}
                   />
                 )}
               </div>

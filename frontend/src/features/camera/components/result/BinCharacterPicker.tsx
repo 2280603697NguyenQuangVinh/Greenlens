@@ -21,7 +21,7 @@ export function BinCharacterPicker({ result }: Props) {
       transition={{ delay: 0.15, type: "spring", stiffness: 260, damping: 22 }}
       className="mb-3 rounded-[20px] border-2 border-[#95D5B2]/50 bg-white px-3.5 py-3 shadow-[0_4px_16px_rgba(45,106,79,0.08)]"
     >
-      <h3 className="text-center text-[15px] font-black text-[#1B4332]">
+      <h3 className="text-center text-[15px] font-bold text-[#1B4332]">
         Giúp Robo chọn đúng thùng rác nhé!
       </h3>
       <p className="mt-0.5 text-center text-[12px] font-semibold text-[#52796F]">
@@ -41,7 +41,7 @@ export function BinCharacterPicker({ result }: Props) {
           transition={{ delay: 0.35 }}
           className={`mt-3 flex h-[36px] w-full items-center justify-center rounded-full ${activeBin.chipClass}`}
         >
-          <span className="text-[13px] font-black text-white">
+          <span className="text-[13px] font-semibold text-white">
             {activeBin.label}
           </span>
         </motion.div>

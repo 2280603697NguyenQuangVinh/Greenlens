@@ -48,6 +48,7 @@ export const ITEM_POS = [
 
 export const FF_FREDOKA = { fontFamily: "'Fredoka', sans-serif" }
 export const FF_COMFORTAA = { fontFamily: "'Comfortaa', sans-serif" }
+export const FF_NUNITO = { fontFamily: "'Nunito', sans-serif" }
 
 /** Background mint from `GreenLens Kids.png` logo asset */
 export const BRAND_MINT_BG = "#B9F3D0"

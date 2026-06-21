@@ -57,8 +57,8 @@ export function StoryCardStack({ result }: Props) {
           <div className="flex items-start gap-2.5">
             <span className={`mt-1.5 h-8 w-1 shrink-0 rounded-full ${card.accentClass}`} />
             <div className="min-w-0 flex-1">
-              <h4 className="text-[14px] font-black text-[#1B4332]">{card.title}</h4>
-              <p className="mt-1 text-[13px] font-semibold leading-relaxed text-[#2D3748]">
+              <h4 className="text-[14px] font-bold text-[#1B4332]">{card.title}</h4>
+              <p className="mt-1 text-[13px] font-medium leading-relaxed text-[#2D3748]">
                 {card.body}
               </p>
             </div>

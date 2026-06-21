@@ -25,7 +25,7 @@ export function ResultHeroCard({ result, capturedImage }: Props) {
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
       className="mb-3 overflow-hidden rounded-[20px] border-2 border-[#95D5B2]/50 bg-gradient-to-br from-[#E8F8EF] to-[#D4F1E4] px-3.5 py-3 shadow-[0_4px_16px_rgba(45,106,79,0.08)]"
     >
-      <p className="text-center text-[13px] font-black text-[#40916C]">
+      <p className="text-center text-[13px] font-bold text-[#40916C]">
         AI nhận diện thành công!
       </p>
 
@@ -36,9 +36,9 @@ export function ResultHeroCard({ result, capturedImage }: Props) {
           className="h-12 w-12 shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm"
         />
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-          <h3 className="truncate text-[20px] font-black leading-tight text-[#1B4332]">{name}</h3>
+          <h3 className="truncate text-[20px] font-bold leading-tight text-[#1B4332]">{name}</h3>
           <span
-            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-black leading-none shadow-sm ${getCategoryBadgeStyle(activeBinId)}`}
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold leading-none shadow-sm ${getCategoryBadgeStyle(activeBinId)}`}
           >
             {categoryEmoji} {categoryLabel}
           </span>
