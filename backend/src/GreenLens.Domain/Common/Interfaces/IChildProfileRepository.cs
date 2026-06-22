@@ -9,4 +9,12 @@ public interface IChildProfileRepository
     Task<ChildProfile?> GetAsync(
         string childId,
         CancellationToken cancellationToken = default);
+
+    Task UpdateStreakAsync(
+        string childId,
+        string cognitoSub,
+        int streak,
+        string lastStreakDate,
+        int streakFreezeDaysUsed,
+        CancellationToken cancellationToken = default);
 }

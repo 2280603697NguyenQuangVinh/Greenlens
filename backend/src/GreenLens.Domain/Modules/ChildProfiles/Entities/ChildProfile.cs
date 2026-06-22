@@ -13,6 +13,8 @@ public sealed class ChildProfile
     public int Xp { get; init; }
     public int Level { get; init; }
     public int Streak { get; init; }
+    public string? LastStreakDate { get; init; }
+    public int StreakFreezeDaysUsed { get; init; }
     public int AiCameraScanCount { get; init; }
     public int MiniGameHighScore { get; init; }
     public IReadOnlyList<string> Badges { get; init; } = [];

@@ -413,6 +413,12 @@ Response mau:
   "daysToStreak30": 18,
   "progressPercent": 40,
   "isStreak30Unlocked": false,
+  "lastStreakDate": "2026-06-23",
+  "maxFreezeDays": 2,
+  "freezeDaysUsed": 0,
+  "freezeDaysRemaining": 2,
+  "missedDaysCoveredByFreeze": 0,
+  "streakStatus": "ActiveToday",
   "badge": {
     "code": "streak_30_days",
     "name": "Streak 30 ngày",
@@ -424,6 +430,21 @@ Response mau:
   }
 }
 ```
+
+Ghi nhan streak cho ngay hien tai:
+
+```http
+POST http://localhost:5001/child-profiles/{childId}/streak/check-in
+Authorization: Bearer <access_token>
+```
+
+Khong can body. Backend dung ngay Viet Nam (`Asia/Ho_Chi_Minh`) de tinh streak:
+
+- Lan dau check-in: `currentStreak = 1`, `streakStatus = Started`.
+- Check-in ngay hom sau: streak tang 1, `streakStatus = Continued`.
+- Nghi 1-2 ngay roi quay lai: streak van duoc noi tiep, `streakStatus = FreezeUsed`, `missedDaysCoveredByFreeze` la so ngay da duoc dong bang.
+- Nghi qua 2 ngay: streak reset ve 1, `streakStatus = Reset`.
+- Goi lai check-in trong cung ngay: khong cong them, `streakStatus = AlreadyCheckedIn`.
 
 ## XP va badge hien tai
 

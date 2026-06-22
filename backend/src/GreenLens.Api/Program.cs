@@ -524,6 +524,34 @@ app.MapGet("/child-profiles/{childId}/streak", async (
     }
 });
 
+app.MapPost("/child-profiles/{childId}/streak/check-in", async (
+    HttpRequest httpRequest,
+    string childId,
+    IChildProfileService childProfileService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var streak = await childProfileService.CheckInStreakAsync(
+            childId,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+        return Results.Ok(streak);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
 app.MapPost("/ai-camera/analyze", async (
     HttpRequest httpRequest,
     IAiCameraService aiCameraService,

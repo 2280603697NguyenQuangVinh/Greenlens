@@ -151,6 +151,16 @@ functions:
           authorizer:
             arn:
               Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  checkInChildProfileStreak:
+    handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::CheckInStreakAsync
+    events:
+      - http:
+          path: child-profiles/{childId}/streak/check-in
+          method: post
+          cors: true
+          authorizer:
+            arn:
+              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
   aiCameraAnalyze:
     handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
     events:

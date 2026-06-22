@@ -34,11 +34,17 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             ["xp"] = new() { N = profile.Xp.ToString() },
             ["level"] = new() { N = profile.Level.ToString() },
             ["streak"] = new() { N = profile.Streak.ToString() },
+            ["streakFreezeDaysUsed"] = new() { N = profile.StreakFreezeDaysUsed.ToString() },
             ["aiCameraScanCount"] = new() { N = profile.AiCameraScanCount.ToString() },
             ["miniGameHighScore"] = new() { N = profile.MiniGameHighScore.ToString() },
             ["createdAt"] = new() { S = profile.CreatedAt.ToString("O") },
             ["updatedAt"] = new() { S = profile.UpdatedAt.ToString("O") }
         };
+
+        if (!string.IsNullOrWhiteSpace(profile.LastStreakDate))
+        {
+            item["lastStreakDate"] = new AttributeValue { S = profile.LastStreakDate };
+        }
 
         AddStringList(item, "badges", profile.Badges);
         AddStringList(item, "rewards", profile.Rewards);
@@ -86,6 +92,8 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             Xp = GetInt(response.Item, "xp"),
             Level = GetInt(response.Item, "level", 1),
             Streak = GetInt(response.Item, "streak"),
+            LastStreakDate = GetString(response.Item, "lastStreakDate"),
+            StreakFreezeDaysUsed = GetInt(response.Item, "streakFreezeDaysUsed"),
             AiCameraScanCount = GetInt(response.Item, "aiCameraScanCount"),
             MiniGameHighScore = GetInt(response.Item, "miniGameHighScore"),
             Badges = GetStringList(response.Item, "badges"),
@@ -93,6 +101,36 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             CreatedAt = GetDate(response.Item, "createdAt"),
             UpdatedAt = GetDate(response.Item, "updatedAt")
         };
+    }
+
+    public Task UpdateStreakAsync(
+        string childId,
+        string cognitoSub,
+        int streak,
+        string lastStreakDate,
+        int streakFreezeDaysUsed,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new UpdateItemRequest
+        {
+            TableName = _tableName,
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["childId"] = RequiredString(childId, nameof(childId))
+            },
+            UpdateExpression = "SET streak = :streak, lastStreakDate = :lastStreakDate, streakFreezeDaysUsed = :freezeDaysUsed, updatedAt = :updatedAt",
+            ConditionExpression = "cognitoSub = :cognitoSub",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":streak"] = new() { N = Math.Max(streak, 0).ToString() },
+                [":lastStreakDate"] = RequiredString(lastStreakDate, nameof(lastStreakDate)),
+                [":freezeDaysUsed"] = new() { N = Math.Max(streakFreezeDaysUsed, 0).ToString() },
+                [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
+                [":cognitoSub"] = RequiredString(cognitoSub, nameof(cognitoSub))
+            }
+        };
+
+        return _dynamoDb.UpdateItemAsync(request, cancellationToken);
     }
 
     private static AttributeValue RequiredString(string value, string fieldName)
@@ -126,6 +164,13 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         return item.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value.S)
             ? value.S
             : string.Empty;
+    }
+
+    private static string? GetString(Dictionary<string, AttributeValue> item, string name)
+    {
+        return item.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value.S)
+            ? value.S
+            : null;
     }
 
     private static int GetInt(Dictionary<string, AttributeValue> item, string name, int fallback = 0)
