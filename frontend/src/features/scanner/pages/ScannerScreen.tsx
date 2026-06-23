@@ -4,6 +4,7 @@ import { FF_FREDOKA, MOCK_SCAN_IMAGE } from "@/utils/constants"
 import { useCameraStream } from "@/features/scanner/hooks/useCameraStream"
 
 const MIN_LOADING_MS = 1000
+const SPEECH_UNLOCK_PRIMER = " "
 const LOADING_MASCOT_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
     <circle cx="80" cy="80" r="72" fill="#bbf7d0"/>
@@ -44,6 +45,33 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
   const showLoading = () => setIsLoading(true)
   const hideLoading = () => setIsLoading(false)
 
+  const unlockSpeechSynthesis = async () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    await new Promise<void>((resolve) => {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(SPEECH_UNLOCK_PRIMER)
+      utterance.lang = "vi-VN"
+      utterance.volume = 0
+      utterance.rate = 1
+      utterance.pitch = 1
+      let finished = false
+      const done = () => {
+        if (finished) return
+        finished = true
+        resolve()
+      }
+      utterance.onend = done
+      utterance.onerror = done
+      try {
+        window.speechSynthesis.resume()
+        window.speechSynthesis.speak(utterance)
+        window.setTimeout(done, 220)
+      } catch {
+        done()
+      }
+    })
+  }
+
   const runAnalyzeWithMinLoading = async (imageBase64: string) => {
     showLoading()
     try {
@@ -61,6 +89,7 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
 
   const doCapture = async () => {
     if (busy || isLoading) return
+    void unlockSpeechSynthesis()
     const captured = captureToDataUrl() ?? MOCK_SCAN_IMAGE
     setCapturedImage(captured)
     const result = await runAnalyzeWithMinLoading(captured)
@@ -71,6 +100,7 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
 
   const onPickFromGallery = async (file: File | null) => {
     if (!file || busy || isLoading) return
+    void unlockSpeechSynthesis()
     const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null)
@@ -124,7 +154,10 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
 
           <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-10">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                void unlockSpeechSynthesis()
+                fileInputRef.current?.click()
+              }}
               disabled={busy || isLoading}
               className="h-14 w-14 rounded-2xl bg-[#d5d5d5] text-2xl shadow-md disabled:cursor-not-allowed disabled:opacity-60"
             >

@@ -15,6 +15,16 @@ export interface AiCameraResult {
   confidence?: number
 }
 
+export type MascotVoicePayload = {
+  label?: string
+  recycleGuide?: string
+  reuseSuggestion?: string
+  environmentImpact?: string
+  wasteName?: string
+  recyclingInstruction?: string
+  environmentalImpact?: string
+}
+
 const ANALYZE_PATH = apiUrl("/ai-camera/analyze")
 
 type BackendAiCameraAnalyzeResponse = {
@@ -136,22 +146,51 @@ function toSpeechSegment(parts: string[]): SpeechSegment[] {
   return text ? [{ lang: "vi" as const, text }] : []
 }
 
+function pickFirstNonEmpty(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed) return trimmed
+  }
+  return ""
+}
+
+export function buildMascotVoiceText(payload: MascotVoicePayload): string {
+  const rawLabel = pickFirstNonEmpty(payload.label, payload.wasteName)
+  const label = rawLabel ? translateWasteLabel(rawLabel) : "vật này"
+  const recycleGuide = ensureSentence(
+    localizeGuidanceText(
+      pickFirstNonEmpty(payload.recycleGuide, payload.recyclingInstruction),
+    ),
+  )
+  const reuseSuggestion = ensureSentence(
+    localizeGuidanceText(pickFirstNonEmpty(payload.reuseSuggestion)),
+  )
+  const environmentImpact = ensureSentence(
+    localizeGuidanceText(
+      pickFirstNonEmpty(payload.environmentImpact, payload.environmentalImpact),
+    ),
+  )
+
+  return [
+    `Xin chào! Mình đã nhận diện đây là ${label}.`,
+    recycleGuide,
+    reuseSuggestion,
+    environmentImpact,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+}
+
 export function buildMascotSpeechSegments(result: AiCameraResult): SpeechSegment[] {
-  const name = translateWasteLabel(result.wasteName)
-  const instruction = localizeGuidanceText(result.recyclingInstruction.trim())
-  const reuse = localizeGuidanceText(result.reuseSuggestion.trim())
-
-  const parts: string[] = [ensureSentence(`Đây là ${name}`)]
-
-  if (instruction) {
-    parts.push(ensureSentence(instruction))
-  }
-
-  if (reuse) {
-    parts.push(ensureSentence(reuse))
-  }
-
-  return toSpeechSegment(parts)
+  const speechText = buildMascotVoiceText({
+    label: result.wasteName,
+    recycleGuide: result.recyclingInstruction,
+    reuseSuggestion: result.reuseSuggestion,
+    environmentImpact: result.environmentalImpact,
+  })
+  return speechText ? [{ lang: "vi", text: speechText }] : []
 }
 
 export function buildMascotSpeech(result: AiCameraResult): string {
