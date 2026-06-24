@@ -13,6 +13,15 @@ public sealed class MiniGameService : IMiniGameService
     private const int HighScoreXp = 20;
     private const int CompletionXp = 10;
     private const int MaxDurationSeconds = 60;
+    private const int TrashSortItemsPerRound = 6;
+    private const int TrashSortItemsPerCategory = 2;
+
+    private static readonly IReadOnlyList<string> TrashSortCategories =
+    [
+        "Recyclable",
+        "Organic",
+        "Hazardous"
+    ];
 
     private readonly IMiniGameRepository _miniGameRepository;
     private readonly IChildProgressService _childProgressService;
@@ -40,9 +49,10 @@ public sealed class MiniGameService : IMiniGameService
         var items = await _miniGameRepository.GetActiveItemsAsync(
             TrashSortGameType,
             cancellationToken);
+        var roundItems = SelectTrashSortRoundItems(items);
 
         return new TrashSortItemsResponse(
-            items
+            roundItems
                 .Select(item => new TrashSortItemDto(
                     item.ItemId,
                     item.Name,
@@ -153,5 +163,47 @@ public sealed class MiniGameService : IMiniGameService
             new("Organic", "Brown", "Hữu cơ"),
             new("Hazardous", "Red", "Nguy hại")
         ];
+    }
+
+    private static IReadOnlyList<MiniGameItemDto> SelectTrashSortRoundItems(
+        IReadOnlyList<MiniGameItemDto> items)
+    {
+        if (items.Count <= TrashSortItemsPerRound)
+        {
+            return Shuffle(items).ToList();
+        }
+
+        var selected = TrashSortCategories
+            .SelectMany(category => Shuffle(items
+                .Where(item => string.Equals(
+                    item.Category,
+                    category,
+                    StringComparison.OrdinalIgnoreCase)))
+                .Take(TrashSortItemsPerCategory))
+            .ToList();
+
+        if (selected.Count < TrashSortItemsPerRound)
+        {
+            var selectedIds = selected
+                .Select(item => item.ItemId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var fillItems = Shuffle(items)
+                .Where(item => !selectedIds.Contains(item.ItemId))
+                .Take(TrashSortItemsPerRound - selected.Count);
+
+            selected.AddRange(fillItems);
+        }
+
+        return Shuffle(selected)
+            .Take(TrashSortItemsPerRound)
+            .ToList();
+    }
+
+    private static IEnumerable<T> Shuffle<T>(IEnumerable<T> values)
+    {
+        return values
+            .Select(value => new { Value = value, Sort = Random.Shared.Next() })
+            .OrderBy(item => item.Sort)
+            .Select(item => item.Value);
     }
 }

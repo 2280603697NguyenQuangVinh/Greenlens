@@ -98,6 +98,8 @@ public sealed class ChildProfileService(
             Xp = 0,
             Level = 1,
             Streak = 0,
+            LastStreakDate = null,
+            StreakFreezeDaysUsed = 0,
             AiCameraScanCount = 0,
             MiniGameHighScore = 0,
             Badges = [],
@@ -127,7 +129,69 @@ public sealed class ChildProfileService(
         CancellationToken cancellationToken = default)
     {
         var profile = await GetOwnedProfileAsync(childId, cognitoSub, cancellationToken);
-        var currentStreak = Math.Max(profile.Streak, 0);
+        var streakState = ChildStreakCalculator.Preview(
+            profile.Streak,
+            profile.LastStreakDate,
+            ChildStreakCalculator.GetVietnamToday(),
+            profile.StreakFreezeDaysUsed);
+
+        return BuildStreakResponse(profile, streakState);
+    }
+
+    public async Task<ChildStreakResponse> CheckInStreakAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await GetOwnedProfileAsync(childId, cognitoSub, cancellationToken);
+        var streakState = ChildStreakCalculator.CheckIn(
+            profile.Streak,
+            profile.LastStreakDate,
+            ChildStreakCalculator.GetVietnamToday());
+
+        if (streakState.LastStreakDate is not null &&
+            !string.Equals(streakState.Status, "AlreadyCheckedIn", StringComparison.Ordinal))
+        {
+            await childProfileRepository.UpdateStreakAsync(
+                profile.ChildId,
+                profile.CognitoSub,
+                streakState.CurrentStreak,
+                streakState.LastStreakDate,
+                streakState.FreezeDaysUsed,
+                cancellationToken);
+        }
+
+        var updatedProfile = new ChildProfile
+        {
+            ChildId = profile.ChildId,
+            CognitoSub = profile.CognitoSub,
+            CharacterName = profile.CharacterName,
+            Gender = profile.Gender,
+            Hair = profile.Hair,
+            Eyes = profile.Eyes,
+            Outfit = profile.Outfit,
+            AvatarPreview = profile.AvatarPreview,
+            Xp = profile.Xp,
+            Level = profile.Level,
+            Streak = streakState.CurrentStreak,
+            LastStreakDate = streakState.LastStreakDate,
+            StreakFreezeDaysUsed = streakState.FreezeDaysUsed,
+            AiCameraScanCount = profile.AiCameraScanCount,
+            MiniGameHighScore = profile.MiniGameHighScore,
+            Badges = profile.Badges,
+            Rewards = profile.Rewards,
+            CreatedAt = profile.CreatedAt,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        return BuildStreakResponse(updatedProfile, streakState);
+    }
+
+    private static ChildStreakResponse BuildStreakResponse(
+        ChildProfile profile,
+        ChildStreakState streakState)
+    {
+        var currentStreak = Math.Max(streakState.CurrentStreak, 0);
         var badge = BuildBadgeCatalog(profile.Badges, profile)
             .First(item => item.Code == "streak_30_days");
 
@@ -138,6 +202,12 @@ public sealed class ChildProfileService(
             Math.Max(Streak30Target - currentStreak, 0),
             Math.Clamp((int)Math.Round(currentStreak * 100d / Streak30Target), 0, 100),
             badge.IsUnlocked,
+            streakState.LastStreakDate,
+            ChildStreakCalculator.MaxFreezeDays,
+            streakState.FreezeDaysUsed,
+            streakState.FreezeDaysRemaining,
+            streakState.MissedDaysCoveredByFreeze,
+            streakState.Status,
             badge);
     }
 

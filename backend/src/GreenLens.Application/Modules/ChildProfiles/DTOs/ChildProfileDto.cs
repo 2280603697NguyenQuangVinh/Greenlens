@@ -59,4 +59,10 @@ public sealed record ChildStreakResponse(
     [property: JsonPropertyName("daysToStreak30")] int DaysToStreak30,
     [property: JsonPropertyName("progressPercent")] int ProgressPercent,
     [property: JsonPropertyName("isStreak30Unlocked")] bool IsStreak30Unlocked,
+    [property: JsonPropertyName("lastStreakDate")] string? LastStreakDate,
+    [property: JsonPropertyName("maxFreezeDays")] int MaxFreezeDays,
+    [property: JsonPropertyName("freezeDaysUsed")] int FreezeDaysUsed,
+    [property: JsonPropertyName("freezeDaysRemaining")] int FreezeDaysRemaining,
+    [property: JsonPropertyName("missedDaysCoveredByFreeze")] int MissedDaysCoveredByFreeze,
+    [property: JsonPropertyName("streakStatus")] string StreakStatus,
     [property: JsonPropertyName("badge")] BadgeStatusDto Badge);

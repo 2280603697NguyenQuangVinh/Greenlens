@@ -18,4 +18,9 @@ public interface IChildProfileService
         string childId,
         string cognitoSub,
         CancellationToken cancellationToken = default);
+
+    Task<ChildStreakResponse> CheckInStreakAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default);
 }

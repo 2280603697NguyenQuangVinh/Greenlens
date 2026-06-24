@@ -95,7 +95,8 @@ builder.Services.AddSingleton(new BedrockOptions
     ModelId = builder.Configuration["BEDROCK_MODEL_ID"] ?? "amazon.nova-lite-v1:0",
     EnableFallbackGuidance = builder.Configuration.GetValue<bool>("AI_CAMERA_GUIDANCE_FALLBACK_ENABLED"),
     SkipBedrockWhenFallbackEnabled = builder.Configuration.GetValue<bool>("AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED"),
-    MaxTokens = builder.Configuration.GetValue<int?>("BEDROCK_MAX_TOKENS") ?? 180
+    MaxTokens = builder.Configuration.GetValue<int?>("BEDROCK_MAX_TOKENS") ?? 180,
+    TimeoutSeconds = builder.Configuration.GetValue<int?>("BEDROCK_TIMEOUT_SECONDS") ?? 12
 });
 builder.Services.AddSingleton(new AiCameraUsageLimiterOptions
 {
@@ -505,6 +506,34 @@ app.MapGet("/child-profiles/{childId}/streak", async (
     {
         var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
         var streak = await childProfileService.GetStreakAsync(
+            childId,
+            cognitoSub ?? string.Empty,
+            httpRequest.HttpContext.RequestAborted);
+        return Results.Ok(streak);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
+app.MapPost("/child-profiles/{childId}/streak/check-in", async (
+    HttpRequest httpRequest,
+    string childId,
+    IChildProfileService childProfileService) =>
+{
+    try
+    {
+        var cognitoSub = httpRequest.HttpContext.Items["cognitoSub"] as string;
+        var streak = await childProfileService.CheckInStreakAsync(
             childId,
             cognitoSub ?? string.Empty,
             httpRequest.HttpContext.RequestAborted);

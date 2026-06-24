@@ -4,6 +4,7 @@ obj/
 gauge_bin/
 reports/
 logs/
+backend/.serverless/
 
 # Bỏ qua file cấu hình người dùng
 .vscode/

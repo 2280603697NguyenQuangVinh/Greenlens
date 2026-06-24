@@ -6,4 +6,5 @@ public sealed class BedrockOptions
     public bool EnableFallbackGuidance { get; init; }
     public bool SkipBedrockWhenFallbackEnabled { get; init; }
     public int MaxTokens { get; init; } = 180;
+    public int TimeoutSeconds { get; init; } = 12;
 }
