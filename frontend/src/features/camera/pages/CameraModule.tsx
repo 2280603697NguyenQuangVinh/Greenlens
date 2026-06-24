@@ -119,6 +119,7 @@ export default function CameraModule({
     cancel,
     cancelPlayback,
     unlockAudio,
+    playMascotVoice,
   } = useSpeechSynthesis();
 
   const handleUserGesture = useCallback(() => {
@@ -311,6 +312,12 @@ export default function CameraModule({
         }
         setResult(analysis);
         setResultSpot(pickRandomMascotSpot());
+        void playMascotVoice({
+          label: analysis.wasteName,
+          recycleGuide: analysis.recyclingInstruction,
+          reuseSuggestion: analysis.reuseSuggestion,
+          environmentImpact: analysis.environmentalImpact,
+        });
         await onResult?.(analysis);
       } catch (err: unknown) {
         const message =
@@ -323,7 +330,7 @@ export default function CameraModule({
         setIsProcessing(false);
       }
     },
-    [cancelPlayback, onResult],
+    [cancelPlayback, onResult, playMascotVoice],
   );
 
   const handleCapture = () => {
@@ -373,6 +380,7 @@ export default function CameraModule({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || isProcessing) return;
+    void unlockAudio();
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -537,6 +545,7 @@ export default function CameraModule({
                 {resultSpot && (
                   <FloatingMascot
                     variant="result"
+                    autoSpeak={false}
                     spot={resultSpot}
                     text={speechText}
                     speechSegments={speechSegments}
