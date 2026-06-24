@@ -1,13 +1,18 @@
-import type { StreakInfo, StreakRewardInfo, DailyActivityStatus, RewardMilestone } from "@/services/streak/types"
+import type { StreakInfo, StreakRewardInfo, DailyActivityStatus, RewardMilestone, StreakStatusInfo } from "@/services/streak/types"
+import { getVietnamWeekDayIndex } from "@/utils/appDate"
+import { getStreakStatusMascotHint } from "@/features/streak/utils/streakStatus"
 
 export function getMascotStreakMessage(
   streak: StreakInfo,
   rewards: StreakRewardInfo,
   dailyActivity: DailyActivityStatus,
+  streakStatus?: StreakStatusInfo,
 ): string {
+  const statusHint = streakStatus ? getStreakStatusMascotHint(streakStatus) : null
+  if (statusHint && streak.currentStreak === 0) return statusHint
   if (streak.currentStreak === 0) {
     if (dailyActivity.completedCount === dailyActivity.totalCount) {
-      return "Tuyệt vời! Con đã hoàn thành tất cả nhiệm vụ hôm nay! 🔥"
+      return "Tuyệt vời! Con đã hoàn thành tất cả nhiệm vụ hôm nay!"
     }
     if (dailyActivity.completedCount > 0) {
       const left = dailyActivity.totalCount - dailyActivity.completedCount
@@ -19,12 +24,17 @@ export function getMascotStreakMessage(
   const daysLeft = rewards.nextRewardDay - streak.currentStreak
 
   if (daysLeft === 1) {
-    return `Cố lên nhé! Chỉ còn 1 ngày nữa là nhận được ${rewards.nextRewardName}.`
+    const isBadgeReward = rewards.nextRewardDay >= 7
+    return isBadgeReward
+      ? "Cố lên nhé! Chỉ còn 1 ngày nữa là nhận được huy hiệu mới."
+      : `Cố lên nhé! Chỉ còn 1 ngày nữa là nhận được ${rewards.nextRewardName}.`
   }
 
   if (dailyActivity.completedCount === dailyActivity.totalCount) {
-    return `Tuyệt vời! Con đã hoàn thành tất cả nhiệm vụ hôm nay! 🔥`
+    return "Tuyệt vời! Con đã hoàn thành tất cả nhiệm vụ hôm nay!"
   }
+
+  if (statusHint) return statusHint
 
   return `Tuyệt vời! Con đã học ${streak.currentStreak} ngày liên tiếp rồi!`
 }
@@ -34,7 +44,7 @@ export function getDayLabels(): string[] {
 }
 
 export function getTodayWeekIndex(): number {
-  return (new Date().getDay() + 6) % 7
+  return getVietnamWeekDayIndex()
 }
 
 export type WeekDayState = "completed" | "current" | "today" | "upcoming" | "missed"
@@ -44,12 +54,16 @@ export function getWeekDayState(
   weeklyProgress: boolean[],
   todayIndex: number,
   currentStreak = 0,
-  todayHasActivity = false,
+  todayCompletedCount = 0,
+  todayTotalCount = 3,
 ): WeekDayState {
+  const todayAllDone =
+    todayTotalCount > 0 && todayCompletedCount >= todayTotalCount
+
   if (index === todayIndex) {
-    if (weeklyProgress[index] || todayHasActivity) return "completed"
-    if (currentStreak === 0) return "today"
-    return "current"
+    if (todayAllDone) return "completed"
+    if (todayCompletedCount > 0 || currentStreak > 0) return "current"
+    return "today"
   }
 
   if (currentStreak === 0) {
@@ -60,8 +74,12 @@ export function getWeekDayState(
   return weeklyProgress[index] ? "completed" : "missed"
 }
 
-export function formatNextRewardLabel(nextRewardDay: number, _nextRewardName: string): string {
+export function formatNextRewardDayLabel(nextRewardDay: number): string {
   return `Ngày thứ ${nextRewardDay}`
+}
+
+export function formatNextRewardLabel(nextRewardDay: number, _nextRewardName: string): string {
+  return formatNextRewardDayLabel(nextRewardDay)
 }
 
 export function getMilestoneStatus(

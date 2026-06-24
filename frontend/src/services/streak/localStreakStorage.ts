@@ -1,7 +1,7 @@
 import { getChildId } from "@/services/childProfileStorage"
+import { getVietnamTodayKey } from "@/utils/appDate"
 
 const STORAGE_KEY = "gl_local_streak_v1"
-const DAILY_ACTIVITY_KEY = "gl_daily_activity_v1"
 export const STREAK_REFRESH_EVENT = "gl-streak-refresh"
 
 export type LocalStreakRecord = {
@@ -9,10 +9,6 @@ export type LocalStreakRecord = {
   currentStreak: number
   bestStreak: number
   lastActiveDate: string | null
-}
-
-function todayKey(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function readAll(): Record<string, LocalStreakRecord> {
@@ -36,24 +32,15 @@ function daysBetween(earlier: string, later: string): number {
   return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000))
 }
 
+import { getTodayDailyActivity } from "./dailyActivityStorage"
+
 function dailyCompletedCount(): number {
-  try {
-    const raw = localStorage.getItem(DAILY_ACTIVITY_KEY)
-    if (!raw) return 0
-    const all = JSON.parse(raw) as Record<
-      string,
-      { cameraCompleted: boolean; quizCompleted: boolean; gameCompleted: boolean }
-    >
-    const record = all[todayKey()]
-    if (!record) return 0
-    return (
-      Number(record.cameraCompleted) +
-      Number(record.quizCompleted) +
-      Number(record.gameCompleted)
-    )
-  } catch {
-    return 0
-  }
+  const daily = getTodayDailyActivity()
+  return (
+    Number(daily.cameraCompleted) +
+    Number(daily.quizCompleted) +
+    Number(daily.gameCompleted)
+  )
 }
 
 export function notifyStreakChanged(): void {
@@ -79,7 +66,7 @@ export function getEffectiveLocalStreak(childId: string): LocalStreakRecord {
     return record
   }
 
-  const gap = daysBetween(record.lastActiveDate, todayKey())
+  const gap = daysBetween(record.lastActiveDate, getVietnamTodayKey())
   if (gap <= 1) return record
 
   return {
@@ -90,10 +77,37 @@ export function getEffectiveLocalStreak(childId: string): LocalStreakRecord {
   }
 }
 
-export function syncStreakAfterDailyActivity(childId?: string | null): LocalStreakRecord | null {
+/** Đồng bộ gl_local_streak_v1 theo BE — tránh local lệch (vd. BE=2, local=1). */
+export function syncLocalStreakFromBackend(
+  childId: string,
+  currentStreak: number,
+  lastStreakDate: string | null | undefined,
+): LocalStreakRecord {
+  const all = readAll()
+  const existing = getLocalStreak(childId)
+  const lastActive = lastStreakDate?.slice(0, 10) ?? null
+  const current = Math.max(currentStreak, 0)
+
+  const updated: LocalStreakRecord = {
+    childId,
+    currentStreak: current,
+    bestStreak: Math.max(existing.bestStreak, current),
+    lastActiveDate: current > 0 ? lastActive : null,
+  }
+
+  all[childId] = updated
+  writeAll(all)
+  return updated
+}
+
+export function syncStreakAfterDailyActivity(
+  childId?: string | null,
+  options: { notify?: boolean } = {},
+): LocalStreakRecord | null {
+  const { notify = true } = options
   const id = childId ?? getChildId()
   if (!id) {
-    notifyStreakChanged()
+    if (notify) notifyStreakChanged()
     return null
   }
 
@@ -101,12 +115,12 @@ export function syncStreakAfterDailyActivity(childId?: string | null): LocalStre
     return getEffectiveLocalStreak(id)
   }
 
-  const today = todayKey()
+  const today = getVietnamTodayKey()
   const all = readAll()
   const record = getLocalStreak(id)
 
   if (record.lastActiveDate === today) {
-    notifyStreakChanged()
+    if (notify) notifyStreakChanged()
     return record
   }
 
@@ -131,7 +145,7 @@ export function syncStreakAfterDailyActivity(childId?: string | null): LocalStre
 
   all[id] = updated
   writeAll(all)
-  notifyStreakChanged()
+  if (notify) notifyStreakChanged()
   return updated
 }
 
@@ -140,5 +154,5 @@ export function ensureStreakSyncedFromDaily(childId: string): LocalStreakRecord 
   if (dailyCompletedCount() < 1) {
     return getEffectiveLocalStreak(childId)
   }
-  return syncStreakAfterDailyActivity(childId) ?? getEffectiveLocalStreak(childId)
+  return syncStreakAfterDailyActivity(childId, { notify: false }) ?? getEffectiveLocalStreak(childId)
 }

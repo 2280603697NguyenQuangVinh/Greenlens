@@ -94,7 +94,7 @@ async function mockSetupChildProfile(
       eyes: payload.eyes,
       outfit: payload.outfit,
       xp: 0,
-      level: 1,
+      level: 0,
       streak: 0,
       badges: [],
       rewards: [],

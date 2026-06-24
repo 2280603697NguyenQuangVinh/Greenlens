@@ -25,7 +25,10 @@ export interface StreakRewardInfo {
 export interface RewardMilestone {
   day: number
   label: string
-  icon: string
+  /** Emoji fallback when no badge image (e.g. +20 XP). */
+  icon?: string
+  badgeId?: string
+  imageUrl?: string
   unlocked: boolean
 }
 
@@ -39,7 +42,7 @@ export interface BadgeStatusDto {
   progressTarget: number
 }
 
-/** Backend GET /child-profiles/{childId}/streak */
+/** Backend GET/POST /child-profiles/{childId}/streak */
 export interface BackendStreakResponse {
   childId: string
   currentStreak: number
@@ -47,6 +50,12 @@ export interface BackendStreakResponse {
   daysToStreak30: number
   progressPercent: number
   isStreak30Unlocked: boolean
+  lastStreakDate?: string | null
+  maxFreezeDays?: number
+  freezeDaysUsed?: number
+  freezeDaysRemaining?: number
+  missedDaysCoveredByFreeze?: number
+  streakStatus?: string
   badge: BadgeStatusDto
 }
 
@@ -57,9 +66,18 @@ export interface BackendChildProfile {
   badgeCatalog?: BadgeStatusDto[]
 }
 
+export interface StreakStatusInfo {
+  status: string
+  freezeDaysRemaining: number
+  freezeDaysUsed: number
+  missedDaysCoveredByFreeze: number
+  maxFreezeDays: number
+}
+
 export interface StreakBundle {
   streak: StreakInfo
   dailyActivity: DailyActivityStatus
   rewards: StreakRewardInfo
   milestones: RewardMilestone[]
+  streakStatus: StreakStatusInfo
 }

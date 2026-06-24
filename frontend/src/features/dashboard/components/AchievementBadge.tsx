@@ -1,4 +1,5 @@
 import type { AchievementDef } from "@/assets/achievementAssets"
+import { PADLOCK_ICON } from "@/assets/iconAssets"
 
 const BADGE_SIZES = {
   sm: "h-14",
@@ -26,13 +27,15 @@ export function AchievementBadgeCircle({
         draggable={false}
       />
       {!unlocked && (
-        <span
-          className={`absolute inset-0 flex items-center justify-center drop-shadow-sm ${
-            size === "sm" ? "text-base" : size === "lg" ? "text-2xl" : "text-xl"
+        <img
+          src={PADLOCK_ICON}
+          alt=""
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-sm ${
+            size === "sm" ? "h-5 w-5" : size === "lg" ? "h-7 w-7" : "h-6 w-6"
           }`}
-        >
-          🔒
-        </span>
+          draggable={false}
+          aria-hidden
+        />
       )}
     </div>
   )
@@ -63,7 +66,15 @@ export function AchievementBadgeCard({
       </div>
       <p className="mt-2 whitespace-pre-line text-[13px] font-bold leading-tight">{achievement.titleShort}</p>
       <p className="mt-1 text-[12px] font-semibold text-slate-700">{date}</p>
-      {!unlocked && <div className="absolute right-2 top-2 text-2xl">🔒</div>}
+      {!unlocked && (
+        <img
+          src={PADLOCK_ICON}
+          alt=""
+          className="absolute right-2 top-2 h-6 w-6 object-contain drop-shadow-sm"
+          draggable={false}
+          aria-hidden
+        />
+      )}
     </div>
   )
 }

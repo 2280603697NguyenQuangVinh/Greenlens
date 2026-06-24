@@ -28,6 +28,12 @@ import {
 } from "@/services/streak/dailyActivityStorage"
 import { generateQuiz, completeQuizSession } from "@/services/quiz/quizApi"
 import { submitTrashSortResult } from "@/services/miniGame/miniGameApi"
+import { getLevelFromXp } from "@/utils/levelProgress"
+
+function applyXp(profile: UserProfile, xpDelta: number): UserProfile {
+  const xp = Math.max(0, profile.xp + xpDelta)
+  return { ...profile, xp, level: getLevelFromXp(xp) }
+}
 
 export function useGreenLens() {
   const [profile, setProfile] = useState<UserProfile | null>(() =>
@@ -91,7 +97,7 @@ export function useGreenLens() {
         eyes: avatar.eyes,
         outfit: avatar.outfit,
         xp: res.xp,
-        level: res.level,
+        level: getLevelFromXp(res.xp),
         streak: res.streak,
         dailyScansCompleted: 0,
         dailyScansTarget: 3,
@@ -175,7 +181,7 @@ export function useGreenLens() {
         markDailyQuizComplete()
         setProfile((current) => {
           if (!current) return current
-          const next = { ...current, xp: current.xp + xpEarned }
+          const next = applyXp(current, xpEarned)
           const token = getAuthToken()
           if (token) saveSession(token, next)
           return next
@@ -190,7 +196,7 @@ export function useGreenLens() {
         markDailyQuizComplete()
         setProfile((current) => {
           if (!current) return current
-          const next = { ...current, xp: current.xp + res.xpAwarded }
+          const next = applyXp(current, res.xpAwarded)
           const token = getAuthToken()
           if (token) saveSession(token, next)
           return next
@@ -230,7 +236,7 @@ export function useGreenLens() {
         markDailyGameComplete()
         setProfile((current) => {
           if (!current) return current
-          const next = { ...current, xp: current.xp + res.xpAwarded }
+          const next = applyXp(current, res.xpAwarded)
           const token = getAuthToken()
           if (token) saveSession(token, next)
           return next

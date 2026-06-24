@@ -120,7 +120,6 @@ export function FloatingMascot({
         : "pointer-events-none absolute z-30")
 
   const rowAlign = isInline ? "items-start" : "items-center"
-  const bubbleVariant = isResult ? "camera" : "dashboard"
 
   return (
     <motion.div
@@ -158,14 +157,13 @@ export function FloatingMascot({
           }
         />
         <CharacterSpeechBubble
-          variant={bubbleVariant}
           tail={alignRight ? "right" : "left"}
           className={
             isResult
               ? `min-w-0 max-w-[min(calc(100vw-100px),17rem)] ${isInline ? "flex-1" : ""}`
               : isIdle
-                ? "drop-shadow-lg [&>div:first-child]:bg-white/95"
-                : "drop-shadow-md [&>div:first-child]:bg-white/95"
+                ? "drop-shadow-[0_4px_14px_rgba(0,0,0,0.45)]"
+                : "drop-shadow-md"
           }
         >
           {text}

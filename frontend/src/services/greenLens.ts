@@ -12,7 +12,7 @@ import {
 } from "@/services/childProfileStorage"
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/services/authToken"
 import { tryRefreshBearerToken } from "@/services/sessionAuth"
-import { API_BASE } from "@/services/http"
+import { getLevelFromXp } from "@/utils/levelProgress"
 
 export interface UserProfile {
   badgeId: string
@@ -98,9 +98,9 @@ function defaultProfile(badgeId: string, avatar?: AvatarConfig): UserProfile {
     hair: avatar?.hair ?? 1,
     eyes: avatar?.eyes ?? 0,
     outfit: avatar?.outfit ?? 1,
-    xp: 120,
-    level: 2,
-    streak: 3,
+    xp: 0,
+    level: 0,
+    streak: 0,
     dailyScansCompleted: 0,
     dailyScansTarget: 3,
     recentActivity: [],
@@ -108,7 +108,7 @@ function defaultProfile(badgeId: string, avatar?: AvatarConfig): UserProfile {
 }
 
 function normalizeProfile(profile: UserProfile): UserProfile {
-  const level = Math.max(1, Math.floor(profile.xp / 100) + 1)
+  const level = getLevelFromXp(profile.xp)
   return { ...profile, level }
 }
 

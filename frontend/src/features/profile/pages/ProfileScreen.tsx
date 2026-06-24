@@ -7,6 +7,7 @@ import type { AvatarConfig } from "@/utils/types"
 
 import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
 import { AchievementBadgeCard } from "@/features/dashboard/components/AchievementBadge"
+import { XpLevelBar } from "@/features/dashboard/components/XpLevelBar"
 
 const BG = BACKGROUND_IMAGE
 
@@ -27,9 +28,8 @@ export function ProfileScreen({
   onAdminLogin: () => void
   adminAuthenticated?: boolean
 }) {
-  const xp = profile.xp || 1280
-  const xpMax = 2500
-  const xpPct = Math.min(100, Math.round((xp / xpMax) * 100))
+  const xp = profile.xp ?? 0
+
   const isUnlocked = (id: string) => DEFAULT_UNLOCKED.includes(id as (typeof DEFAULT_UNLOCKED)[number])
   const badgeCards = ACHIEVEMENTS.map((achievement) => ({
     achievement,
@@ -69,15 +69,7 @@ export function ProfileScreen({
           {profile.characterName?.trim() || "Nhân vật của em"}
         </h2>
 
-        <div className="mx-1 mt-3 rounded-full border-[3px] border-red-500 bg-[#d3d3d3] p-1">
-          <div className="relative h-7 overflow-hidden rounded-full bg-[#d3d3d3]">
-            <div className="absolute inset-y-0 left-0 rounded-full bg-[#7edd55]" style={{ width: `${xpPct}%` }} />
-            <div className="absolute inset-0 flex items-center justify-between px-3 text-[12px] font-black text-black">
-              <span>Cấp 3</span>
-              <span>{xp} / {xpMax} XP</span>
-            </div>
-          </div>
-        </div>
+        <XpLevelBar xp={xp} profile className="mx-auto mt-3 w-full max-w-[320px] px-1" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-2">

@@ -1,57 +1,72 @@
-import { CheckCircle2, Circle } from "lucide-react"
 import {
   getDayLabels,
   getTodayWeekIndex,
   getWeekDayState,
+  type WeekDayState,
 } from "@/features/streak/utils/streakUi"
+import { CHECK_ICON, LETTER_X_ICON } from "@/assets"
 
-const STATE_STYLES = {
-  completed: "bg-[#7ED957] text-white border-[#2d8a3e]",
-  current: "bg-[#FFD166] text-[#1b4332] border-[#f4a261] ring-1 ring-[#f4a261]",
-  today: "bg-[#ecfdf3] text-[#2d6a4f] border-[#52b788] ring-2 ring-[#7ED957]/50",
-  upcoming: "bg-white text-slate-400 border-slate-200",
-  missed: "bg-[#ffb4a2] text-white border-[#e76f51]",
-} as const
+const STATE_STYLES: Record<WeekDayState, string> = {
+  completed: "bg-[#ecfdf3] border-[#7ED957]",
+  current: "bg-[#FFD166] border-[#f4a261] ring-1 ring-[#f4a261]",
+  today: "bg-[#ecfdf3] border-[#52b788] ring-2 ring-[#7ED957]/40",
+  upcoming: "bg-white border-slate-200",
+  missed: "bg-[#fff0ed] border-[#ffb4a2]",
+}
+
+const STATE_LABELS: Record<WeekDayState, string> = {
+  completed: "Đã học",
+  current: "Hôm nay — chưa xong",
+  today: "Hôm nay",
+  upcoming: "Sắp tới",
+  missed: "Đã bỏ lỡ",
+}
 
 export function WeeklyCalendar({
   weeklyProgress,
   currentStreak = 0,
-  todayHasActivity = false,
+  todayCompletedCount = 0,
+  todayTotalCount = 3,
   compact = false,
 }: {
   weeklyProgress: boolean[]
   currentStreak?: number
-  todayHasActivity?: boolean
+  todayCompletedCount?: number
+  todayTotalCount?: number
   compact?: boolean
 }) {
   const labels = getDayLabels()
   const todayIndex = getTodayWeekIndex()
-  const dotSize = compact ? "h-9 w-9" : "h-11 w-11"
-  const iconSize = compact ? 18 : 22
+  const dotSize = compact ? "h-9 w-9 sm:h-10 sm:w-10" : "h-11 w-11"
 
   return (
-    <div className={compact ? "" : "rounded-2xl bg-white/80 p-3 shadow-sm"}>
-      {compact ? (
-        <p className="mb-2 text-sm font-black text-[#1b4332]">📅 Tuần này</p>
-      ) : (
-        <h3 className="mb-3 text-base font-black text-[#1b4332]">📅 Theo dõi 7 ngày</h3>
-      )}
-      <div className="flex justify-between gap-1">
+    <div
+      className={
+        compact
+          ? ""
+          : "rounded-2xl border-2 border-[#a8e6b8] bg-white p-3 shadow-sm"
+      }
+    >
+      <h3 className="mb-2.5 text-sm text-[#1b4332] sm:text-base">
+        Theo dõi 7 ngày
+      </h3>
+      <div className="flex justify-between gap-0.5 sm:gap-1">
         {labels.map((label, index) => {
           const state = getWeekDayState(
             index,
             weeklyProgress,
             todayIndex,
             currentStreak,
-            todayHasActivity,
+            todayCompletedCount,
+            todayTotalCount,
           )
           const style = STATE_STYLES[state]
           const isToday = index === todayIndex
 
           return (
-            <div key={label} className="flex flex-1 flex-col items-center gap-1">
+            <div key={label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
               <span
-                className={`font-bold ${compact ? "text-[11px]" : "text-xs"} ${
+                className={`${compact ? "text-[10px] sm:text-[11px]" : "text-xs"} ${
                   isToday ? "text-[#2d6a4f]" : "text-slate-500"
                 }`}
               >
@@ -59,20 +74,26 @@ export function WeeklyCalendar({
               </span>
               <div
                 className={`flex items-center justify-center rounded-full border-2 ${dotSize} ${style}`}
-                title={state === "today" ? "Hôm nay" : undefined}
+                title={STATE_LABELS[state]}
+                aria-label={`${label}: ${STATE_LABELS[state]}`}
               >
                 {state === "completed" ? (
-                  <CheckCircle2 size={iconSize} />
-                ) : state === "missed" ? (
-                  <span className="text-xs font-black">✕</span>
-                ) : state === "today" ? (
-                  <span className={`font-black ${compact ? "text-[11px]" : "text-xs"}`}>•</span>
-                ) : (
-                  <Circle
-                    size={iconSize - 2}
-                    className={state === "current" ? "opacity-80" : "opacity-35"}
+                  <img
+                    src={CHECK_ICON}
+                    alt=""
+                    className={`object-contain ${compact ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6"}`}
+                    draggable={false}
+                    aria-hidden
                   />
-                )}
+                ) : state === "missed" ? (
+                  <img
+                    src={LETTER_X_ICON}
+                    alt=""
+                    className={`object-contain ${compact ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6"}`}
+                    draggable={false}
+                    aria-hidden
+                  />
+                ) : null}
               </div>
             </div>
           )

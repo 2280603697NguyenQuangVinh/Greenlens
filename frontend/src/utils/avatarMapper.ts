@@ -1,5 +1,4 @@
-﻿import type { AvatarConfig } from "@/utils/types";
-import type { UserProfile } from "@/services/greenLens";
+﻿import { getLevelFromXp } from "@/utils/levelProgress"
 
 export interface ChildProfileRequest {
   characterName: string;
@@ -61,7 +60,7 @@ export function childProfileResponseToUserProfile(
     eyes: Math.max(0, parseIndexedAsset(res.eyes, 1) - 1),
     outfit: parseIndexedAsset(res.outfit, 1),
     xp: res.xp,
-    level: res.level,
+    level: getLevelFromXp(res.xp),
     streak: res.streak,
     dailyScansCompleted: 0,
     dailyScansTarget: 3,

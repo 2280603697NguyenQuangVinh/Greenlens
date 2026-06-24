@@ -4,7 +4,16 @@ import { apiUrl } from "@/services/http"
 import { getChildId } from "@/services/childProfileStorage"
 import { loadSavedProfile } from "@/services/greenLens"
 import { getTodayDailyActivity } from "./dailyActivityStorage"
-import { ensureStreakSyncedFromDaily, getEffectiveLocalStreak } from "./localStreakStorage"
+import {
+  ensureStreakSyncedFromDaily,
+  getEffectiveLocalStreak,
+  syncLocalStreakFromBackend,
+} from "./localStreakStorage"
+import {
+  checkInStreak,
+  clearCheckInSessionIfServerMismatch,
+} from "./streakCheckIn"
+import { getVietnamTodayKey, isSameDay } from "@/utils/appDate"
 import {
   buildRewardMilestones,
   buildStreakRewardInfo,
@@ -18,8 +27,10 @@ import type {
   DailyActivityStatus,
   StreakBundle,
   StreakInfo,
-  StreakRewardInfo,
 } from "./types"
+import { buildStreakStatusInfo } from "./streakStatus"
+
+export { checkInStreak } from "./streakCheckIn"
 
 async function readApiErrorMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => ({}))
@@ -38,7 +49,6 @@ function isJsonResponse(res: Response): boolean {
   return contentType.includes("application/json")
 }
 
-/** Returns null on 404, HTML/non-JSON, or unimplemented endpoints — never throws parse errors. */
 async function authorizedGetOptional<T>(path: string): Promise<T | null> {
   let token: string
   try {
@@ -98,6 +108,7 @@ function mockStreakBundle(childId: string): StreakBundle {
     dailyActivity,
     rewards: buildStreakRewardInfo(streak.currentStreak),
     milestones: buildRewardMilestones(streak.currentStreak),
+    streakStatus: buildStreakStatusInfo(null),
   }
 }
 
@@ -117,33 +128,42 @@ function localDailyActivity(): DailyActivityStatus {
   }
 }
 
-function mergeStreakSources(
+function resolveStreakInfo(
   childId: string,
   backendStreak: BackendStreakResponse | null,
   backendProfile: BackendChildProfile | null,
   cachedProfile: UserProfile | null,
   localStreak: ReturnType<typeof getEffectiveLocalStreak>,
+  dailyActivity: DailyActivityStatus,
 ): StreakInfo {
-  const backendCurrent =
-    backendStreak?.currentStreak ??
-    backendProfile?.streak ??
-    cachedProfile?.streak ??
-    0
+  const today = getVietnamTodayKey()
+  let current = 0
+  let lastActive: string | null = null
 
-  const useLocal = localStreak.currentStreak >= backendCurrent
-  const current = Math.max(localStreak.currentStreak, backendCurrent)
-  const lastActive = useLocal
-    ? localStreak.lastActiveDate
-    : backendCurrent > 0
-      ? new Date().toISOString().slice(0, 10)
-      : null
+  if (backendStreak) {
+    current = Math.max(backendStreak.currentStreak, 0)
+    lastActive = backendStreak.lastStreakDate?.slice(0, 10) ?? null
+  } else {
+    const syncedLocal =
+      dailyActivity.completedCount >= 1
+        ? ensureStreakSyncedFromDaily(childId)
+        : localStreak
+
+    current = Math.max(
+      backendProfile?.streak ?? 0,
+      cachedProfile?.streak ?? 0,
+      syncedLocal.currentStreak,
+      0,
+    )
+    lastActive = syncedLocal.lastActiveDate
+
+    if (dailyActivity.completedCount >= 1 && current === 0) {
+      current = Math.max(syncedLocal.currentStreak, 1)
+      lastActive = lastActive ?? today
+    }
+  }
 
   const streak = toStreakInfo(childId, current, lastActive)
-  streak.bestStreak = Math.max(
-    streak.bestStreak,
-    localStreak.bestStreak,
-    backendCurrent,
-  )
   streak.nextRewardDay = getNextRewardDay(current)
   return streak
 }
@@ -151,7 +171,15 @@ function mergeStreakSources(
 function applyBadgeCatalog(
   milestones: ReturnType<typeof buildRewardMilestones>,
   badgeCatalog: BackendChildProfile["badgeCatalog"],
+  backendStreak: BackendStreakResponse | null,
 ): void {
+  if (backendStreak?.badge?.code === "streak_30_days") {
+    const m = milestones.find((item) => item.day === 30)
+    if (m) {
+      m.unlocked = backendStreak.badge.isUnlocked
+    }
+  }
+
   if (!badgeCatalog) return
 
   const eco = badgeCatalog.find((b) => b.code === "streak_7_days")
@@ -160,14 +188,12 @@ function applyBadgeCatalog(
   if (eco) {
     const m = milestones.find((item) => item.day === 7)
     if (m) {
-      m.label = eco.name
       m.unlocked = eco.isUnlocked
     }
   }
   if (hero) {
     const m = milestones.find((item) => item.day === 30)
     if (m) {
-      m.label = hero.name
       m.unlocked = hero.isUnlocked
     }
   }
@@ -184,55 +210,62 @@ export async function fetchStreakBundle(): Promise<StreakBundle> {
   }
 
   const cachedProfile = loadSavedProfile()
-  const localStreak = ensureStreakSyncedFromDaily(childId)
+  const localStreak = getEffectiveLocalStreak(childId)
+  const dailyActivity = localDailyActivity()
 
-  const [backendStreak, backendProfile, taskStreak, taskDaily, taskRewards] =
-    await Promise.all([
-      authorizedGetOptional<BackendStreakResponse>(`/child-profiles/${childId}/streak`),
-      authorizedGetOptional<BackendChildProfile>(`/child-profiles/${childId}`),
-      authorizedGetOptional<StreakInfo>(`/users/${childId}/streak`),
-      authorizedGetOptional<DailyActivityStatus>(`/users/${childId}/daily-activity`),
-      authorizedGetOptional<StreakRewardInfo>(`/users/${childId}/streak-rewards`),
-    ])
+  let backendStreak = await authorizedGetOptional<BackendStreakResponse>(
+    `/child-profiles/${childId}/streak`,
+  )
 
-  let streak: StreakInfo
+  clearCheckInSessionIfServerMismatch(backendStreak?.lastStreakDate)
 
-  if (taskStreak) {
-    const mergedCurrent = Math.max(taskStreak.currentStreak, localStreak.currentStreak)
-    const lastActive =
-      localStreak.currentStreak >= taskStreak.currentStreak
-        ? localStreak.lastActiveDate
-        : taskStreak.lastActiveDate
+  const today = getVietnamTodayKey()
+  const serverCheckedInToday = isSameDay(backendStreak?.lastStreakDate, today)
+  const needsBackfillCheckIn =
+    dailyActivity.completedCount >= 1 && !serverCheckedInToday
 
-    streak = {
-      ...taskStreak,
-      currentStreak: mergedCurrent,
-      bestStreak: Math.max(
-        taskStreak.bestStreak,
-        localStreak.bestStreak,
-        mergedCurrent,
-      ),
-      lastActiveDate: lastActive,
-      weeklyProgress:
-        taskStreak.weeklyProgress?.length === 7 && mergedCurrent === taskStreak.currentStreak
-          ? taskStreak.weeklyProgress
-          : toStreakInfo(childId, mergedCurrent, lastActive).weeklyProgress,
-      nextRewardDay: getNextRewardDay(mergedCurrent),
-    }
-  } else {
-    streak = mergeStreakSources(
+  if (needsBackfillCheckIn) {
+    const checkInResult = await checkInStreak(childId, {
+      notify: false,
+      skipIfDone: false,
+    })
+    backendStreak =
+      checkInResult ??
+      (await authorizedGetOptional<BackendStreakResponse>(
+        `/child-profiles/${childId}/streak`,
+      ))
+  }
+
+  const backendProfile = await authorizedGetOptional<BackendChildProfile>(
+    `/child-profiles/${childId}`,
+  )
+
+  if (backendStreak) {
+    syncLocalStreakFromBackend(
       childId,
-      backendStreak,
-      backendProfile,
-      cachedProfile,
-      localStreak,
+      backendStreak.currentStreak,
+      backendStreak.lastStreakDate,
     )
   }
 
-  const dailyActivity = taskDaily ?? localDailyActivity()
-  const rewards = taskRewards ?? buildStreakRewardInfo(streak.currentStreak)
-  const milestones = buildRewardMilestones(streak.currentStreak)
-  applyBadgeCatalog(milestones, backendProfile?.badgeCatalog)
+  const streak = resolveStreakInfo(
+    childId,
+    backendStreak,
+    backendProfile,
+    cachedProfile,
+    localStreak,
+    dailyActivity,
+  )
 
-  return { streak, dailyActivity, rewards, milestones }
+  const rewards = buildStreakRewardInfo(streak.currentStreak)
+  const milestones = buildRewardMilestones(streak.currentStreak)
+  applyBadgeCatalog(milestones, backendProfile?.badgeCatalog, backendStreak)
+
+  return {
+    streak,
+    dailyActivity,
+    rewards,
+    milestones,
+    streakStatus: buildStreakStatusInfo(backendStreak),
+  }
 }
