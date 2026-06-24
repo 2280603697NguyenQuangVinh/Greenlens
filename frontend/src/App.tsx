@@ -1,9 +1,9 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { loadStoredProfile } from "@/services/greenLens"
+import { loadSavedProfile, loadStoredProfile } from "@/services/greenLens"
 import { useGreenLens } from "@/hooks/useGreenLens"
-import { hasChildProfile } from "@/services/childProfileStorage"
+import { hasActiveSession, hasSavedChild } from "@/services/childProfileStorage"
 import { BRAND_MINT_BG, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { AvatarScreen } from "@/features/avatar/pages/AvatarScreen"
@@ -57,16 +57,22 @@ const DEFAULT_CFG: AvatarConfig = {
 export default function App() {
   const gl = useGreenLens()
   const stored = loadStoredProfile()
+  const savedChild = loadSavedProfile()
   const initialTargetPhase: Exclude<AppPhase, "splash"> =
-    hasChildProfile() && stored ? "app" : "avatar"
+    hasActiveSession() ? "app" : "avatar"
 
   const [phase, setPhase] = useState<AppPhase>("splash")
   const [avatarFlow, setAvatarFlow] = useState<AvatarFlow>("startup")
   const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [screen, setScreen] = useState(1)   // main app screens (1–5)
+  const [streakRefreshKey, setStreakRefreshKey] = useState(0)
   const [cfg, setCfg] = useState<AvatarConfig>(
-    stored ? profileToCfg(stored) : DEFAULT_CFG,
+    stored
+      ? profileToCfg(stored)
+      : savedChild
+        ? profileToCfg(savedChild)
+        : DEFAULT_CFG,
   )
 
   useEffect(() => {
@@ -77,15 +83,24 @@ export default function App() {
   }, [initialTargetPhase])
 
   useEffect(() => {
-    if (gl.profile) setCfg(profileToCfg(gl.profile))
-  }, [gl.profile])
+    if (gl.profile && phase === "app") setCfg(profileToCfg(gl.profile))
+  }, [gl.profile, phase])
+
+  useEffect(() => {
+    if (phase !== "app" || screen !== 3 || !gl.profile) return
+    if (gl.quizQuestions.length > 0 || gl.quizLoading) return
+    void gl.loadQuiz("general")
+  }, [phase, screen, gl.profile, gl.quizQuestions.length, gl.quizLoading, gl.loadQuiz])
 
   // If profile is cleared while in app, move back to avatar setup
   useEffect(() => {
     if (!gl.profile && phase === "app") setPhase("avatar")
   }, [gl.profile, phase])
 
-  const go = useCallback((s: number) => setScreen(s), [])
+  const go = useCallback((s: number) => {
+    setScreen(s)
+    if (s === 1) setStreakRefreshKey((k) => k + 1)
+  }, [])
 
   const handleSaveAvatar = async (finalCfg: AvatarConfig) => {
     if (avatarFlow === "profile") {
@@ -136,12 +151,21 @@ export default function App() {
 
   const handleLogout = () => {
     gl.logout()
-    setCfg(DEFAULT_CFG)
+    const saved = loadSavedProfile()
+    setCfg(saved ? profileToCfg(saved) : DEFAULT_CFG)
     setPhase("avatar")
     setScreen(1)
     setAvatarFlow("startup")
     setShowAdminLogin(false)
     setAdminAuthenticated(false)
+  }
+
+  const handleContinueSaved = async () => {
+    const ok = await gl.continueSession()
+    if (ok) {
+      setScreen(1)
+      setPhase("app")
+    }
   }
 
   // ---- UI shell ----
@@ -211,6 +235,16 @@ export default function App() {
                     onAdminLogin={handleOpenAdminLogin}
                     adminAuthenticated={adminAuthenticated}
                     isStartupFlow={avatarFlow === "startup"}
+                    savedCharacterName={
+                      avatarFlow === "startup" && hasSavedChild()
+                        ? savedChild?.characterName?.trim() || "Nhân vật của em"
+                        : undefined
+                    }
+                    onContinueSaved={
+                      avatarFlow === "startup" && hasSavedChild()
+                        ? handleContinueSaved
+                        : undefined
+                    }
                   />
                 </motion.div>
               )}
@@ -218,7 +252,12 @@ export default function App() {
               {/* ===== MAIN APP SCREENS ===== */}
               {phase === "app" && screen === 1 && gl.profile && (
                 <motion.div key="s1" className="absolute inset-0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-                  <DashboardScreen cfg={cfg} go={go} profile={gl.profile} />
+                  <DashboardScreen
+                    cfg={cfg}
+                    go={go}
+                    profile={gl.profile}
+                    streakRefreshKey={streakRefreshKey}
+                  />
                 </motion.div>
               )}
               {phase === "app" && screen === 2 && gl.profile && (
@@ -235,6 +274,7 @@ export default function App() {
                 <motion.div key="s3" className="absolute inset-0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
                   <QuizScreen
                     busy={gl.busy}
+                    loading={gl.quizLoading}
                     apiQuestions={gl.quizQuestions}
                     onBack={() => go(1)}
                     onComplete={async (correct, total) => {
@@ -249,7 +289,7 @@ export default function App() {
                   <GameScreen
                     busy={gl.busy}
                     onBack={() => go(1)}
-                    onGameEnd={async (score) => { await gl.submitGame(score) }}
+                    onGameEnd={async (result) => { await gl.submitGame(result) }}
                   />
                 </motion.div>
               )}
@@ -279,7 +319,7 @@ export default function App() {
       {/* Avatar phase label */}
       {phase === "avatar" && (
         <p className="text-green-700 text-xs font-semibold opacity-70" style={FF_COMFORTAA}>
-          🎨 Tạo nhân vật
+          {avatarFlow === "startup" && hasSavedChild() ? "🎮 Chọn nhân vật" : "🎨 Tạo nhân vật"}
         </p>
       )}
     </div>

@@ -102,6 +102,30 @@ export default defineConfig(({ mode }) => {
 
         },
 
+        '/users': {
+
+          target: apiTarget,
+
+          changeOrigin: true,
+
+        },
+
+        '/quiz': {
+
+          target: apiTarget,
+
+          changeOrigin: true,
+
+        },
+
+        '/mini-games': {
+
+          target: apiTarget,
+
+          changeOrigin: true,
+
+        },
+
         '/supertonic-assets': {
 
           target: 'https://huggingface.co',

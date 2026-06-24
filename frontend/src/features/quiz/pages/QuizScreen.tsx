@@ -17,11 +17,12 @@ function mapQuestions(questions: QuizQuestion[]): LocalQuizItem[] {
 type Props = {
   onBack: () => void
   busy: boolean
+  loading?: boolean
   apiQuestions: QuizQuestion[]
   onComplete: (correct: number, total: number) => Promise<number | null>
 }
 
-export function QuizScreen({ onBack, busy, apiQuestions, onComplete }: Props) {
+export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComplete }: Props) {
   const QUIZ = useMemo(
     () => (apiQuestions.length > 0 ? mapQuestions(apiQuestions) : FALLBACK_QUIZ),
     [apiQuestions],
@@ -37,7 +38,7 @@ export function QuizScreen({ onBack, busy, apiQuestions, onComplete }: Props) {
   const q = QUIZ[qi]
 
   const answer = (i: number) => {
-    if (sel !== null || !q) return
+    if (sel !== null || busy || !q) return
     setSel(i)
     const isCorrect = i === q.a
     const nextCorrect = isCorrect ? correctCount + 1 : correctCount
@@ -112,7 +113,7 @@ export function QuizScreen({ onBack, busy, apiQuestions, onComplete }: Props) {
       </AnimatePresence>
 
       <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
-        <button onClick={onBack} className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+        <button type="button" onClick={onBack} className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
           <span className="text-gray-600">←</span>
         </button>
         <h2 className="text-green-700 font-bold text-base" style={{ ...FF_FREDOKA, fontWeight: 700 }}>🧠 Eco Quiz</h2>
@@ -120,6 +121,12 @@ export function QuizScreen({ onBack, busy, apiQuestions, onComplete }: Props) {
           {qi + 1}/{QUIZ.length}
         </div>
       </div>
+
+      {loading ? (
+        <p className="px-4 pb-2 text-center text-xs font-semibold text-green-700" style={FF_COMFORTAA}>
+          Đang tải câu đố từ server...
+        </p>
+      ) : null}
 
       <div className="px-4 mb-4 flex-shrink-0">
         <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
@@ -161,6 +168,7 @@ export function QuizScreen({ onBack, busy, apiQuestions, onComplete }: Props) {
             return (
               <motion.button
                 key={i}
+                type="button"
                 onClick={() => answer(i)}
                 disabled={sel !== null || busy}
                 whileTap={{ scale: 0.97 }}

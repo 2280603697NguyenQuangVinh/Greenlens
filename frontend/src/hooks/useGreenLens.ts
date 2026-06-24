@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   api,
-  clearSession,
   loadStoredProfile,
+  logoutSession,
   saveSession,
   type ClassificationResult,
   type QuizQuestion,
@@ -11,21 +11,43 @@ import {
 import type { AvatarConfig } from "@/utils/types"
 import {
   setupChildProfile,
+  restoreChildSession,
   ValidationError,
   ApiError,
   NetworkError,
 } from "@/services/childProfile"
-import { setChildId } from "@/services/childProfileStorage"
+import { hasActiveSession, setChildId, getStoredCognitoSub, getChildId } from "@/services/childProfileStorage"
 import { getAuthToken, setAuthToken } from "@/services/authToken"
+import { tryRefreshBearerToken } from "@/services/sessionAuth"
 import { speakBrowser, mapWasteCategoryKey } from "@/utils/browserSpeech"
 import type { AiCameraResult } from "@/services/aiCamera"
+import {
+  markDailyCameraComplete,
+  markDailyGameComplete,
+  markDailyQuizComplete,
+} from "@/services/streak/dailyActivityStorage"
+import { generateQuiz, completeQuizSession } from "@/services/quiz/quizApi"
+import { submitTrashSortResult } from "@/services/miniGame/miniGameApi"
 
 export function useGreenLens() {
-  const [profile, setProfile] = useState<UserProfile | null>(() => loadStoredProfile())
+  const [profile, setProfile] = useState<UserProfile | null>(() =>
+    hasActiveSession() ? loadStoredProfile() : null,
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
+  const [quizSessionId, setQuizSessionId] = useState<string | null>(null)
+  const [quizLoading, setQuizLoading] = useState(false)
   const [lastScan, setLastScan] = useState<ClassificationResult | null>(null)
+
+  useEffect(() => {
+    if (!hasActiveSession()) return
+    void (async () => {
+      await tryRefreshBearerToken()
+      const restored = await restoreChildSession()
+      if (restored) setProfile(restored)
+    })()
+  }, [])
 
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | null> => {
     setBusy(true)
@@ -62,6 +84,7 @@ export function useGreenLens() {
       const next: UserProfile = {
         badgeId: res.childId,
         characterName: res.characterName,
+        cognitoSub: res.cognitoSub?.trim() || getStoredCognitoSub() || undefined,
         gender: avatar.gender,
         skin: avatar.skin,
         hair: avatar.hair,
@@ -107,32 +130,120 @@ export function useGreenLens() {
       if (!res) return null
       setLastScan(res.result)
       if (res.profile) setProfile(res.profile)
-      const quiz = await run(() => api.getQuiz(res.result.categoryKey || res.result.category))
-      if (quiz) setQuizQuestions(quiz)
+      const childId = profile?.badgeId ?? getChildId()
+      if (childId) {
+        try {
+          const wasteType = mapWasteCategoryKey(res.result.categoryKey || res.result.category)
+          const session = await generateQuiz(childId, wasteType)
+          setQuizSessionId(session.sessionId)
+          setQuizQuestions(session.questions)
+        } catch {
+          // optional quiz preload
+        }
+      }
       return res.result
     },
-    [run],
+    [profile, run],
+  )
+
+  const loadQuiz = useCallback(
+    async (wasteType = "general") => {
+      const childId = profile?.badgeId ?? getChildId()
+      if (!childId) return false
+
+      setQuizLoading(true)
+      setError(null)
+      try {
+        const session = await generateQuiz(childId, wasteType)
+        setQuizSessionId(session.sessionId)
+        setQuizQuestions(session.questions)
+        return true
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Không tải được câu đố.")
+        return false
+      } finally {
+        setQuizLoading(false)
+      }
+    },
+    [profile],
   )
 
   const completeQuiz = useCallback(
     async (correctCount: number, totalCount: number) => {
-      const res = await run(() => api.completeQuiz(correctCount, totalCount))
-      if (!res) return null
-      setProfile(res.profile)
-      return res
+      if (!quizSessionId) {
+        const xpEarned = correctCount * 10 + Math.max(0, totalCount - correctCount) * 5
+        markDailyQuizComplete()
+        setProfile((current) => {
+          if (!current) return current
+          const next = { ...current, xp: current.xp + xpEarned }
+          const token = getAuthToken()
+          if (token) saveSession(token, next)
+          return next
+        })
+        return { xpEarned }
+      }
+
+      setBusy(true)
+      setError(null)
+      try {
+        const res = await completeQuizSession(quizSessionId, correctCount)
+        markDailyQuizComplete()
+        setProfile((current) => {
+          if (!current) return current
+          const next = { ...current, xp: current.xp + res.xpAwarded }
+          const token = getAuthToken()
+          if (token) saveSession(token, next)
+          return next
+        })
+        setQuizSessionId(null)
+        setQuizQuestions([])
+        return { xpEarned: res.xpAwarded }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Không lưu được kết quả quiz.")
+        return null
+      } finally {
+        setBusy(false)
+      }
     },
-    [run],
+    [quizSessionId],
   )
 
   const submitGame = useCallback(
-    async (score: number) => {
+    async (payload: {
+      score: number
+      correctCount: number
+      wrongCount: number
+      durationSeconds: number
+    }) => {
       if (!profile) return null
-      const res = await run(() => api.submitGame(profile.badgeId, score))
-      if (!res) return null
-      if (res.profile) setProfile(res.profile)
-      return res
+
+      setBusy(true)
+      setError(null)
+      try {
+        const res = await submitTrashSortResult({
+          childId: profile.badgeId,
+          correctCount: payload.correctCount,
+          wrongCount: payload.wrongCount,
+          durationSeconds: payload.durationSeconds,
+          completedFromDailyActivity: true,
+        })
+        markDailyGameComplete()
+        setProfile((current) => {
+          if (!current) return current
+          const next = { ...current, xp: current.xp + res.xpAwarded }
+          const token = getAuthToken()
+          if (token) saveSession(token, next)
+          return next
+        })
+        return { xpEarned: res.xpAwarded }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Không lưu được điểm game.")
+        return null
+      } finally {
+        setBusy(false)
+      }
     },
-    [profile, run],
+    [profile],
   )
 
   const speak = useCallback(async (text: string) => {
@@ -142,20 +253,55 @@ export function useGreenLens() {
 
   const handleCameraResult = useCallback(async (result: AiCameraResult) => {
     setError(null)
+    markDailyCameraComplete()
     try {
-      const categoryKey = mapWasteCategoryKey(result.wasteCategory)
-      const quiz = await api.getQuiz(categoryKey)
-      setQuizQuestions(quiz)
+      const childId = profile?.badgeId ?? getChildId()
+      if (!childId) return
+
+      const wasteType = mapWasteCategoryKey(result.wasteCategory)
+      const session = await generateQuiz(childId, wasteType)
+      setQuizSessionId(session.sessionId)
+      setQuizQuestions(session.questions)
     } catch {
-      // Quiz preload is optional — don't show errors like "Not Found" on the app shell.
+      // Quiz preload is optional — don't block camera flow.
     }
-  }, [])
+  }, [profile])
 
   const logout = useCallback(() => {
-    clearSession()
+    logoutSession()
     setProfile(null)
     setQuizQuestions([])
+    setQuizSessionId(null)
     setLastScan(null)
+  }, [])
+
+  const continueSession = useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const restored = await restoreChildSession()
+      if (!restored) {
+        setError("Không tải được nhân vật. Hãy thử lại nhé!")
+        return false
+      }
+
+      const token = await tryRefreshBearerToken()
+      if (!token) {
+        setError(
+          "Không đăng nhập lại được. Hãy tạo nhân vật mới hoặc kiểm tra backend đang chạy.",
+        )
+        return false
+      }
+
+      setProfile(restored)
+      setError(null)
+      return true
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được nhân vật.")
+      return false
+    } finally {
+      setBusy(false)
+    }
   }, [])
 
   const updateAvatar = useCallback(
@@ -187,6 +333,7 @@ export function useGreenLens() {
     busy,
     error,
     quizQuestions,
+    quizLoading,
     lastScan,
     register,
     createProfile,
@@ -197,6 +344,8 @@ export function useGreenLens() {
     speak,
     handleCameraResult,
     logout,
+    continueSession,
+    loadQuiz,
     updateAvatar,
     setError,
   }

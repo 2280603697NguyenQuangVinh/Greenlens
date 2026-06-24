@@ -26,7 +26,13 @@ export function AchievementBadgeCircle({
         draggable={false}
       />
       {!unlocked && (
-        <span className="absolute inset-0 flex items-center justify-center text-2xl drop-shadow-sm">🔒</span>
+        <span
+          className={`absolute inset-0 flex items-center justify-center drop-shadow-sm ${
+            size === "sm" ? "text-base" : size === "lg" ? "text-2xl" : "text-xl"
+          }`}
+        >
+          🔒
+        </span>
       )}
     </div>
   )

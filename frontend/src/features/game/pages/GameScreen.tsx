@@ -2,10 +2,17 @@
 import { motion, AnimatePresence } from "motion/react"
 import { GAME_POOL, BINS, ITEM_POS, FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 
+type GameEndResult = {
+  score: number
+  correctCount: number
+  wrongCount: number
+  durationSeconds: number
+}
+
 type Props = {
   onBack: () => void
   busy: boolean
-  onGameEnd: (score: number) => Promise<void>
+  onGameEnd: (result: GameEndResult) => Promise<void>
 }
 
 export function GameScreen({ onBack, busy, onGameEnd }: Props) {
@@ -13,6 +20,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
   const [items, setItems] = useState(getInitItems)
   const [sel, setSel] = useState<number | null>(null)
   const [score, setScore] = useState(0)
+  const [wrongCount, setWrongCount] = useState(0)
   const [time, setTime] = useState(60)
   const [feedback, setFb] = useState<{ msg: string; ok: boolean } | null>(null)
   const [over, setOver] = useState(false)
@@ -37,9 +45,14 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
   useEffect(() => {
     if (over && !submitted.current) {
       submitted.current = true
-      void onGameEnd(score)
+      void onGameEnd({
+        score,
+        correctCount: Math.floor(score / 10),
+        wrongCount,
+        durationSeconds: Math.max(1, 60 - time),
+      })
     }
-  }, [over, score, onGameEnd])
+  }, [over, score, wrongCount, time, onGameEnd])
 
   const flash = (msg: string, ok: boolean) => {
     setFb({ msg, ok })
@@ -58,6 +71,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
       setNextId((n) => n + 1)
       setItems((prev) => prev.filter((x) => x.id !== sel).concat(next ? { ...next, id: Date.now() } : []))
     } else {
+      setWrongCount((count) => count + 1)
       flash("Try again! ❌", false)
     }
     setSel(null)
@@ -67,6 +81,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
     submitted.current = false
     setItems(getInitItems())
     setScore(0)
+    setWrongCount(0)
     setTime(60)
     setOver(false)
     setSel(null)
