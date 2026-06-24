@@ -95,6 +95,34 @@ Bucket S3 nen co lifecycle rule xoa prefix `uploads/` sau 1 ngay de tranh luu an
 
 Rule nay khong anh huong Rekognition trong request hien tai, vi backend da doc anh vao memory de upload S3 va goi Rekognition truoc khi object het han.
 
+## Backup du lieu
+
+Thiet lap backup dang dung:
+
+- DynamoDB user/app data:
+  - Bat Point-in-Time Recovery cho `GreenLens-ChildProfiles`.
+  - Bat Point-in-Time Recovery cho `GreenLens-MiniGameResults`.
+  - Bat Point-in-Time Recovery cho `GreenLens-MiniGameItems`.
+  - Bat Point-in-Time Recovery cho `GreenLens-QuizFallbacks`.
+  - Script cung co gang bat PITR cho cac bang that trong `.env`: classifications, quiz history, daily activities neu chung ton tai.
+- DynamoDB transient data:
+  - `GreenLens-AiUsage` va `GreenLens-QuizSessions` la quota/session co TTL, khong backup dai han.
+- S3:
+  - Prefix `uploads/` cua AI Camera van xoa sau 1 ngay de tranh luu anh tre em/test image qua lau.
+  - Prefix `mini-games/trash-sort/icons/` bat S3 versioning. File icon hien tai duoc giu, version cu se duoc don sau 90 ngay.
+
+Ap dung backup len AWS that:
+
+```bash
+./scripts/configure-data-backups.sh
+```
+
+Ve dataset Rekognition:
+
+- Hien tai app dang dung Amazon Rekognition `DetectLabels`, khong train custom model.
+- Vi vay chua co dataset rieng de backup cho Rekognition.
+- Neu sau nay chuyen sang Amazon Rekognition Custom Labels, can backup dataset anh da label rieng trong S3, manifest/train-test split, model version ARN va metadata training.
+
 ## Security va cost guard cho AI Camera
 
 AI Camera co 2 lop chong spam:
@@ -118,6 +146,52 @@ Neu vuot quota, API tra ve:
 ```
 
 Bang `GreenLens-AiUsage` dung TTL `expiresAt` de tu don counter cu. Tao bang bang CloudFormation khi deploy `serverless.yml`, hoac tao bang that tren AWS neu test local voi DynamoDB that.
+
+AI Camera guidance goi Bedrock that truoc, fallback chi dung khi Bedrock loi, bi quota/throttle, timeout hoac tra ve JSON khong hop le:
+
+```env
+BEDROCK_MODEL_ID=apac.amazon.nova-micro-v1:0
+BEDROCK_MAX_TOKENS=180
+BEDROCK_TIMEOUT_SECONDS=12
+AI_CAMERA_GUIDANCE_FALLBACK_ENABLED=true
+AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED=false
+```
+
+Neu can demo nhanh khong ton Bedrock, moi doi `AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED=true`.
+
+Fallback guidance khong co gang liet ke tat ca vat the. Backend dung 3 tang:
+
+- Safety fallback: pin, thuoc, kim tiem, hoa chat, thuy tinh, dao/luoi dao, bong den, nhiet ke, do dien tu... luon huong dan nho nguoi lon xu ly.
+- Object fallback: giay, chai, tui nhua, lon, rac huu co, ta/giay ban... co goi y cu the hon.
+- Category fallback: neu label la vat la, backend van dua huong dan theo `Recyclable`, `Organic`, `Hazardous`, hoac `Non-Recyclable`.
+
+## Infrastructure & Operations
+
+`serverless.yml` thiet lap them cac dich vu van hanh:
+
+- CloudWatch Logs:
+  - Lambda log retention mac dinh 14 ngay qua `CLOUDWATCH_LOG_RETENTION_DAYS`.
+  - API Gateway access/execution logs bat o muc `INFO`.
+- CloudWatch Metrics:
+  - Dashboard `GreenLens-{stage}-Operations`.
+  - Theo doi Lambda `Errors`, `Duration`, `Invocations`.
+  - Theo doi WAF `BlockedRequests`.
+- CloudWatch Alarms:
+  - AI Camera errors.
+  - AI Camera duration > 25 giay.
+  - Quiz generate errors.
+  - Mini game result errors.
+- AWS SNS:
+  - Topic `GreenLens-OperationsAlerts-{stage}` nhan alarm action.
+  - Neu dat `OPERATIONS_ALERT_EMAIL`, CloudFormation tao email subscription va AWS se gui mail de confirm.
+
+Vi du deploy co email canh bao:
+
+```bash
+OPERATIONS_ALERT_EMAIL=your_email@example.com serverless deploy --stage dev
+```
+
+Sau deploy, vao email va bam confirm subscription thi moi nhan duoc canh bao SNS.
 
 ## Quiz API
 

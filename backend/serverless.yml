@@ -1,12 +1,25 @@
 service: greenlens-backend
 
 frameworkVersion: '3'
+configValidationMode: warn
+
+custom:
+  cognitoAuthorizerArn: arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID}
+  operationsAlertsTopicArn: arn:aws:sns:${aws:region}:${aws:accountId}:GreenLens-OperationsAlerts-${sls:stage}
 
 provider:
   name: aws
   runtime: dotnet8
   region: ${opt:region, 'ap-southeast-1'}
   stage: ${opt:stage, 'dev'}
+  logRetentionInDays: ${env:CLOUDWATCH_LOG_RETENTION_DAYS, '14'}
+  logs:
+    restApi:
+      accessLogging: true
+      executionLogging: true
+      level: INFO
+      fullExecutionData: false
+      format: '{ "requestId":"$context.requestId", "ip":"$context.identity.sourceIp", "caller":"$context.identity.caller", "user":"$context.identity.user", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod", "resourcePath":"$context.resourcePath", "status":"$context.status", "protocol":"$context.protocol", "responseLength":"$context.responseLength", "integrationLatency":"$context.integrationLatency" }'
   environment:
     CHILD_PROFILES_TABLE_NAME: GreenLens-ChildProfiles
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
@@ -15,6 +28,7 @@ provider:
     AI_CAMERA_BUCKET_NAME: ${env:AI_CAMERA_BUCKET_NAME}
     BEDROCK_MODEL_ID: ${env:BEDROCK_MODEL_ID, 'amazon.nova-lite-v1:0'}
     BEDROCK_MAX_TOKENS: ${env:BEDROCK_MAX_TOKENS, '180'}
+    BEDROCK_TIMEOUT_SECONDS: ${env:BEDROCK_TIMEOUT_SECONDS, '12'}
     AI_CAMERA_GUIDANCE_FALLBACK_ENABLED: ${env:AI_CAMERA_GUIDANCE_FALLBACK_ENABLED, 'false'}
     AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED: ${env:AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED, 'false'}
     AI_CAMERA_USAGE_LIMITER_ENABLED: ${env:AI_CAMERA_USAGE_LIMITER_ENABLED, 'true'}
@@ -45,34 +59,17 @@ provider:
             - dynamodb:Query
             - dynamodb:Scan
           Resource:
-            - Fn::GetAtt:
-                - ChildProfilesTable
-                - Arn
-            - Fn::GetAtt:
-                - QuizSessionsTable
-                - Arn
-            - Fn::GetAtt:
-                - QuizFallbacksTable
-                - Arn
-            - Fn::GetAtt:
-                - MiniGameResultsTable
-                - Arn
-            - Fn::GetAtt:
-                - MiniGameItemsTable
-                - Arn
-            - Fn::Sub:
-                - ${TableArn}/index/*
-                - TableArn:
-                    Fn::GetAtt:
-                      - MiniGameResultsTable
-                      - Arn
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-ChildProfiles
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-QuizSessions
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-QuizFallbacks
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameResults
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameResults/index/*
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameItems
         - Effect: Allow
           Action:
             - dynamodb:UpdateItem
           Resource:
-            - Fn::GetAtt:
-                - AiCameraUsageTable
-                - Arn
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-AiUsage
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -129,8 +126,7 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   getChildProfile:
     handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetAsync
     events:
@@ -139,8 +135,7 @@ functions:
           method: get
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   getChildProfileStreak:
     handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetStreakAsync
     events:
@@ -149,8 +144,7 @@ functions:
           method: get
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   checkInChildProfileStreak:
     handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::CheckInStreakAsync
     events:
@@ -159,8 +153,7 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   aiCameraAnalyze:
     handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
     events:
@@ -169,8 +162,7 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   quizGenerate:
     handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::GenerateAsync
     events:
@@ -179,8 +171,7 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   quizGetSession:
     handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::GetSessionAsync
     events:
@@ -189,8 +180,7 @@ functions:
           method: get
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   quizComplete:
     handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::CompleteAsync
     events:
@@ -199,8 +189,7 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   miniGameTrashSortItems:
     handler: GreenLens.Api::GreenLens.Api.Functions.MiniGameFunction::GetTrashSortItemsAsync
     events:
@@ -209,8 +198,7 @@ functions:
           method: get
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
   miniGameTrashSortResult:
     handler: GreenLens.Api::GreenLens.Api.Functions.MiniGameFunction::SubmitTrashSortResultAsync
     events:
@@ -219,111 +207,10 @@ functions:
           method: post
           cors: true
           authorizer:
-            arn:
-              Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
+            arn: ${self:custom.cognitoAuthorizerArn}
 
 resources:
   Resources:
-    ChildProfilesTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-ChildProfiles
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: childId
-            AttributeType: S
-          - AttributeName: cognitoSub
-            AttributeType: S
-        KeySchema:
-          - AttributeName: childId
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: GSI-cognitoSub
-            KeySchema:
-              - AttributeName: cognitoSub
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
-    AiCameraUsageTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-AiUsage
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: quotaKey
-            AttributeType: S
-        KeySchema:
-          - AttributeName: quotaKey
-            KeyType: HASH
-        TimeToLiveSpecification:
-          AttributeName: expiresAt
-          Enabled: true
-
-    QuizSessionsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-QuizSessions
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: sessionId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: sessionId
-            KeyType: HASH
-        TimeToLiveSpecification:
-          AttributeName: expiresAt
-          Enabled: true
-
-    QuizFallbacksTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-QuizFallbacks
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: fallbackKey
-            AttributeType: S
-        KeySchema:
-          - AttributeName: fallbackKey
-            KeyType: HASH
-
-    MiniGameResultsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-MiniGameResults
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: resultId
-            AttributeType: S
-          - AttributeName: childId
-            AttributeType: S
-          - AttributeName: gameType
-            AttributeType: S
-        KeySchema:
-          - AttributeName: resultId
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: GSI-childId-gameType
-            KeySchema:
-              - AttributeName: childId
-                KeyType: HASH
-              - AttributeName: gameType
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-    MiniGameItemsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: GreenLens-MiniGameItems
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: itemId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: itemId
-            KeyType: HASH
-
     GreenLensApiWebAcl:
       Type: AWS::WAFv2::WebACL
       Properties:
@@ -406,16 +293,186 @@ resources:
               MetricName: GlobalIpRateLimit
               SampledRequestsEnabled: true
 
-    GreenLensApiWebAclAssociation:
-      Type: AWS::WAFv2::WebACLAssociation
+    AiCameraAnalyzeErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
       Properties:
-        ResourceArn:
+        AlarmName: GreenLens-${sls:stage}-AiCameraAnalyze-Errors
+        AlarmDescription: AI Camera Lambda has one or more errors in 5 minutes.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: AiCameraAnalyzeLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - ${self:custom.operationsAlertsTopicArn}
+
+    AiCameraAnalyzeDurationAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: GreenLens-${sls:stage}-AiCameraAnalyze-Duration
+        AlarmDescription: AI Camera Lambda average duration is above 25 seconds.
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: AiCameraAnalyzeLambdaFunction
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 25000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - ${self:custom.operationsAlertsTopicArn}
+
+    QuizGenerateErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: GreenLens-${sls:stage}-QuizGenerate-Errors
+        AlarmDescription: Quiz generation Lambda has one or more errors in 5 minutes.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: QuizGenerateLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - ${self:custom.operationsAlertsTopicArn}
+
+    MiniGameTrashSortResultErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: GreenLens-${sls:stage}-MiniGameTrashSortResult-Errors
+        AlarmDescription: Trash sort result Lambda has one or more errors in 5 minutes.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: MiniGameTrashSortResultLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - ${self:custom.operationsAlertsTopicArn}
+
+    GreenLensOperationsDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: GreenLens-${sls:stage}-Operations
+        DashboardBody:
           Fn::Sub:
-            - arn:aws:apigateway:${AWS::Region}::/restapis/${RestApiId}/stages/${StageName}
-            - RestApiId:
-                Ref: ApiGatewayRestApi
-              StageName: ${sls:stage}
-        WebACLArn:
-          Fn::GetAtt:
-            - GreenLensApiWebAcl
-            - Arn
+            - |
+              {
+                "widgets": [
+                  {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 0,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                      "title": "Lambda Errors",
+                      "region": "${AWS::Region}",
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                        [ "AWS/Lambda", "Errors", "FunctionName", "${AiCameraFunctionName}", { "stat": "Sum" } ],
+                        [ ".", ".", ".", "${QuizGenerateFunctionName}", { "stat": "Sum" } ],
+                        [ ".", ".", ".", "${MiniGameTrashSortResultFunctionName}", { "stat": "Sum" } ]
+                      ],
+                      "period": 300
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 0,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                      "title": "Lambda Duration",
+                      "region": "${AWS::Region}",
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                        [ "AWS/Lambda", "Duration", "FunctionName", "${AiCameraFunctionName}", { "stat": "Average" } ],
+                        [ ".", ".", ".", "${QuizGenerateFunctionName}", { "stat": "Average" } ],
+                        [ ".", ".", ".", "${MiniGameTrashSortResultFunctionName}", { "stat": "Average" } ]
+                      ],
+                      "period": 300
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 6,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                      "title": "Lambda Invocations",
+                      "region": "${AWS::Region}",
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                        [ "AWS/Lambda", "Invocations", "FunctionName", "${AiCameraFunctionName}", { "stat": "Sum" } ],
+                        [ ".", ".", ".", "${QuizGenerateFunctionName}", { "stat": "Sum" } ],
+                        [ ".", ".", ".", "${MiniGameTrashSortResultFunctionName}", { "stat": "Sum" } ]
+                      ],
+                      "period": 300
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 6,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                      "title": "WAF Blocked Requests",
+                      "region": "${AWS::Region}",
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                        [ "AWS/WAFV2", "BlockedRequests", "WebACL", "GreenLensApiWebAcl-${sls:stage}", "Region", "${AWS::Region}", "Rule", "ALL", { "stat": "Sum" } ]
+                      ],
+                      "period": 300
+                    }
+                  }
+                ]
+              }
+            - AiCameraFunctionName:
+                Ref: AiCameraAnalyzeLambdaFunction
+              QuizGenerateFunctionName:
+                Ref: QuizGenerateLambdaFunction
+              MiniGameTrashSortResultFunctionName:
+                Ref: MiniGameTrashSortResultLambdaFunction
+
+  Outputs:
+    OperationsAlertsTopicArn:
+      Description: SNS topic for GreenLens operations alerts.
+      Value: ${self:custom.operationsAlertsTopicArn}
+    OperationsDashboardName:
+      Description: CloudWatch dashboard for GreenLens operations metrics.
+      Value: GreenLens-${sls:stage}-Operations

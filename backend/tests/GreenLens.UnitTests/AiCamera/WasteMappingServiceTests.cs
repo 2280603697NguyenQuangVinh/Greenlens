@@ -9,8 +9,13 @@ public sealed class WasteMappingServiceTests
     [InlineData("Bottle", "Recyclable", "Green")]
     [InlineData("Plastic Bottle", "Recyclable", "Green")]
     [InlineData("Paper", "Recyclable", "Green")]
+    [InlineData("Cardboard Box", "Recyclable", "Green")]
     [InlineData("Food", "Organic", "Brown")]
+    [InlineData("Fallen Leaf", "Organic", "Brown")]
     [InlineData("Battery", "Hazardous", "Red")]
+    [InlineData("Glass Bottle", "Hazardous", "Red")]
+    [InlineData("Medicine Bottle", "Hazardous", "Red")]
+    [InlineData("Mobile Phone", "Hazardous", "Red")]
     [InlineData("Trash", "Non-Recyclable", "Gray")]
     [InlineData("Sneaker", "Non-Recyclable", "Gray")]
     public void Map_ReturnsExpectedCategory(string label, string expectedCategory, string expectedBinColor)

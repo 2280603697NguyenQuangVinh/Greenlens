@@ -95,7 +95,8 @@ builder.Services.AddSingleton(new BedrockOptions
     ModelId = builder.Configuration["BEDROCK_MODEL_ID"] ?? "amazon.nova-lite-v1:0",
     EnableFallbackGuidance = builder.Configuration.GetValue<bool>("AI_CAMERA_GUIDANCE_FALLBACK_ENABLED"),
     SkipBedrockWhenFallbackEnabled = builder.Configuration.GetValue<bool>("AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED"),
-    MaxTokens = builder.Configuration.GetValue<int?>("BEDROCK_MAX_TOKENS") ?? 180
+    MaxTokens = builder.Configuration.GetValue<int?>("BEDROCK_MAX_TOKENS") ?? 180,
+    TimeoutSeconds = builder.Configuration.GetValue<int?>("BEDROCK_TIMEOUT_SECONDS") ?? 12
 });
 builder.Services.AddSingleton(new AiCameraUsageLimiterOptions
 {
