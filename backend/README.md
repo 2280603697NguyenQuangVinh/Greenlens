@@ -279,7 +279,7 @@ Tat ca API Mini Game can header:
 Authorization: Bearer <access_token>
 ```
 
-Lay danh sach vat rac va thung rac cho game keo tha:
+Lay 6 vat rac random va danh sach thung rac cho mot luot game keo tha:
 
 ```http
 GET http://localhost:5001/mini-games/trash-sort/items
@@ -318,6 +318,8 @@ Response mau:
   ]
 }
 ```
+
+Moi lan FE goi lai endpoint nay, backend lay ngau nhien 6 item moi tu DynamoDB. Neu du du lieu, backend uu tien chia deu 3 nhom: 2 tai che, 2 huu co, 2 nguy hai, sau do shuffle thu tu hien thi.
 
 Seed OpenMoji SVG len S3 va metadata vao DynamoDB:
 
