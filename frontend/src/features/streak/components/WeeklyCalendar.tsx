@@ -4,14 +4,14 @@ import {
   getWeekDayState,
   type WeekDayState,
 } from "@/features/streak/utils/streakUi"
-import { CHECK_ICON, LETTER_X_ICON } from "@/assets"
+import { CHECK_ICON, FREEZING_ICON } from "@/assets"
 
 const STATE_STYLES: Record<WeekDayState, string> = {
   completed: "bg-[#ecfdf3] border-[#7ED957]",
   current: "bg-[#FFD166] border-[#f4a261] ring-1 ring-[#f4a261]",
   today: "bg-[#ecfdf3] border-[#52b788] ring-2 ring-[#7ED957]/40",
   upcoming: "bg-white border-slate-200",
-  missed: "bg-[#fff0ed] border-[#ffb4a2]",
+  missed: "bg-[#e8f4fc] border-[#7ec8e3]",
 }
 
 const STATE_LABELS: Record<WeekDayState, string> = {
@@ -19,7 +19,7 @@ const STATE_LABELS: Record<WeekDayState, string> = {
   current: "Hôm nay — chưa xong",
   today: "Hôm nay",
   upcoming: "Sắp tới",
-  missed: "Đã bỏ lỡ",
+  missed: "Đóng băng",
 }
 
 export function WeeklyCalendar({
@@ -87,9 +87,9 @@ export function WeeklyCalendar({
                   />
                 ) : state === "missed" ? (
                   <img
-                    src={LETTER_X_ICON}
+                    src={FREEZING_ICON}
                     alt=""
-                    className={`object-contain ${compact ? "h-5 w-5 sm:h-6 sm:w-6" : "h-6 w-6"}`}
+                    className="h-full w-full object-contain p-0"
                     draggable={false}
                     aria-hidden
                   />
