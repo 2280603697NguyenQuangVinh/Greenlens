@@ -1,4 +1,5 @@
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.CognitoIdentityProvider;
 using Amazon.BedrockRuntime;
 using Amazon.Rekognition;
@@ -490,6 +491,12 @@ app.MapGet("/child-profiles/{childId}", async (
     catch (UnauthorizedAccessException exception)
     {
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (ConditionalCheckFailedException)
+    {
+        return Results.Problem(
+            "Child profile does not exist or does not belong to this user.",
+            statusCode: StatusCodes.Status403Forbidden);
     }
     catch (InvalidOperationException exception)
     {
