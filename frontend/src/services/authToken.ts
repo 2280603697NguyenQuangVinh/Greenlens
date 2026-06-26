@@ -1,4 +1,5 @@
-import { getToken } from "@/services/tokenStorage"
+import { getToken, removeToken, setToken } from "@/services/tokenStorage"
+import { ensureSessionBearerToken, tryRefreshBearerToken } from "@/services/sessionAuth"
 
 const SESSION_TOKEN_KEY = "gl_token"
 
@@ -7,25 +8,30 @@ export function getAuthToken(): string | null {
   if (sessionToken?.trim()) return sessionToken.trim()
 
   const storedToken = getToken()
-  if (storedToken?.trim()) return storedToken.trim()
+  if (storedToken?.trim()) {
+    sessionStorage.setItem(SESSION_TOKEN_KEY, storedToken.trim())
+    return storedToken.trim()
+  }
 
   return null
 }
 
 export function setAuthToken(token: string): void {
-  sessionStorage.setItem(SESSION_TOKEN_KEY, token)
+  const trimmed = token.trim()
+  sessionStorage.setItem(SESSION_TOKEN_KEY, trimmed)
+  setToken(trimmed)
 }
 
 export function clearAuthToken(): void {
   sessionStorage.removeItem(SESSION_TOKEN_KEY)
+  removeToken()
 }
 
 export async function ensureBearerToken(): Promise<string> {
-  const token = getAuthToken()
-  if (token) return token
-
-  throw new Error("Bạn cần tạo nhân vật trước khi tiếp tục.")
+  return ensureSessionBearerToken()
 }
+
+export { tryRefreshBearerToken }
 
 export function mapAuthErrorMessage(message: string, status: number): string {
   const lower = message.toLowerCase()

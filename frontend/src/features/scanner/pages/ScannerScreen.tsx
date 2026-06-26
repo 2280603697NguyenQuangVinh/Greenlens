@@ -3,6 +3,20 @@ import type { ClassificationResult } from "@/services/greenLens"
 import { FF_FREDOKA, MOCK_SCAN_IMAGE } from "@/utils/constants"
 import { useCameraStream } from "@/features/scanner/hooks/useCameraStream"
 
+const MIN_LOADING_MS = 1000
+const SPEECH_UNLOCK_PRIMER = " "
+const LOADING_MASCOT_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+    <circle cx="80" cy="80" r="72" fill="#bbf7d0"/>
+    <circle cx="80" cy="72" r="38" fill="#34d399"/>
+    <circle cx="66" cy="68" r="6" fill="#064e3b"/>
+    <circle cx="94" cy="68" r="6" fill="#064e3b"/>
+    <path d="M61 88c6 9 13 13 19 13s13-4 19-13" fill="none" stroke="#064e3b" stroke-width="6" stroke-linecap="round"/>
+    <rect x="48" y="106" width="64" height="28" rx="14" fill="#10b981"/>
+    <path d="M64 120h32" stroke="#ecfdf5" stroke-width="6" stroke-linecap="round"/>
+  </svg>`,
+)}`
+
 type Props = {
   onBack: () => void
   busy: boolean
@@ -16,6 +30,7 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const {
     videoRef,
     canvasRef,
@@ -27,18 +42,65 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
     captureToDataUrl,
   } = useCameraStream()
 
+  const showLoading = () => setIsLoading(true)
+  const hideLoading = () => setIsLoading(false)
+
+  const unlockSpeechSynthesis = async () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    await new Promise<void>((resolve) => {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(SPEECH_UNLOCK_PRIMER)
+      utterance.lang = "vi-VN"
+      utterance.volume = 0
+      utterance.rate = 1
+      utterance.pitch = 1
+      let finished = false
+      const done = () => {
+        if (finished) return
+        finished = true
+        resolve()
+      }
+      utterance.onend = done
+      utterance.onerror = done
+      try {
+        window.speechSynthesis.resume()
+        window.speechSynthesis.speak(utterance)
+        window.setTimeout(done, 220)
+      } catch {
+        done()
+      }
+    })
+  }
+
+  const runAnalyzeWithMinLoading = async (imageBase64: string) => {
+    showLoading()
+    try {
+      const [result] = await Promise.all([
+        onAnalyze(imageBase64),
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, MIN_LOADING_MS)
+        }),
+      ])
+      return result
+    } finally {
+      hideLoading()
+    }
+  }
+
   const doCapture = async () => {
-    if (busy) return
+    if (busy || isLoading) return
+    void unlockSpeechSynthesis()
     const captured = captureToDataUrl() ?? MOCK_SCAN_IMAGE
     setCapturedImage(captured)
-    const result = await onAnalyze(captured)
+    const result = await runAnalyzeWithMinLoading(captured)
     if (!result) return
     stop()
     setShowInfo(true)
   }
 
   const onPickFromGallery = async (file: File | null) => {
-    if (!file || busy) return
+    if (!file || busy || isLoading) return
+    void unlockSpeechSynthesis()
     const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null)
@@ -48,7 +110,7 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
     if (!dataUrl) return
 
     setCapturedImage(dataUrl)
-    const result = await onAnalyze(dataUrl)
+    const result = await runAnalyzeWithMinLoading(dataUrl)
     if (!result) return
     stop()
     setShowInfo(true)
@@ -92,14 +154,18 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
 
           <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-10">
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="h-14 w-14 rounded-2xl bg-[#d5d5d5] text-2xl shadow-md"
+              onClick={() => {
+                void unlockSpeechSynthesis()
+                fileInputRef.current?.click()
+              }}
+              disabled={busy || isLoading}
+              className="h-14 w-14 rounded-2xl bg-[#d5d5d5] text-2xl shadow-md disabled:cursor-not-allowed disabled:opacity-60"
             >
               🖼️
             </button>
             <button
               onClick={doCapture}
-              disabled={busy || !isReady}
+              disabled={busy || isLoading || !isReady}
               className="h-20 w-20 rounded-full border-4 border-white bg-[#e8e8e8] shadow-lg active:scale-95 disabled:opacity-60"
             >
               <span className="sr-only">capture</span>
@@ -128,6 +194,22 @@ export function ScannerScreen({ onBack, busy, onAnalyze, onSpeak, onGoQuiz, scan
             </div>
           )}
         </>
+      )}
+
+      {isLoading && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm px-6">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <img
+              src={LOADING_MASCOT_SRC}
+              alt="Animated mascot"
+              className="mx-auto mb-4 h-24 w-24 animate-bounce"
+            />
+            <p className="text-xl font-black text-[#065f46]" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
+              Để mình xem đây là loại rác gì nhé...
+            </p>
+            <div className="mx-auto mt-5 h-12 w-12 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-500" />
+          </div>
+        </div>
       )}
 
       {showInfo && (

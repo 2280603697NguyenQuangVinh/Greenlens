@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { RefreshCw, Save, ShieldCheck, Sparkles } from "lucide-react"
+import { RefreshCw, Save, ShieldCheck, Sparkles, Play } from "lucide-react"
 import { validateCharacterName } from "@/services/childProfile"
 import { FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
@@ -42,6 +42,8 @@ type Props = {
   onAdminLogin?: () => void
   adminAuthenticated?: boolean
   isStartupFlow?: boolean
+  savedCharacterName?: string
+  onContinueSaved?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,8 @@ export function AvatarScreen({
   onAdminLogin,
   adminAuthenticated = false,
   isStartupFlow = true,
+  savedCharacterName,
+  onContinueSaved,
 }: Props) {
   const [tab, setTab] = useState<Tab>(0)
   const [localError, setLocalError] = useState<string | null>(null)
@@ -246,6 +250,30 @@ export function AvatarScreen({
           </button>
         ) : null}
       </div>
+
+      {isStartupFlow && savedCharacterName && onContinueSaved ? (
+        <div className="mx-4 mb-3 flex-shrink-0 rounded-3xl border-2 border-green-500 bg-white p-4 shadow-sm">
+          <p className="text-center text-sm font-bold text-slate-700 mb-3" style={FF_COMFORTAA}>
+            Chào lại, <span className="text-green-700">{savedCharacterName}</span>!
+          </p>
+          <div className="flex justify-center mb-3">
+            <AvatarPreview cfg={cfg} size={96} rounded />
+          </div>
+          <button
+            type="button"
+            onClick={onContinueSaved}
+            disabled={busy}
+            className="w-full py-3.5 rounded-3xl font-black text-base flex items-center justify-center gap-2 text-white active:scale-95 transition-transform disabled:opacity-60 shadow-lg"
+            style={{ ...FF_FREDOKA, fontWeight: 700, background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 8px 20px #22C55E44" }}
+          >
+            <Play size={18} />
+            {busy ? "Đang vào game..." : "Tiếp tục chơi"}
+          </button>
+          <p className="mt-3 text-center text-[11px] font-semibold text-slate-500" style={FF_COMFORTAA}>
+            hoặc tạo nhân vật mới bên dưới
+          </p>
+        </div>
+      ) : null}
 
       <div className="px-4 pb-2 flex-shrink-0">
         <label className="block text-xs font-bold text-slate-600 mb-1" style={FF_COMFORTAA}>

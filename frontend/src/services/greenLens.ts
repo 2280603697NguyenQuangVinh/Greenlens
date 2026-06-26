@@ -1,10 +1,23 @@
 import type { AvatarConfig } from "@/utils/types"
-import { clearChildId, setChildId } from "@/services/childProfileStorage"
-import { API_BASE } from "@/services/http"
+import {
+  clearPersistedChildSession,
+  getStoredCognitoSub,
+  isLoggedOut,
+  loadLocalProfileJson,
+  logoutSession as endActiveChildSession,
+  markSessionActive,
+  saveLocalProfileJson,
+  setChildId,
+  setStoredCognitoSub,
+} from "@/services/childProfileStorage"
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/services/authToken"
+import { tryRefreshBearerToken } from "@/services/sessionAuth"
+import { getLevelFromXp } from "@/utils/levelProgress"
 
 export interface UserProfile {
   badgeId: string
   characterName?: string
+  cognitoSub?: string
   gender: number
   skin: number
   hair: number
@@ -85,9 +98,9 @@ function defaultProfile(badgeId: string, avatar?: AvatarConfig): UserProfile {
     hair: avatar?.hair ?? 1,
     eyes: avatar?.eyes ?? 0,
     outfit: avatar?.outfit ?? 1,
-    xp: 120,
-    level: 2,
-    streak: 3,
+    xp: 0,
+    level: 0,
+    streak: 0,
     dailyScansCompleted: 0,
     dailyScansTarget: 3,
     recentActivity: [],
@@ -95,7 +108,7 @@ function defaultProfile(badgeId: string, avatar?: AvatarConfig): UserProfile {
 }
 
 function normalizeProfile(profile: UserProfile): UserProfile {
-  const level = Math.max(1, Math.floor(profile.xp / 100) + 1)
+  const level = getLevelFromXp(profile.xp)
   return { ...profile, level }
 }
 
@@ -200,7 +213,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     "Content-Type": "application/json",
     ...(init.headers as Record<string, string> | undefined),
   }
-  const token = sessionStorage.getItem("gl_token")
+
+  let token = getAuthToken()
+  if (!token) {
+    token = await tryRefreshBearerToken()
+  }
   if (token) headers.Authorization = `Bearer ${token}`
 
   try {
@@ -265,15 +282,29 @@ export const api = {
   getProfile: () => request<UserProfile>("/api/user/profile"),
 }
 
-export function saveSession(token: string, profile: UserProfile) {
-  sessionStorage.setItem("gl_token", token)
-  sessionStorage.setItem("gl_badgeId", profile.badgeId)
-  sessionStorage.setItem("gl_profile", JSON.stringify(profile))
-  if (profile.badgeId) setChildId(profile.badgeId)
+export function resumeProfileSession(profile: UserProfile, token?: string | null) {
+  const cognitoSub = getStoredCognitoSub() ?? profile.cognitoSub?.trim()
+  const profileToSave: UserProfile = cognitoSub ? { ...profile, cognitoSub } : profile
+  if (cognitoSub) setStoredCognitoSub(cognitoSub)
+
+  const profileJson = JSON.stringify(profileToSave)
+  sessionStorage.setItem("gl_profile", profileJson)
+  sessionStorage.setItem("gl_badgeId", profileToSave.badgeId)
+  saveLocalProfileJson(profileJson)
+  markSessionActive()
+  if (profileToSave.badgeId) setChildId(profileToSave.badgeId)
+  if (token) {
+    sessionStorage.setItem("gl_token", token)
+    setAuthToken(token)
+  }
 }
 
-export function loadStoredProfile(): UserProfile | null {
-  const raw = sessionStorage.getItem("gl_profile")
+export function saveSession(token: string, profile: UserProfile) {
+  resumeProfileSession(profile, token)
+}
+
+export function loadSavedProfile(): UserProfile | null {
+  const raw = loadLocalProfileJson()
   if (!raw) return null
   try {
     return JSON.parse(raw) as UserProfile
@@ -282,9 +313,31 @@ export function loadStoredProfile(): UserProfile | null {
   }
 }
 
+export function loadStoredProfile(): UserProfile | null {
+  if (isLoggedOut()) return null
+  const raw =
+    sessionStorage.getItem("gl_profile") ?? loadLocalProfileJson()
+  if (!raw) return null
+  try {
+    const profile = JSON.parse(raw) as UserProfile
+    if (!sessionStorage.getItem("gl_profile")) {
+      sessionStorage.setItem("gl_profile", raw)
+      sessionStorage.setItem("gl_badgeId", profile.badgeId)
+    }
+    return profile
+  } catch {
+    return null
+  }
+}
+
+export function logoutSession() {
+  sessionStorage.removeItem("gl_token")
+  clearAuthToken()
+  endActiveChildSession()
+}
+
 export function clearSession() {
   sessionStorage.removeItem("gl_token")
-  sessionStorage.removeItem("gl_badgeId")
-  sessionStorage.removeItem("gl_profile")
-  clearChildId()
+  clearAuthToken()
+  clearPersistedChildSession()
 }
