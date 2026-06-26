@@ -1,15 +1,16 @@
-import { motion } from "motion/react"
+import { useMemo } from "react"
 import type { UserProfile } from "@/services/greenLens"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
 import { FF_FREDOKA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { Mascot } from "@/features/dashboard/components/Mascot"
+import { useStreak } from "@/hooks/useStreak"
+import { StreakSection } from "@/features/streak"
 
-import mascotPng from "@/assets/Character/mascot/mascot.png"
 import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
 import { AchievementBadgeCircle } from "@/features/dashboard/components/AchievementBadge"
-import { CharacterSpeechBubble } from "@/features/dashboard/components/CharacterSpeechBubble"
-import { unlockSupertonicOnGesture } from "@/services/supertonic/preload"
+import { XpLevelBar } from "@/features/dashboard/components/XpLevelBar"
+import { hasSavedChild } from "@/services/childProfileStorage"
 
 const BG = BACKGROUND_IMAGE
 
@@ -17,128 +18,125 @@ export function DashboardScreen({
   cfg,
   go,
   profile,
+  streakRefreshKey = 0,
 }: {
   cfg: AvatarConfig
   go: (s: number) => void
   profile: UserProfile
+  streakRefreshKey?: number
 }) {
-  const xp = profile.xp || 1280
-  const xpMax = 2500
-  const xpPct = Math.min(100, Math.round((xp / xpMax) * 100))
+  const {
+    data: streakData,
+    loading: streakLoading,
+    error: streakError,
+    streakIncreased,
+    rewardUnlocked,
+    unlockedMilestone,
+    showXpFloat,
+    clearAnimations,
+  } = useStreak(streakRefreshKey)
+
+  const xp = profile.xp ?? 0
   const displayName = profile.characterName?.trim() || cfg.characterName?.trim() || "bạn"
-  const firstScan = ACHIEVEMENTS[0]
-  const dashboardBadges = ACHIEVEMENTS.slice(0, 4)
+  const hasAccount = hasSavedChild()
   const isUnlocked = (id: string) => DEFAULT_UNLOCKED.includes(id as (typeof DEFAULT_UNLOCKED)[number])
 
+  const dashboardBadges = useMemo(() => {
+    return [...ACHIEVEMENTS]
+      .sort((a, b) => {
+        const aUnlocked = isUnlocked(a.id)
+        const bUnlocked = isUnlocked(b.id)
+        if (aUnlocked === bUnlocked) return 0
+        return aUnlocked ? -1 : 1
+      })
+      .slice(0, 4)
+  }, [])
+
+  const leaderboard = useMemo(() => {
+    if (!hasAccount) return []
+    const userXp = xp
+    return [
+      { rank: 1, name: displayName, xp: userXp, isUser: true },
+      { rank: 2, name: "Người A", xp: Math.max(0, userXp - 5), isUser: false },
+      { rank: 3, name: "Người B", xp: Math.max(0, userXp - 10), isUser: false },
+    ]
+  }, [displayName, hasAccount, xp])
+
   return (
-    <div className="h-full flex flex-col" style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
-      <div className="px-3 pt-3 pb-2 flex items-center gap-2">
-        <div className="h-16 w-16 rounded-full border-2 border-[#1b3a1b] bg-[#a8dcae] shadow-sm flex items-center justify-center overflow-hidden">
-          <Mascot cfg={cfg} size={56} rounded />
+    <div
+      className="flex h-full flex-col"
+      style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
+      <header className="flex items-center gap-3 px-3 pb-2.5 pt-3">
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#1b3a1b] bg-[#a8dcae] shadow-sm">
+          <Mascot cfg={cfg} size={60} rounded />
         </div>
-        <h1 className="flex-1 text-2xl font-black text-black tracking-tight leading-tight" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
-          Chào, {displayName}!
-        </h1>
-        <div className="flex h-11 min-w-[136px] items-center gap-2 rounded-full bg-white px-3 shadow-sm">
-          <div className="h-6 flex-1 rounded-full bg-[#d7f7bf] overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${xpPct}%` }}
-              transition={{ duration: 0.7 }}
-              className="h-full rounded-full bg-[#7ED957]"
-            />
-          </div>
-          <span className="text-xl font-black">1280</span>
-          <span className="text-base font-black">XP</span>
-          <span className="text-3xl leading-none">⭐</span>
+        <div className="min-w-0 flex-1">
+          <h1
+            className="truncate text-2xl font-normal leading-tight text-black"
+            style={{ ...FF_FREDOKA, fontWeight: 400 }}
+          >
+            Chào, {displayName}!
+          </h1>
+          <XpLevelBar xp={xp} className="mt-2" compact />
         </div>
-      </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto px-3 pb-2">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="shrink-0">
-            <img
-              src={mascotPng}
-              alt="Mascot"
-              className="h-[100px] w-auto object-contain"
-              draggable={false}
-            />
-          </div>
-          <CharacterSpeechBubble>
-            Chào {displayName}! Sẵn sàng cho thử thách hôm nay chưa? 🔥
-          </CharacterSpeechBubble>
-        </div>
+        <StreakSection
+          data={streakData}
+          loading={streakLoading}
+          error={streakError}
+          displayName={displayName}
+          streakIncreased={streakIncreased}
+          rewardUnlocked={rewardUnlocked}
+          unlockedMilestone={unlockedMilestone}
+          showXpFloat={showXpFloat}
+          onClearAnimations={clearAnimations}
+          onNavigate={go}
+        />
 
-        <section className="mb-3 rounded-t-3xl bg-white/45 p-3">
-          <div className="rounded-t-2xl bg-[#b8e4c7] px-3 py-2">
-            <h2 className="text-[17px] font-black text-black leading-none" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
-              Nhiệm Vụ Hôm Nay
-            </h2>
-            <div className="mt-2 flex">
-              <img
-                src={firstScan.image}
-                alt={firstScan.title}
-                className="h-[88px] w-auto object-contain"
-                draggable={false}
-              />
-            </div>
-          </div>
-          <div className="rounded-[22px] bg-[#ebebeb] p-4">
-            <h3 className="text-[17px] font-black leading-tight text-black" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
-              Thử Thách Ngày 1: Chụp Ảnh Rác
-            </h3>
-            <p className="mt-2 text-[14px] leading-tight text-[#202020]">
-              Hãy tìm 2 rác tái chế trong nhà và sử dụng Camera chụp chúng!
-            </p>
-            <div className="mt-2 flex items-center gap-3">
-              <span className="rounded-full bg-[#d5d5d5] px-3 py-1 text-[14px] font-black">🪙 +15 XP</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d5d5d5] px-3 py-1 text-[14px] font-black">
-                <img
-                  src={firstScan.image}
-                  alt={firstScan.title}
-                  className="h-5 w-auto object-contain"
-                  draggable={false}
-                />
-                Quét Lần Đầu
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                void unlockSupertonicOnGesture()
-                go(2)
-              }}
-              className="mt-3 w-full rounded-full bg-[#2dd62d] py-2 text-[16px] font-black text-white active:scale-[0.99]"
-              style={{ ...FF_FREDOKA, fontWeight: 700 }}
+        <div className={`mb-2 grid min-h-[148px] gap-2.5 ${hasAccount ? "grid-cols-2" : "grid-cols-1"}`}>
+          {hasAccount ? (
+            <section className="flex flex-col overflow-hidden rounded-2xl border-2 border-[#f2aa58] bg-[#ffd39b]">
+              <h2 className="shrink-0 py-2 text-center text-[15px]">Xếp hạng</h2>
+              <div className="flex flex-1 flex-col justify-center bg-white/45 px-2.5 pb-2.5">
+                {leaderboard.map((row) => (
+                  <div
+                    key={`${row.rank}-${row.name}`}
+                    className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[14px] ${
+                      row.isUser ? "bg-[#b9f0af]" : ""
+                    }`}
+                  >
+                    <span className="min-w-0 truncate">
+                      {row.rank}. {row.name}
+                      {row.isUser ? " (bạn)" : ""}
+                    </span>
+                    <span className="ml-1 shrink-0 text-[13px]">{row.xp} XP</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="flex flex-col overflow-hidden rounded-2xl border-2 border-[#3da9f5] bg-[#63b8ff]">
+            <h2 className="shrink-0 py-2 text-center text-[15px]">Huy Hiệu</h2>
+            <div
+              className={`grid flex-1 place-items-center gap-2 bg-white/40 px-2 pb-2.5 pt-1 ${
+                hasAccount ? "grid-cols-2 grid-rows-2" : "grid-cols-4"
+              }`}
             >
-              Bắt đầu ngay! ▶
-            </button>
-          </div>
-        </section>
-
-        <section className="mb-3 overflow-hidden rounded-3xl border-2 border-[#f2aa58] bg-[#ffd39b]">
-          <h2 className="py-1 text-center text-[16px] font-black leading-none">Xếp Hạng</h2>
-          {[`1. ${displayName}`, "2. Người A", "3. Người B"].map((name, idx) => (
-            <div key={name} className={`flex items-center justify-between px-4 py-1 text-[17px] font-black ${idx === 0 ? "bg-[#b9f0af]" : ""}`}>
-              <span>{name}</span>
-              <span>1280 XP</span>
+              {dashboardBadges.map((achievement) => (
+                <AchievementBadgeCircle
+                  key={achievement.id}
+                  achievement={achievement}
+                  unlocked={isUnlocked(achievement.id)}
+                  size={hasAccount ? "sm" : "md"}
+                />
+              ))}
             </div>
-          ))}
-        </section>
-
-        <section className="mb-2 overflow-hidden rounded-3xl border-2 border-[#3da9f5] bg-[#63b8ff]">
-          <h2 className="py-2 text-center text-[16px] font-black">Huy Hiệu Của {displayName}</h2>
-          <div className="flex items-end justify-around gap-1 px-3 pb-3">
-            {dashboardBadges.map((achievement) => (
-              <AchievementBadgeCircle
-                key={achievement.id}
-                achievement={achievement}
-                unlocked={isUnlocked(achievement.id)}
-                size="md"
-              />
-            ))}
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       <BottomNav screen={1} go={go} avatarCfg={cfg} />

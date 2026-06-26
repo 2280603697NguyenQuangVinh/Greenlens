@@ -172,7 +172,7 @@ export function buildMascotVoiceText(payload: MascotVoicePayload): string {
   )
 
   return [
-    `Xin chào! Mình đã nhận diện đây là ${label}.`,
+    `Đây là ${label}.`,
     recycleGuide,
     reuseSuggestion,
     environmentImpact,
