@@ -20,18 +20,10 @@ type GameEndResult = {
   durationSeconds: number
 }
 
-type GameEndResult = {
-  score: number
-  correctCount: number
-  wrongCount: number
-  durationSeconds: number
-}
-
 type Props = {
   onBack: () => void
   busy: boolean
   onGameEnd: (result: GameEndResult) => Promise<void>
-<<<<<<< HEAD
 }
 
 type GamePhase = "loading" | "playing" | "gameOver"
@@ -198,8 +190,6 @@ function createEmptyBinContents() {
     Organic: [] as PoolItem[],
     Hazardous: [] as PoolItem[],
   }
-=======
->>>>>>> fd135d64253c255983079844d1c7e8a8bd883288
 }
 
 export function GameScreen({ onBack, busy, onGameEnd }: Props) {
@@ -214,7 +204,6 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
   const [binEffects, setBinEffects] = useState<Record<TrashCategory, BinEffectType>>(INITIAL_BIN_EFFECT)
   const [starBursts, setStarBursts] = useState<StarBurst[]>([])
   const [score, setScore] = useState(0)
-<<<<<<< HEAD
   const [correctCount, setCorrectCount] = useState(0)
   const [wrongCount, setWrongCount] = useState(0)
   const [time, setTime] = useState(TOTAL_TIME)
@@ -398,14 +387,6 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
     setStageSlots(spawnStageSlots(round.slice(0, STAGE_SIZE)))
     setPhase("playing")
   }, [clearEffects, resetMascotToIdle, sanitizePool, spawnStageSlots])
-=======
-  const [wrongCount, setWrongCount] = useState(0)
-  const [time, setTime] = useState(60)
-  const [feedback, setFb] = useState<{ msg: string; ok: boolean } | null>(null)
-  const [over, setOver] = useState(false)
-  const [nextId, setNextId] = useState(4)
-  const submitted = useRef(false)
->>>>>>> fd135d64253c255983079844d1c7e8a8bd883288
 
   useEffect(() => {
     void refreshGame()
@@ -434,7 +415,6 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
   }, [phase])
 
   useEffect(() => {
-<<<<<<< HEAD
     if (phase !== "playing") return
     if (roundItems.length < ROUND_ITEM_COUNT) return
     const stageCleared = stageSlots.every((slot) => slot === null)
@@ -450,42 +430,9 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
     if (stageIndex === 1) {
       setEndReason("completed")
       setPhase("gameOver")
-=======
-    if (over && !submitted.current) {
-      submitted.current = true
-      void onGameEnd({
-        score,
-        correctCount: Math.floor(score / 10),
-        wrongCount,
-        durationSeconds: Math.max(1, 60 - time),
-      })
-    }
-  }, [over, score, wrongCount, time, onGameEnd])
-
-  const flash = (msg: string, ok: boolean) => {
-    setFb({ msg, ok })
-    setTimeout(() => setFb(null), 1000)
-  }
-
-  const sort = (binIdx: number) => {
-    if (sel === null || over) return
-    const item = items.find((x) => x.id === sel)
-    if (!item) return
-    if (item.b === binIdx) {
-      setScore((s) => s + 10)
-      flash("Great! +10 🌟", true)
-      const pool = GAME_POOL.filter((p) => !items.some((x) => x.e === p.e && x.id !== sel))
-      const next = pool[nextId % pool.length]
-      setNextId((n) => n + 1)
-      setItems((prev) => prev.filter((x) => x.id !== sel).concat(next ? { ...next, id: Date.now() } : []))
-    } else {
-      setWrongCount((count) => count + 1)
-      flash("Try again! ❌", false)
->>>>>>> fd135d64253c255983079844d1c7e8a8bd883288
     }
   }, [phase, roundItems, stageIndex, stageSlots, spawnStageSlots])
 
-<<<<<<< HEAD
   useEffect(() => {
     if (phase !== "gameOver" || !endReason || submittedRef.current) return
     submittedRef.current = true
@@ -700,18 +647,6 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
       window.removeEventListener("mouseup", onMouseUp)
     }
   }, [detectBinByPoint, endPointerSession, moveDragSession])
-=======
-  const restart = () => {
-    submitted.current = false
-    setItems(getInitItems())
-    setScore(0)
-    setWrongCount(0)
-    setTime(60)
-    setOver(false)
-    setSel(null)
-    setNextId(4)
-  }
->>>>>>> fd135d64253c255983079844d1c7e8a8bd883288
 
   return (
     <div className="relative h-full overflow-hidden bg-[#DBF8FF]">
