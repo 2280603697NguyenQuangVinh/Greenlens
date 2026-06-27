@@ -7,5 +7,9 @@ export const PADLOCK_ICON = new URL("./icon/padlock.png", import.meta.url).href
 export const CAMERA_TASK_ICON = new URL("./icon/camera.png", import.meta.url).href
 export const CHECK_ICON = new URL("./icon/check.png", import.meta.url).href
 export const LETTER_X_ICON = new URL("./icon/letter-x.png", import.meta.url).href
+<<<<<<< HEAD
+=======
+export const FREEZING_ICON = new URL("./icon/freezing.png", import.meta.url).href
+>>>>>>> fd135d64253c255983079844d1c7e8a8bd883288
 export const STREAK_30_ICON = new URL("./icon/30-days.png", import.meta.url).href
 export const SPEECH_BUBBLE_RIGHT = new URL("./icon/Bubble right.png", import.meta.url).href

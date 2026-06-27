@@ -219,7 +219,10 @@ public sealed class AiCameraFunction
                 StringComparison.OrdinalIgnoreCase),
             MaxTokens = int.TryParse(Environment.GetEnvironmentVariable("BEDROCK_MAX_TOKENS"), out var maxTokens)
                 ? maxTokens
-                : 180
+                : 180,
+            TimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("BEDROCK_TIMEOUT_SECONDS"), out var timeoutSeconds)
+                ? timeoutSeconds
+                : 12
         };
 
         var imageStorage = new S3StorageService(new AmazonS3Client(), s3Options, new S3KeyBuilder());

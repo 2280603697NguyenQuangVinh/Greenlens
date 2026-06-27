@@ -18,9 +18,12 @@ public sealed class MiniGameServiceTests
 
         var response = await service.GetTrashSortItemsAsync("cognito-sub-123");
 
-        var item = Assert.Single(response.Items);
-        Assert.Equal("banana_peel", item.ItemId);
-        Assert.Equal("https://assets.example.com/mini-games/trash-sort/icons/banana.svg", item.IconUrl);
+        Assert.Equal(6, response.Items.Count);
+        Assert.All(response.Items, item =>
+            Assert.StartsWith("https://assets.example.com/mini-games/trash-sort/icons/", item.IconUrl));
+        Assert.Equal(2, response.Items.Count(item => item.Category == "Recyclable"));
+        Assert.Equal(2, response.Items.Count(item => item.Category == "Organic"));
+        Assert.Equal(2, response.Items.Count(item => item.Category == "Hazardous"));
         Assert.Contains(response.Bins, bin => bin.Category == "Recyclable" && bin.BinColor == "Green");
         Assert.Contains(response.Bins, bin => bin.Category == "Organic" && bin.BinColor == "Brown");
         Assert.Contains(response.Bins, bin => bin.Category == "Hazardous" && bin.BinColor == "Red");
@@ -80,14 +83,15 @@ public sealed class MiniGameServiceTests
         {
             IReadOnlyList<MiniGameItemDto> items =
             [
-                new(
-                    "banana_peel",
-                    "Vỏ chuối",
-                    "Organic",
-                    "Brown",
-                    "mini-games/trash-sort/icons/banana.svg",
-                    "easy",
-                    true)
+                new("banana_peel", "Vỏ chuối", "Organic", "Brown", "mini-games/trash-sort/icons/banana.svg", "easy", true),
+                new("apple_core", "Lõi táo", "Organic", "Brown", "mini-games/trash-sort/icons/apple.svg", "easy", true),
+                new("fallen_leaf", "Lá rụng", "Organic", "Brown", "mini-games/trash-sort/icons/leaf.svg", "easy", true),
+                new("paper_sheet", "Giấy", "Recyclable", "Green", "mini-games/trash-sort/icons/paper.svg", "easy", true),
+                new("plastic_bottle", "Chai nhựa", "Recyclable", "Green", "mini-games/trash-sort/icons/bottle.svg", "easy", true),
+                new("can", "Lon", "Recyclable", "Green", "mini-games/trash-sort/icons/can.svg", "easy", true),
+                new("battery", "Pin", "Hazardous", "Red", "mini-games/trash-sort/icons/battery.svg", "easy", true),
+                new("medicine", "Thuốc", "Hazardous", "Red", "mini-games/trash-sort/icons/medicine.svg", "easy", true),
+                new("light_bulb", "Bóng đèn", "Hazardous", "Red", "mini-games/trash-sort/icons/light-bulb.svg", "easy", true)
             ];
 
             return Task.FromResult(items);

@@ -17,6 +17,10 @@ if [ -z "${AI_CAMERA_BUCKET_NAME:-}" ]; then
   exit 1
 fi
 
+aws s3api put-bucket-versioning \
+  --bucket "$AI_CAMERA_BUCKET_NAME" \
+  --versioning-configuration Status=Enabled
+
 aws s3api put-bucket-lifecycle-configuration \
   --bucket "$AI_CAMERA_BUCKET_NAME" \
   --lifecycle-configuration "file://$LIFECYCLE_FILE"

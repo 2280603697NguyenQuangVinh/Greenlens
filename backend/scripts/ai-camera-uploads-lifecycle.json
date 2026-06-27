@@ -12,6 +12,19 @@
       "AbortIncompleteMultipartUpload": {
         "DaysAfterInitiation": 1
       }
+    },
+    {
+      "ID": "RetainMiniGameIconVersions",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "mini-games/trash-sort/icons/"
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 90
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
     }
   ]
 }

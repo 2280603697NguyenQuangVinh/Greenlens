@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using GreenLens.Api.Auth;
@@ -89,6 +90,12 @@ public sealed class MiniGameFunction
         catch (UnauthorizedAccessException exception)
         {
             return JsonResponse(HttpStatusCode.Forbidden, new { message = exception.Message });
+        }
+        catch (ConditionalCheckFailedException)
+        {
+            return JsonResponse(
+                HttpStatusCode.Forbidden,
+                new { message = "Child profile does not exist or does not belong to this user." });
         }
         catch (InvalidOperationException exception)
         {
