@@ -90,7 +90,12 @@ builder.Services.AddSingleton(new S3BucketOptions
         ?? builder.Configuration["AWS_DEFAULT_REGION"]
         ?? "ap-southeast-1"
 });
-builder.Services.AddSingleton(new RekognitionOptions());
+builder.Services.AddSingleton(new RekognitionOptions
+{
+    TimeoutSeconds = builder.Configuration.GetValue<int?>("REKOGNITION_TIMEOUT_SECONDS") ?? 5,
+    CircuitFailureThreshold = builder.Configuration.GetValue<int?>("REKOGNITION_CIRCUIT_FAILURE_THRESHOLD") ?? 3,
+    CircuitBreakSeconds = builder.Configuration.GetValue<int?>("REKOGNITION_CIRCUIT_BREAK_SECONDS") ?? 60
+});
 builder.Services.AddSingleton(new BedrockOptions
 {
     ModelId = builder.Configuration["BEDROCK_MODEL_ID"] ?? "amazon.nova-lite-v1:0",
@@ -136,7 +141,9 @@ builder.Services.AddSingleton(new CognitoAuthOptions
 });
 builder.Services.AddSingleton<S3KeyBuilder>();
 builder.Services.AddSingleton<IImageStorageService, S3StorageService>();
+builder.Services.AddSingleton<AiCameraDependencyCircuitBreaker>();
 builder.Services.AddSingleton<IRekognitionService, RekognitionService>();
+builder.Services.AddSingleton<IWasteImageValidator, WasteImageValidator>();
 builder.Services.AddSingleton<IWasteMappingService, WasteMappingService>();
 builder.Services.AddSingleton<IBedrockGuidanceService, BedrockGuidanceService>();
 builder.Services.AddSingleton<IAiCameraUsageLimiter>(serviceProvider =>
@@ -603,6 +610,43 @@ app.MapPost("/ai-camera/analyze", async (
     catch (AiCameraQuotaExceededException exception)
     {
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status429TooManyRequests);
+    }
+    catch (AiCameraDependencyUnavailableException exception)
+    {
+        logger.LogWarning(
+            exception,
+            "AI camera dependency unavailable. reason={Reason}, retry_after={RetryAfterSeconds}",
+            exception.Reason,
+            exception.RetryAfterSeconds);
+
+        httpRequest.HttpContext.Response.Headers.RetryAfter = exception.RetryAfterSeconds.ToString();
+        return Results.Json(
+            new
+            {
+                message = exception.Message,
+                reason = exception.Reason,
+                retryAfterSeconds = exception.RetryAfterSeconds
+            },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (AiCameraInvalidImageException exception)
+    {
+        logger.LogInformation(
+            exception,
+            "invalid_image_blocked_before_s3 reason={Reason}, top_label={DetectedLabel}, top_confidence={Confidence}",
+            exception.Reason,
+            exception.DetectedLabel,
+            exception.Confidence);
+
+        return Results.Json(
+            new
+            {
+                message = exception.Message,
+                reason = exception.Reason,
+                detectedLabel = exception.DetectedLabel,
+                confidence = exception.Confidence.HasValue ? Math.Round(exception.Confidence.Value, 1) : (double?)null
+            },
+            statusCode: StatusCodes.Status422UnprocessableEntity);
     }
     catch (InvalidOperationException exception)
     {

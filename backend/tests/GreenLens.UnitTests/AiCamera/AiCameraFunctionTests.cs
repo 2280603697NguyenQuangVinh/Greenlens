@@ -5,6 +5,7 @@ using Amazon.Lambda.Core;
 using GreenLens.Api.Functions;
 using GreenLens.Application.Modules.AiCamera.DTOs;
 using GreenLens.Application.Modules.AiCamera.Interfaces;
+using GreenLens.Application.Modules.AiCamera.Services;
 using Xunit;
 
 namespace GreenLens.UnitTests.AiCamera;
@@ -42,6 +43,49 @@ public sealed class AiCameraFunctionTests
         Assert.Equal(new byte[] { 1, 2, 3 }, service.ImageBytes);
     }
 
+    [Fact]
+    public async Task AnalyzeAsync_WhenImageIsNotWaste_Returns422()
+    {
+        var service = new CapturingAiCameraService
+        {
+            InvalidImageException = new AiCameraInvalidImageException(
+                "Hình ảnh không phải rác hoặc chưa đủ rõ để phân loại.",
+                "not_waste_image",
+                "Body Part",
+                100)
+        };
+        var function = new AiCameraFunction(service);
+        var request = BuildMultipartRequest(isBase64Encoded: true);
+
+        var response = await function.AnalyzeAsync(request, new TestLambdaContext());
+
+        Assert.Equal((int)HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("\"reason\":\"not_waste_image\"", response.Body);
+        Assert.Contains("\"detectedLabel\":\"Body Part\"", response.Body);
+        Assert.Contains("\"confidence\":100", response.Body);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_WhenRekognitionUnavailable_Returns503()
+    {
+        var service = new CapturingAiCameraService
+        {
+            DependencyUnavailableException = new AiCameraDependencyUnavailableException(
+                "Dịch vụ nhận diện ảnh đang bận. Hãy thử lại sau ít phút.",
+                "rekognition_unavailable",
+                60)
+        };
+        var function = new AiCameraFunction(service);
+        var request = BuildMultipartRequest(isBase64Encoded: true);
+
+        var response = await function.AnalyzeAsync(request, new TestLambdaContext());
+
+        Assert.Equal((int)HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("60", response.Headers["Retry-After"]);
+        Assert.Contains("\"reason\":\"rekognition_unavailable\"", response.Body);
+        Assert.Contains("\"retryAfterSeconds\":60", response.Body);
+    }
+
     private static APIGatewayProxyRequest BuildMultipartRequest(bool isBase64Encoded)
     {
         const string boundary = "greenlens-boundary";
@@ -75,6 +119,8 @@ public sealed class AiCameraFunctionTests
     {
         public AiCameraAnalyzeRequest? Request { get; private set; }
         public byte[] ImageBytes { get; private set; } = Array.Empty<byte>();
+        public AiCameraInvalidImageException? InvalidImageException { get; init; }
+        public AiCameraDependencyUnavailableException? DependencyUnavailableException { get; init; }
 
         public async Task<AiCameraAnalyzeResponse> AnalyzeAsync(
             AiCameraAnalyzeRequest request,
@@ -84,6 +130,16 @@ public sealed class AiCameraFunctionTests
             await using var imageCopy = new MemoryStream();
             await request.ImageStream.CopyToAsync(imageCopy, cancellationToken);
             ImageBytes = imageCopy.ToArray();
+
+            if (InvalidImageException is not null)
+            {
+                throw InvalidImageException;
+            }
+
+            if (DependencyUnavailableException is not null)
+            {
+                throw DependencyUnavailableException;
+            }
 
             return new AiCameraAnalyzeResponse(
                 request.ChildId,

@@ -176,6 +176,46 @@ Stop the backend:
 docker compose down
 ```
 
+## Run Full Stack With Docker
+
+From the repo root:
+
+```bash
+cp backend/.env.example backend/.env
+docker compose up --build -d
+```
+
+Open the web app:
+
+```text
+http://localhost:3000
+```
+
+Local API and Swagger are still exposed separately:
+
+```text
+http://localhost:5001
+http://localhost:5001/swagger/index.html
+```
+
+In the full-stack Docker setup, the frontend is served by Nginx and proxies these paths to the backend container:
+
+```text
+/auth
+/child-profiles
+/ai-camera
+/quiz
+/mini-games
+/users
+/api
+```
+
+Stop the full stack:
+
+```bash
+docker compose down
+```
+
 ## AI Camera Dataset
 
 The dataset folder is located at:

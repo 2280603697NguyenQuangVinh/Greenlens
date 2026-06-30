@@ -4,6 +4,9 @@ dist
 .github
 .vscode
 .idea
+.vs
+.env
+.env.*
 npm-debug.log*
 Dockerfile
 docker-compose*
