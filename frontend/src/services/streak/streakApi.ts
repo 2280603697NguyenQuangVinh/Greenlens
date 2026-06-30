@@ -7,6 +7,7 @@ import { getTodayDailyActivity } from "./dailyActivityStorage"
 import {
   ensureStreakSyncedFromDaily,
   getEffectiveLocalStreak,
+  getLocalStreak,
   syncLocalStreakFromBackend,
 } from "./localStreakStorage"
 import {
@@ -29,6 +30,7 @@ import type {
   StreakInfo,
 } from "./types"
 import { buildStreakStatusInfo } from "./streakStatus"
+import { resolveFreezeGapContext } from "./streakGapAnchor"
 
 export { checkInStreak } from "./streakCheckIn"
 
@@ -109,6 +111,8 @@ function mockStreakBundle(childId: string): StreakBundle {
     rewards: buildStreakRewardInfo(streak.currentStreak),
     milestones: buildRewardMilestones(streak.currentStreak),
     streakStatus: buildStreakStatusInfo(null),
+    gapAnchorDate: null,
+    freezeGapDayKeys: [],
   }
 }
 
@@ -141,7 +145,8 @@ function resolveStreakInfo(
   let lastActive: string | null = null
 
   if (backendStreak) {
-    current = Math.max(backendStreak.currentStreak, 0)
+    const expired = backendStreak.streakStatus === "Expired"
+    current = expired ? 0 : Math.max(backendStreak.currentStreak, 0)
     lastActive = backendStreak.lastStreakDate?.slice(0, 10) ?? null
   } else {
     const syncedLocal =
@@ -217,6 +222,18 @@ export async function fetchStreakBundle(): Promise<StreakBundle> {
     `/child-profiles/${childId}/streak`,
   )
 
+  if (backendStreak?.lastStreakDate) {
+    const preLast = backendStreak.lastStreakDate.slice(0, 10)
+    const todayKey = getVietnamTodayKey()
+    if (
+      preLast < todayKey &&
+      (backendStreak.streakStatus === "Frozen" || backendStreak.streakStatus === "Expired")
+    ) {
+      const { recordFreezeGapContext } = await import("./streakGapAnchor")
+      recordFreezeGapContext(childId, preLast, todayKey)
+    }
+  }
+
   clearCheckInSessionIfServerMismatch(backendStreak?.lastStreakDate)
 
   const today = getVietnamTodayKey()
@@ -225,10 +242,21 @@ export async function fetchStreakBundle(): Promise<StreakBundle> {
     dailyActivity.completedCount >= 1 && !serverCheckedInToday
 
   if (needsBackfillCheckIn) {
+    const preLast = backendStreak?.lastStreakDate?.slice(0, 10) ?? null
     const checkInResult = await checkInStreak(childId, {
       notify: false,
       skipIfDone: false,
     })
+    if (preLast && checkInResult) {
+      const freezeMissed = Math.max(
+        checkInResult.missedDaysCoveredByFreeze ?? 0,
+        checkInResult.freezeDaysUsed ?? 0,
+      )
+      if (freezeMissed > 0 || checkInResult.streakStatus === "FreezeUsed") {
+        const { recordFreezeGapContext } = await import("./streakGapAnchor")
+        recordFreezeGapContext(childId, preLast)
+      }
+    }
     backendStreak =
       checkInResult ??
       (await authorizedGetOptional<BackendStreakResponse>(
@@ -261,11 +289,27 @@ export async function fetchStreakBundle(): Promise<StreakBundle> {
   const milestones = buildRewardMilestones(streak.currentStreak)
   applyBadgeCatalog(milestones, backendProfile?.badgeCatalog, backendStreak)
 
+  const freezeGap = resolveFreezeGapContext(
+    childId,
+    backendStreak?.streakStatus,
+    backendStreak?.lastStreakDate,
+    backendStreak?.missedDaysCoveredByFreeze,
+    backendStreak?.freezeDaysUsed,
+    {
+      currentStreak: streak.currentStreak,
+      bestStreak: streak.bestStreak,
+      todayCompletedCount: dailyActivity.completedCount,
+      previousLastActiveDate: getLocalStreak(childId).previousLastActiveDate,
+    },
+  )
+
   return {
     streak,
     dailyActivity,
     rewards,
     milestones,
     streakStatus: buildStreakStatusInfo(backendStreak),
+    gapAnchorDate: freezeGap.gapAnchorDate,
+    freezeGapDayKeys: freezeGap.freezeGapDayKeys,
   }
 }

@@ -154,7 +154,9 @@ export function toStreakInfo(
 ): StreakInfo {
   const bestStreak = resolveBestStreak(childId, currentStreak, lastActiveDate)
   const activeDate =
-    currentStreak > 0 ? lastActiveDate ?? getVietnamTodayKey() : null
+    currentStreak > 0
+      ? lastActiveDate ?? getVietnamTodayKey()
+      : lastActiveDate
 
   return {
     childId,

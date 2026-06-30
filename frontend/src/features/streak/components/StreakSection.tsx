@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useCallback, useEffect } from "react"
 import { motion } from "motion/react"
 import mascotPng from "@/assets/Character/mascot/mascot.png"
 import { CharacterSpeechBubble } from "@/features/dashboard/components/CharacterSpeechBubble"
@@ -6,14 +6,14 @@ import { StreakCard } from "./StreakCard"
 import { WeeklyCalendar } from "./WeeklyCalendar"
 import { DailyGoalProgress } from "./DailyGoalProgress"
 import { RewardMilestones } from "./RewardMilestones"
-import { StreakDayUpToast } from "./StreakDayUpToast"
 import { RewardUnlockModal } from "./RewardUnlockModal"
+import { StreakCelebrateOverlay } from "./StreakCelebrateOverlay"
 import { XpFloatToast } from "./XpFloatToast"
 import { getMascotStreakMessage } from "@/features/streak/utils/streakUi"
 import { getStreakStatusBanner } from "@/features/streak/utils/streakStatus"
-import { playRewardChime } from "@/features/streak/utils/streakSounds"
 import type { StreakBundle, RewardMilestone } from "@/services/streak/types"
 import { fireScanConfetti } from "@/features/camera/utils/scanConfetti"
+import { playRewardChime } from "@/features/streak/utils/streakSounds"
 import { unlockSupertonicOnGesture } from "@/services/supertonic/preload"
 
 function StreakSkeleton() {
@@ -38,6 +38,7 @@ export function StreakSection({
   error,
   displayName,
   streakIncreased,
+  showStreakMark,
   rewardUnlocked,
   unlockedMilestone,
   showXpFloat,
@@ -49,12 +50,17 @@ export function StreakSection({
   error: string | null
   displayName: string
   streakIncreased?: boolean
+  showStreakMark?: boolean
   rewardUnlocked?: boolean
   unlockedMilestone?: RewardMilestone | null
   showXpFloat?: boolean
   onClearAnimations?: () => void
   onNavigate?: (screen: number) => void
 }) {
+  const handleCelebrateComplete = useCallback(() => {
+    onClearAnimations?.()
+  }, [onClearAnimations])
+
   useEffect(() => {
     if (!rewardUnlocked) return
     fireScanConfetti()
@@ -64,10 +70,10 @@ export function StreakSection({
   }, [rewardUnlocked, onClearAnimations])
 
   useEffect(() => {
-    if (!streakIncreased) return
-    const timer = window.setTimeout(() => onClearAnimations?.(), 2200)
+    if (!streakIncreased || showStreakMark) return
+    const timer = window.setTimeout(() => onClearAnimations?.(), 2600)
     return () => window.clearTimeout(timer)
-  }, [streakIncreased, onClearAnimations])
+  }, [showStreakMark, streakIncreased, onClearAnimations])
 
   const handleNavigate = (screen: number) => {
     void unlockSupertonicOnGesture()
@@ -88,7 +94,7 @@ export function StreakSection({
 
   if (!data) return null
 
-  const { streak, dailyActivity, rewards, milestones, streakStatus } = data
+  const { streak, dailyActivity, rewards, milestones, streakStatus, gapAnchorDate, freezeGapDayKeys } = data
   const statusBanner = getStreakStatusBanner(streakStatus)
   const mascotMessage = getMascotStreakMessage(
     streak,
@@ -99,9 +105,21 @@ export function StreakSection({
   const showWelcome =
     streak.currentStreak === 0 && dailyActivity.completedCount === 0
 
+  const showCelebrate = Boolean(showStreakMark)
+
   return (
     <section className="relative mb-3">
-      <StreakDayUpToast show={Boolean(streakIncreased)} />
+      <StreakCelebrateOverlay
+        open={showCelebrate}
+        currentStreak={streak.currentStreak}
+        lastActiveDate={streak.lastActiveDate}
+        todayCompletedCount={dailyActivity.completedCount}
+        streakStatus={streakStatus}
+        gapAnchorDate={gapAnchorDate}
+        freezeGapDayKeys={freezeGapDayKeys}
+        onComplete={handleCelebrateComplete}
+      />
+
       <XpFloatToast show={Boolean(showXpFloat)} />
 
       <RewardUnlockModal
@@ -114,7 +132,7 @@ export function StreakSection({
       <div className="mb-2.5 flex items-center gap-1.5 px-0.5">
         <motion.div
           className="shrink-0"
-          animate={streakIncreased ? { y: [0, -8, 0], scale: [1, 1.05, 1] } : { y: 0 }}
+          animate={showCelebrate ? { y: [0, -8, 0], scale: [1, 1.05, 1] } : { y: 0 }}
           transition={{ duration: 0.45 }}
         >
           <img
@@ -136,7 +154,7 @@ export function StreakSection({
           <StreakCard
             streak={streak}
             rewards={rewards}
-            pulse={streakIncreased}
+            pulse={showCelebrate || Boolean(streakIncreased)}
             compact
             statusBanner={statusBanner}
           />
@@ -144,10 +162,12 @@ export function StreakSection({
           <div className="my-3 h-px bg-[#e8f0ea]" aria-hidden />
 
           <WeeklyCalendar
-            weeklyProgress={streak.weeklyProgress}
             currentStreak={streak.currentStreak}
+            lastActiveDate={streak.lastActiveDate}
             todayCompletedCount={dailyActivity.completedCount}
-            todayTotalCount={dailyActivity.totalCount}
+            streakStatus={streakStatus}
+            gapAnchorDate={gapAnchorDate}
+            freezeGapDayKeys={freezeGapDayKeys}
             compact
           />
 
@@ -169,4 +189,3 @@ export function StreakSection({
     </section>
   )
 }
-
