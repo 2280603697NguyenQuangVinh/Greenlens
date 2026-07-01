@@ -8,6 +8,7 @@ public sealed class AiCameraService : IAiCameraService
 {
     private readonly IImageStorageService _imageStorageService;
     private readonly IRekognitionService _rekognitionService;
+    private readonly IWasteImageValidator _wasteImageValidator;
     private readonly IWasteMappingService _wasteMappingService;
     private readonly IBedrockGuidanceService _bedrockGuidanceService;
     private readonly IAiCameraUsageLimiter _usageLimiter;
@@ -16,6 +17,7 @@ public sealed class AiCameraService : IAiCameraService
     public AiCameraService(
         IImageStorageService imageStorageService,
         IRekognitionService rekognitionService,
+        IWasteImageValidator wasteImageValidator,
         IWasteMappingService wasteMappingService,
         IBedrockGuidanceService bedrockGuidanceService,
         IAiCameraUsageLimiter usageLimiter,
@@ -23,6 +25,7 @@ public sealed class AiCameraService : IAiCameraService
     {
         _imageStorageService = imageStorageService;
         _rekognitionService = rekognitionService;
+        _wasteImageValidator = wasteImageValidator;
         _wasteMappingService = wasteMappingService;
         _bedrockGuidanceService = bedrockGuidanceService;
         _usageLimiter = usageLimiter;
@@ -65,6 +68,22 @@ public sealed class AiCameraService : IAiCameraService
         var imageBytes = imageBuffer.ToArray();
         ValidateSupportedImageFormat(imageBytes);
 
+        await using var rekognitionStream = new MemoryStream(imageBytes);
+        var detection = await _rekognitionService.DetectLabelsAsync(rekognitionStream, cancellationToken);
+        var validation = _wasteImageValidator.Validate(detection);
+        if (!validation.IsValid)
+        {
+            var debugLabel = validation.TopLabel ?? validation.MatchedLabel;
+            throw new AiCameraInvalidImageException(
+                "Hình ảnh không phải rác hoặc chưa đủ rõ để phân loại.",
+                validation.Reason,
+                debugLabel?.Label,
+                debugLabel?.Confidence);
+        }
+
+        var detectedLabel = validation.MatchedLabel ?? new DetectedLabelDto(detection.Label, detection.Confidence);
+        var wasteCategory = _wasteMappingService.Map(detectedLabel.Label);
+
         await using var uploadStream = new MemoryStream(imageBytes);
         var upload = await _imageStorageService.UploadImageAsync(
             uploadStream,
@@ -72,9 +91,6 @@ public sealed class AiCameraService : IAiCameraService
             request.ContentType,
             cancellationToken);
 
-        await using var rekognitionStream = new MemoryStream(imageBytes);
-        var detectedLabel = await _rekognitionService.DetectLabelsAsync(rekognitionStream, cancellationToken);
-        var wasteCategory = _wasteMappingService.Map(detectedLabel.Label);
         var guidance = await _bedrockGuidanceService.GenerateGuidanceAsync(
             detectedLabel.Label,
             wasteCategory.Category,

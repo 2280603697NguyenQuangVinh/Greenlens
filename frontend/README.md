@@ -69,6 +69,27 @@ Force in-browser mocks only (skip network):
 VITE_USE_MOCK=true
 ```
 
+## Docker full stack
+
+From the repo root:
+
+```bash
+docker compose up --build -d
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+This runs:
+
+- backend API on `http://localhost:5001`
+- frontend web app on `http://localhost:3000`
+
+The frontend Docker image is a production Vite build served by Nginx. Nginx proxies `/auth`, `/child-profiles`, `/ai-camera`, `/quiz`, `/mini-games`, `/users`, and `/api` to the backend container, so the browser can call relative API paths without CORS issues.
+
 ---
 
 ## How the app boots

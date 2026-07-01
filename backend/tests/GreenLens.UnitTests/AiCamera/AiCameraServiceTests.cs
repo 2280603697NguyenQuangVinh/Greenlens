@@ -13,11 +13,12 @@ public sealed class AiCameraServiceTests
     {
         var imageStorage = new FakeImageStorageService();
         var rekognition = new FakeRekognitionService();
+        var validator = new FakeWasteImageValidator();
         var wasteMapping = new FakeWasteMappingService();
         var bedrock = new FakeBedrockGuidanceService();
         var usageLimiter = new FakeUsageLimiter();
         var progress = new FakeChildProgressService();
-        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, progress);
+        var service = new AiCameraService(imageStorage, rekognition, validator, wasteMapping, bedrock, usageLimiter, progress);
 
         await using var image = new MemoryStream(PngBytes());
         var response = await service.AnalyzeAsync(new AiCameraAnalyzeRequest(
@@ -45,11 +46,12 @@ public sealed class AiCameraServiceTests
     {
         var imageStorage = new FakeImageStorageService();
         var rekognition = new FakeRekognitionService();
+        var validator = new FakeWasteImageValidator();
         var wasteMapping = new FakeWasteMappingService();
         var bedrock = new FakeBedrockGuidanceService();
         var usageLimiter = new FakeUsageLimiter(false);
         var progress = new FakeChildProgressService();
-        var service = new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, progress);
+        var service = new AiCameraService(imageStorage, rekognition, validator, wasteMapping, bedrock, usageLimiter, progress);
 
         await using var image = new MemoryStream(PngBytes());
         var exception = await Assert.ThrowsAsync<AiCameraQuotaExceededException>(() =>
@@ -64,6 +66,73 @@ public sealed class AiCameraServiceTests
         Assert.True(usageLimiter.WasCalled);
         Assert.False(imageStorage.WasCalled);
         Assert.False(rekognition.WasCalled);
+        Assert.False(bedrock.WasCalled);
+        Assert.False(progress.WasCalled);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_WhenImageIsNotWaste_DoesNotUploadCallBedrockOrAwardXp()
+    {
+        var imageStorage = new FakeImageStorageService();
+        var rekognition = new FakeRekognitionService("Body Part", 100);
+        var validator = new FakeWasteImageValidator(false, "not_waste_image");
+        var wasteMapping = new FakeWasteMappingService();
+        var bedrock = new FakeBedrockGuidanceService();
+        var usageLimiter = new FakeUsageLimiter();
+        var progress = new FakeChildProgressService();
+        var service = new AiCameraService(imageStorage, rekognition, validator, wasteMapping, bedrock, usageLimiter, progress);
+
+        await using var image = new MemoryStream(PngBytes());
+        var exception = await Assert.ThrowsAsync<AiCameraInvalidImageException>(() =>
+            service.AnalyzeAsync(new AiCameraAnalyzeRequest(
+                "child_123",
+                image,
+                "hand.png",
+                "image/png",
+                "cognito-sub-123")));
+
+        Assert.Equal("not_waste_image", exception.Reason);
+        Assert.Equal("Body Part", exception.DetectedLabel);
+        Assert.Equal(100, exception.Confidence);
+        Assert.True(usageLimiter.WasCalled);
+        Assert.True(rekognition.WasCalled);
+        Assert.True(validator.WasCalled);
+        Assert.False(imageStorage.WasCalled);
+        Assert.False(bedrock.WasCalled);
+        Assert.False(progress.WasCalled);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_WhenRekognitionUnavailable_DoesNotUploadCallBedrockOrAwardXp()
+    {
+        var imageStorage = new FakeImageStorageService();
+        var rekognition = new FakeRekognitionService(
+            exception: new AiCameraDependencyUnavailableException(
+                "Dịch vụ nhận diện ảnh đang bận. Hãy thử lại sau ít phút.",
+                "rekognition_unavailable",
+                60));
+        var validator = new FakeWasteImageValidator();
+        var wasteMapping = new FakeWasteMappingService();
+        var bedrock = new FakeBedrockGuidanceService();
+        var usageLimiter = new FakeUsageLimiter();
+        var progress = new FakeChildProgressService();
+        var service = new AiCameraService(imageStorage, rekognition, validator, wasteMapping, bedrock, usageLimiter, progress);
+
+        await using var image = new MemoryStream(PngBytes());
+        var exception = await Assert.ThrowsAsync<AiCameraDependencyUnavailableException>(() =>
+            service.AnalyzeAsync(new AiCameraAnalyzeRequest(
+                "child_123",
+                image,
+                "bottle.png",
+                "image/png",
+                "cognito-sub-123")));
+
+        Assert.Equal("rekognition_unavailable", exception.Reason);
+        Assert.Equal(60, exception.RetryAfterSeconds);
+        Assert.True(usageLimiter.WasCalled);
+        Assert.True(rekognition.WasCalled);
+        Assert.False(validator.WasCalled);
+        Assert.False(imageStorage.WasCalled);
         Assert.False(bedrock.WasCalled);
         Assert.False(progress.WasCalled);
     }
@@ -95,15 +164,56 @@ public sealed class AiCameraServiceTests
 
     private sealed class FakeRekognitionService : IRekognitionService
     {
+        private readonly string _label;
+        private readonly double _confidence;
+        private readonly Exception? _exception;
+
+        public FakeRekognitionService(
+            string label = "Bottle",
+            double confidence = 96.74,
+            Exception? exception = null)
+        {
+            _label = label;
+            _confidence = confidence;
+            _exception = exception;
+        }
+
         public bool WasCalled { get; private set; }
 
-        public Task<DetectedLabelDto> DetectLabelsAsync(
+        public Task<RekognitionDetectionDto> DetectLabelsAsync(
             Stream imageStream,
             CancellationToken cancellationToken = default)
         {
             WasCalled = true;
             Assert.Equal(0, imageStream.Position);
-            return Task.FromResult(new DetectedLabelDto("Bottle", 96.74));
+            if (_exception is not null)
+            {
+                throw _exception;
+            }
+
+            var label = new DetectedLabelDto(_label, _confidence);
+            return Task.FromResult(new RekognitionDetectionDto(_label, _confidence, [label]));
+        }
+    }
+
+    private sealed class FakeWasteImageValidator : IWasteImageValidator
+    {
+        private readonly bool _isValid;
+        private readonly string _reason;
+
+        public FakeWasteImageValidator(bool isValid = true, string reason = "")
+        {
+            _isValid = isValid;
+            _reason = reason;
+        }
+
+        public bool WasCalled { get; private set; }
+
+        public WasteImageValidationResult Validate(RekognitionDetectionDto detection)
+        {
+            WasCalled = true;
+            var label = new DetectedLabelDto(detection.Label, detection.Confidence);
+            return new WasteImageValidationResult(_isValid, _reason, _isValid ? label : null, label);
         }
     }
 

@@ -24,6 +24,8 @@ namespace GreenLens.Api.Functions;
 public sealed class AiCameraFunction
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly RekognitionOptions SharedRekognitionOptions = BuildRekognitionOptions();
+    private static readonly AiCameraDependencyCircuitBreaker SharedRekognitionCircuitBreaker = new(SharedRekognitionOptions);
 
     private readonly IAiCameraService _aiCameraService;
 
@@ -66,6 +68,37 @@ public sealed class AiCameraFunction
         {
             context.Logger.LogLine($"AI camera quota exceeded: {exception.Message}");
             return JsonResponse(HttpStatusCode.TooManyRequests, new { message = exception.Message });
+        }
+        catch (AiCameraDependencyUnavailableException exception)
+        {
+            context.Logger.LogLine(
+                $"AI camera dependency unavailable. reason={exception.Reason}, retry_after={exception.RetryAfterSeconds}");
+            return JsonResponse(
+                HttpStatusCode.ServiceUnavailable,
+                new
+                {
+                    message = exception.Message,
+                    reason = exception.Reason,
+                    retryAfterSeconds = exception.RetryAfterSeconds
+                },
+                new Dictionary<string, string>
+                {
+                    ["Retry-After"] = exception.RetryAfterSeconds.ToString()
+                });
+        }
+        catch (AiCameraInvalidImageException exception)
+        {
+            context.Logger.LogLine(
+                $"invalid_image_blocked_before_s3 reason={exception.Reason}, top_label={exception.DetectedLabel}, top_confidence={exception.Confidence}");
+            return JsonResponse(
+                HttpStatusCode.UnprocessableEntity,
+                new
+                {
+                    message = exception.Message,
+                    reason = exception.Reason,
+                    detectedLabel = exception.DetectedLabel,
+                    confidence = exception.Confidence.HasValue ? Math.Round(exception.Confidence.Value, 1) : (double?)null
+                });
         }
         catch (InvalidOperationException exception)
         {
@@ -226,7 +259,11 @@ public sealed class AiCameraFunction
         };
 
         var imageStorage = new S3StorageService(new AmazonS3Client(), s3Options, new S3KeyBuilder());
-        var rekognition = new RekognitionService(new AmazonRekognitionClient(), new RekognitionOptions());
+        var rekognition = new RekognitionService(
+            new AmazonRekognitionClient(),
+            SharedRekognitionOptions,
+            SharedRekognitionCircuitBreaker);
+        var wasteImageValidator = new WasteImageValidator();
         var wasteMapping = new WasteMappingService();
         var bedrock = new BedrockGuidanceService(new AmazonBedrockRuntimeClient(), bedrockOptions);
         var childProfilesTableName = Environment.GetEnvironmentVariable("CHILD_PROFILES_TABLE_NAME")
@@ -259,19 +296,48 @@ public sealed class AiCameraFunction
                 });
         }
 
-        return new AiCameraService(imageStorage, rekognition, wasteMapping, bedrock, usageLimiter, childProgress);
+        return new AiCameraService(imageStorage, rekognition, wasteImageValidator, wasteMapping, bedrock, usageLimiter, childProgress);
     }
 
-    private static APIGatewayProxyResponse JsonResponse(HttpStatusCode statusCode, object body)
+    private static RekognitionOptions BuildRekognitionOptions()
     {
+        return new RekognitionOptions
+        {
+            TimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_TIMEOUT_SECONDS"), out var timeoutSeconds)
+                ? timeoutSeconds
+                : 5,
+            CircuitFailureThreshold = int.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_CIRCUIT_FAILURE_THRESHOLD"), out var failureThreshold)
+                ? failureThreshold
+                : 3,
+            CircuitBreakSeconds = int.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_CIRCUIT_BREAK_SECONDS"), out var breakSeconds)
+                ? breakSeconds
+                : 60
+        };
+    }
+
+    private static APIGatewayProxyResponse JsonResponse(
+        HttpStatusCode statusCode,
+        object body,
+        IDictionary<string, string>? headers = null)
+    {
+        var responseHeaders = new Dictionary<string, string>
+        {
+            ["Content-Type"] = "application/json",
+            ["Access-Control-Allow-Origin"] = "*"
+        };
+
+        if (headers is not null)
+        {
+            foreach (var header in headers)
+            {
+                responseHeaders[header.Key] = header.Value;
+            }
+        }
+
         return new APIGatewayProxyResponse
         {
             StatusCode = (int)statusCode,
-            Headers = new Dictionary<string, string>
-            {
-                ["Content-Type"] = "application/json",
-                ["Access-Control-Allow-Origin"] = "*"
-            },
+            Headers = responseHeaders,
             Body = JsonSerializer.Serialize(body, JsonOptions)
         };
     }

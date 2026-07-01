@@ -79,6 +79,24 @@ Xem log:
 docker compose logs -f api
 ```
 
+## Chay full stack BE + FE bang Docker
+
+Tu thu muc root `Greenlens/`:
+
+```bash
+docker compose up --build -d
+```
+
+Sau khi chay:
+
+```text
+Frontend: http://localhost:3000
+Backend:  http://localhost:5001
+Swagger:  http://localhost:5001/swagger/index.html
+```
+
+Frontend Docker dung Nginx va proxy cac route `/auth`, `/child-profiles`, `/ai-camera`, `/quiz`, `/mini-games`, `/users`, `/api` sang container backend `api`.
+
 ## S3 lifecycle cho AI Camera
 
 Anh upload cua AI Camera duoc luu duoi prefix:
@@ -137,6 +155,9 @@ AI_CAMERA_USAGE_LIMITER_ENABLED=true
 AI_CAMERA_USAGE_TABLE_NAME=GreenLens-AiUsage
 AI_CAMERA_PER_MINUTE_LIMIT=3
 AI_CAMERA_DAILY_LIMIT=20
+REKOGNITION_TIMEOUT_SECONDS=5
+REKOGNITION_CIRCUIT_FAILURE_THRESHOLD=3
+REKOGNITION_CIRCUIT_BREAK_SECONDS=60
 ```
 
 Neu vuot quota, API tra ve:
@@ -158,6 +179,36 @@ AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED=false
 ```
 
 Neu can demo nhanh khong ton Bedrock, moi doi `AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED=true`.
+
+Neu Rekognition timeout hoac tam thoi khong kha dung, backend khong upload S3, khong goi Bedrock va khong cong XP. API tra ve:
+
+```http
+503 Service Unavailable
+Retry-After: 60
+```
+
+```json
+{
+  "message": "Dịch vụ nhận diện ảnh đang bận. Hãy thử lại sau ít phút.",
+  "reason": "rekognition_unavailable",
+  "retryAfterSeconds": 60
+}
+```
+
+Anh khong phai rac se bi chan sau buoc Rekognition va truoc khi upload S3/goi Bedrock. API tra ve:
+
+```http
+422 Unprocessable Entity
+```
+
+```json
+{
+  "message": "Hình ảnh không phải rác hoặc chưa đủ rõ để phân loại.",
+  "reason": "not_waste_image",
+  "detectedLabel": "Body Part",
+  "confidence": 100
+}
+```
 
 Fallback guidance khong co gang liet ke tat ca vat the. Backend dung 3 tang:
 
@@ -766,6 +817,7 @@ Neu build thanh cong, image `greenlens-api:latest` se duoc tao.
 
 ```bash
 docker compose up --build -d api
+docker compose up --build -d
 docker compose ps
 docker compose logs -f api
 docker compose restart api

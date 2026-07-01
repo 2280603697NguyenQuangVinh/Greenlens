@@ -4,9 +4,20 @@ public sealed record DetectedLabelDto(
     string Label,
     double Confidence);
 
+public sealed record RekognitionDetectionDto(
+    string Label,
+    double Confidence,
+    IReadOnlyList<DetectedLabelDto> Labels);
+
 public sealed record WasteCategoryDto(
     string Category,
     string BinColor);
+
+public sealed record WasteImageValidationResult(
+    bool IsValid,
+    string Reason,
+    DetectedLabelDto? MatchedLabel,
+    DetectedLabelDto? TopLabel);
 
 public sealed record BedrockGuidanceDto(
     string RecycleGuide,

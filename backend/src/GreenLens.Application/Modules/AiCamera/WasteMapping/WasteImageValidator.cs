@@ -1,0 +1,159 @@
+using GreenLens.Application.Modules.AiCamera.DTOs;
+using GreenLens.Application.Modules.AiCamera.Interfaces;
+
+namespace GreenLens.Application.Modules.AiCamera.WasteMapping;
+
+public sealed class WasteImageValidator : IWasteImageValidator
+{
+    private const double WasteConfidenceThreshold = 70;
+    private const double BlockConfidenceThreshold = 80;
+    private const string NotWasteReason = "not_waste_image";
+    private const string UncertainReason = "uncertain_detection";
+
+    private static readonly string[] AcceptedWasteLabels =
+    [
+        "Battery",
+        "Medicine",
+        "Pill",
+        "Syringe",
+        "Needle",
+        "Chemical",
+        "Paint",
+        "Oil",
+        "Glass",
+        "Knife",
+        "Blade",
+        "Light Bulb",
+        "Thermometer",
+        "Electronic",
+        "Phone",
+        "Laptop",
+        "Charger",
+        "Bottle",
+        "Plastic Bottle",
+        "Plastic Bag",
+        "Plastic",
+        "Paper",
+        "Cardboard",
+        "Can",
+        "Aluminium",
+        "Aluminum",
+        "Carton",
+        "Newspaper",
+        "Envelope",
+        "Book",
+        "Food",
+        "Banana",
+        "Fruit",
+        "Vegetable",
+        "Leaf",
+        "Peel",
+        "Bread",
+        "Egg",
+        "Diaper",
+        "Tissue",
+        "Napkin",
+        "Trash",
+        "Garbage",
+        "Waste",
+        "Rubbish"
+    ];
+
+    private static readonly string[] BlockedLabels =
+    [
+        "Person",
+        "People",
+        "Human",
+        "Body",
+        "Body Part",
+        "Hand",
+        "Finger",
+        "Arm",
+        "Leg",
+        "Foot",
+        "Face",
+        "Head",
+        "Skin",
+        "Animal",
+        "Pet",
+        "Dog",
+        "Cat",
+        "Bird"
+    ];
+
+    public WasteImageValidationResult Validate(RekognitionDetectionDto detection)
+    {
+        var labels = detection.Labels
+            .Where(label => !string.IsNullOrWhiteSpace(label.Label))
+            .OrderByDescending(label => label.Confidence)
+            .ToArray();
+
+        var topLabel = labels.FirstOrDefault() ??
+            (string.IsNullOrWhiteSpace(detection.Label)
+                ? null
+                : new DetectedLabelDto(detection.Label, detection.Confidence));
+
+        if (topLabel is null)
+        {
+            return new WasteImageValidationResult(false, UncertainReason, null, null);
+        }
+
+        if (IsBlocked(topLabel) && topLabel.Confidence >= BlockConfidenceThreshold)
+        {
+            return new WasteImageValidationResult(false, NotWasteReason, null, topLabel);
+        }
+
+        var wasteLabel = labels
+            .Where(IsAcceptedWaste)
+            .Where(label => label.Confidence >= WasteConfidenceThreshold)
+            .OrderByDescending(label => label.Confidence)
+            .FirstOrDefault();
+
+        if (wasteLabel is not null)
+        {
+            return new WasteImageValidationResult(true, string.Empty, wasteLabel, topLabel);
+        }
+
+        var lowConfidenceWasteLabel = labels
+            .Where(IsAcceptedWaste)
+            .OrderByDescending(label => label.Confidence)
+            .FirstOrDefault();
+
+        return new WasteImageValidationResult(
+            false,
+            lowConfidenceWasteLabel is null ? NotWasteReason : UncertainReason,
+            lowConfidenceWasteLabel,
+            topLabel);
+    }
+
+    private static bool IsAcceptedWaste(DetectedLabelDto label)
+    {
+        return AcceptedWasteLabels.Any(accepted =>
+            ContainsLabelPhrase(label.Label, accepted));
+    }
+
+    private static bool IsBlocked(DetectedLabelDto label)
+    {
+        return BlockedLabels.Any(blocked =>
+            ContainsLabelPhrase(label.Label, blocked));
+    }
+
+    private static bool ContainsLabelPhrase(string label, string phrase)
+    {
+        var index = label.IndexOf(phrase, StringComparison.OrdinalIgnoreCase);
+        while (index >= 0)
+        {
+            var before = index == 0 || !char.IsLetterOrDigit(label[index - 1]);
+            var afterIndex = index + phrase.Length;
+            var after = afterIndex >= label.Length || !char.IsLetterOrDigit(label[afterIndex]);
+            if (before && after)
+            {
+                return true;
+            }
+
+            index = label.IndexOf(phrase, index + 1, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+}

@@ -1,0 +1,28 @@
+services:
+  api:
+    image: greenlens-api:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:80"
+    env_file:
+      - ./backend/.env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ALLOW_DEV_AUTH: "true"
+      USE_IN_MEMORY_CHILD_PROFILES: "false"
+      USE_IN_MEMORY_AUTH: ${USE_IN_MEMORY_AUTH:-false}
+      CHILD_PROFILES_TABLE_NAME: ${CHILD_PROFILES_TABLE_NAME:-GreenLens-ChildProfiles}
+    restart: unless-stopped
+
+  frontend:
+    image: greenlens-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped

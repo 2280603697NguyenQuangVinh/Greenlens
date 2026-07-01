@@ -4,7 +4,7 @@ namespace GreenLens.Application.Modules.AiCamera.Interfaces;
 
 public interface IRekognitionService
 {
-    Task<DetectedLabelDto> DetectLabelsAsync(
+    Task<RekognitionDetectionDto> DetectLabelsAsync(
         Stream imageStream,
         CancellationToken cancellationToken = default);
 }

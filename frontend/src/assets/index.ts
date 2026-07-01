@@ -2,7 +2,6 @@ export { BACKGROUND_IMAGE, MASCOT_IMAGE, getUiAsset } from "./assetUrl"
 export {
   CAMERA_TASK_ICON,
   CHECK_ICON,
-  FREEZING_ICON,
   GAME_TASK_ICON,
   LETTER_X_ICON,
   LEVEL_ICON,

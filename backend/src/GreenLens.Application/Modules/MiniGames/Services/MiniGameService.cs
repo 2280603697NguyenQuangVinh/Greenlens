@@ -118,13 +118,13 @@ public sealed class MiniGameService : IMiniGameService
             request.CompletedFromDailyActivity,
             now);
 
-        await _miniGameRepository.SaveResultAsync(result, cancellationToken);
         await _childProgressService.AwardMiniGameAsync(
             childId,
             cognitoSub.Trim(),
             score,
             xpAwarded,
             cancellationToken);
+        await _miniGameRepository.SaveResultAsync(result, cancellationToken);
 
         var unlockedBadges = score > HighScoreThreshold
             ? new[] { "Rác Kỳ Thủ" }
