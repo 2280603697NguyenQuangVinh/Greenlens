@@ -7,6 +7,8 @@ export function getStreakStatusBanner(status: StreakStatusInfo): string | null {
       return `Chuỗi đang được bảo vệ! Còn ${status.freezeDaysRemaining} lần bảo vệ.`
     case "Expired":
       return "Chuỗi đã reset — làm nhiệm vụ hôm nay để bắt đầu lại!"
+    case "Reset":
+      return "Chuỗi mới bắt đầu từ hôm nay — cố lên nhé!"
     case "NeedsCheckIn":
       return "Làm ít nhất 1 nhiệm vụ hôm nay để giữ chuỗi!"
     case "Active":

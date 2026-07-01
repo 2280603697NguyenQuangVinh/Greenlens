@@ -146,6 +146,11 @@ export default defineConfig(({ mode }) => {
 
     assetsInclude: ['**/*.svg', '**/*.csv'],
 
+    test: {
+      environment: 'node',
+      include: ['src/**/*.test.ts'],
+    },
+
   }
 
 })

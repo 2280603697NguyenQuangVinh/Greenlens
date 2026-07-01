@@ -30,6 +30,7 @@ export function DashboardScreen({
     loading: streakLoading,
     error: streakError,
     streakIncreased,
+    showStreakMark,
     rewardUnlocked,
     unlockedMilestone,
     showXpFloat,
@@ -89,6 +90,7 @@ export function DashboardScreen({
           error={streakError}
           displayName={displayName}
           streakIncreased={streakIncreased}
+          showStreakMark={showStreakMark}
           rewardUnlocked={rewardUnlocked}
           unlockedMilestone={unlockedMilestone}
           showXpFloat={showXpFloat}
