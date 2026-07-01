@@ -1,5 +1,6 @@
 import { getChildId } from "@/services/childProfileStorage"
 import { getVietnamTodayKey } from "@/utils/appDate"
+import { recordFreezeGapContext } from "./streakGapAnchor"
 
 const STORAGE_KEY = "gl_local_streak_v1"
 export const STREAK_REFRESH_EVENT = "gl-streak-refresh"
@@ -9,6 +10,7 @@ export type LocalStreakRecord = {
   currentStreak: number
   bestStreak: number
   lastActiveDate: string | null
+  previousLastActiveDate?: string | null
 }
 
 function readAll(): Record<string, LocalStreakRecord> {
@@ -87,12 +89,20 @@ export function syncLocalStreakFromBackend(
   const existing = getLocalStreak(childId)
   const lastActive = lastStreakDate?.slice(0, 10) ?? null
   const current = Math.max(currentStreak, 0)
+  const today = getVietnamTodayKey()
+  const prev = existing.lastActiveDate?.slice(0, 10) ?? null
+
+  if (prev && lastActive === today && prev < today && daysBetween(prev, today) > 1) {
+    recordFreezeGapContext(childId, prev, today)
+  }
 
   const updated: LocalStreakRecord = {
     childId,
     currentStreak: current,
     bestStreak: Math.max(existing.bestStreak, current),
     lastActiveDate: current > 0 ? lastActive : null,
+    previousLastActiveDate:
+      prev && prev !== lastActive ? prev : existing.previousLastActiveDate ?? null,
   }
 
   all[childId] = updated
@@ -131,16 +141,19 @@ export function syncStreakAfterDailyActivity(
       nextStreak = record.currentStreak + 1
     } else if (gap > 1) {
       nextStreak = 1
+      recordFreezeGapContext(id, record.lastActiveDate, today)
     } else {
       nextStreak = record.currentStreak
     }
   }
 
+  const prev = record.lastActiveDate?.slice(0, 10) ?? null
   const updated: LocalStreakRecord = {
     childId: id,
     currentStreak: nextStreak,
     bestStreak: Math.max(record.bestStreak, nextStreak),
     lastActiveDate: today,
+    previousLastActiveDate: prev && prev !== today ? prev : record.previousLastActiveDate ?? null,
   }
 
   all[id] = updated

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { SPEECH_BUBBLE_RIGHT } from "@/assets/iconAssets"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_NUNITO } from "@/utils/constants"
 
 type TailSide = "left" | "right"
 type BubbleVariant = "dashboard" | "camera"
@@ -30,9 +30,12 @@ function ImageSpeechBubble({
         />
         <div
           className={`relative flex min-h-[3.25rem] items-center justify-center px-4 pb-[1.2rem] pt-2.5 ${flip ? "-scale-x-100" : ""}`}
-          style={FF_FREDOKA}
         >
-          <p className="text-center text-[13px] font-normal leading-snug text-black sm:text-[14px]">
+          <p
+            lang="vi"
+            className="text-center text-[13px] font-semibold leading-normal tracking-normal antialiased text-black sm:text-[14px]"
+            style={{ ...FF_NUNITO, fontWeight: 600 }}
+          >
             {children}
           </p>
         </div>

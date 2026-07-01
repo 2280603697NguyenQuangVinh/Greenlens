@@ -80,4 +80,8 @@ export interface StreakBundle {
   rewards: StreakRewardInfo
   milestones: RewardMilestone[]
   streakStatus: StreakStatusInfo
+  /** Ngày hoạt động cuối trước khoảng miss — hiển thị băng sau Reset. */
+  gapAnchorDate?: string | null
+  /** Các ngày trong tuần từng đóng băng (persist local). */
+  freezeGapDayKeys?: string[]
 }
