@@ -1,6 +1,7 @@
 export const LEVEL_ICON = new URL("./icon/level.png", import.meta.url).href
 export const XP_REWARD_ICON = new URL("./icon/xp.png", import.meta.url).href
 export const STREAK_ICON = new URL("./icon/fire.png", import.meta.url).href
+export const FREEZING_ICON = new URL("./icon/freezing.png", import.meta.url).href
 export const GAME_TASK_ICON = new URL("./icon/drop.png", import.meta.url).href
 export const QUIZ_TASK_ICON = new URL("./icon/quiz.png", import.meta.url).href
 export const PADLOCK_ICON = new URL("./icon/padlock.png", import.meta.url).href
