@@ -10,6 +10,10 @@ public interface IChildProfileRepository
         string childId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ChildProfile>> ListTopByMiniGameHighScoreAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task UpdateStreakAsync(
         string childId,
         string cognitoSub,

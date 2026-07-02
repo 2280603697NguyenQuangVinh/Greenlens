@@ -38,6 +38,14 @@ export type ChildProfileSetupResult = {
   profile: ChildProfileResponse
 }
 
+export type LeaderboardEntry = {
+  rank: number
+  childId: string
+  name: string
+  miniGameHighScore: number
+  isCurrentUser: boolean
+}
+
 async function readApiErrorMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => ({}))
   const record = body as { message?: string; detail?: string; title?: string }
@@ -210,6 +218,58 @@ export async function getChildProfileById(
   return res.json() as Promise<ChildProfileResponse>
 }
 
+/** Backend: GET /child-profiles/leaderboard */
+export async function getChildProfileLeaderboard(
+  currentChildId?: string,
+  limit = 3,
+  token?: string,
+): Promise<LeaderboardEntry[]> {
+  if (import.meta.env.VITE_USE_MOCK === "true") {
+    const profile = loadStoredProfile() ?? loadSavedProfile()
+    if (!profile) return []
+
+    return [
+      {
+        rank: 1,
+        childId: profile.badgeId,
+        name: profile.characterName?.trim() || "Bạn",
+        miniGameHighScore: 0,
+        isCurrentUser: true,
+      },
+    ]
+  }
+
+  let bearerToken = token ?? getAuthToken()
+  if (!bearerToken) {
+    bearerToken = await tryRefreshBearerToken()
+  }
+  if (!bearerToken) {
+    throw new ApiError("Bạn cần tạo nhân vật trước khi tiếp tục.")
+  }
+
+  const params = new URLSearchParams()
+  params.set("limit", String(Math.max(1, Math.min(limit, 50))))
+  if (currentChildId?.trim()) {
+    params.set("currentChildId", currentChildId.trim())
+  }
+
+  let res: Response
+  try {
+    res = await fetch(apiUrl(`/child-profiles/leaderboard?${params.toString()}`), {
+      headers: { Authorization: `Bearer ${bearerToken}` },
+    })
+  } catch {
+    throw new NetworkError("Không có kết nối mạng. Hãy thử lại sau nhé!")
+  }
+
+  if (!res.ok) {
+    const raw = await readApiErrorMessage(res, "Không tải được bảng xếp hạng.")
+    throw new ApiError(mapAuthErrorMessage(raw, res.status))
+  }
+
+  return res.json() as Promise<LeaderboardEntry[]>
+}
+
 /** Backend: POST /child-profiles — tạo hồ sơ trẻ (cần Bearer token). */
 export async function createChildProfile(
   cfg: AvatarConfig,
@@ -276,4 +336,3 @@ export async function setupChildProfile(
   const profile = await createChildProfile(cfg, characterName, token)
   return { token, profile }
 }
-

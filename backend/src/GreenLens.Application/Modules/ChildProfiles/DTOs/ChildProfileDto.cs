@@ -30,6 +30,13 @@ public sealed record ChildProfileResponse(
     [property: JsonPropertyName("createdAt")] DateTime CreatedAt,
     [property: JsonPropertyName("updatedAt")] DateTime UpdatedAt);
 
+public sealed record LeaderboardEntryDto(
+    [property: JsonPropertyName("rank")] int Rank,
+    [property: JsonPropertyName("childId")] string ChildId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("miniGameHighScore")] int MiniGameHighScore,
+    [property: JsonPropertyName("isCurrentUser")] bool IsCurrentUser);
+
 public sealed record BadgeStatusDto(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("name")] string Name,

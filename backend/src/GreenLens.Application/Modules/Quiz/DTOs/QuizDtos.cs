@@ -1,8 +1,7 @@
 namespace GreenLens.Application.Modules.Quiz.DTOs;
 
 public sealed record GenerateQuizRequest(
-    string ChildId,
-    string WasteType);
+    string ChildId);
 
 public sealed record CompleteQuizRequest(
     string SessionId,

@@ -101,6 +101,25 @@ public sealed class ChildProfileFunction
         }
     }
 
+    public async Task<APIGatewayProxyResponse> GetLeaderboardAsync(
+        APIGatewayProxyRequest request,
+        ILambdaContext context)
+    {
+        var currentChildId = request.QueryStringParameters is not null &&
+            request.QueryStringParameters.TryGetValue("currentChildId", out var currentChildIdValue)
+                ? currentChildIdValue
+                : null;
+
+        var limit = request.QueryStringParameters is not null &&
+            request.QueryStringParameters.TryGetValue("limit", out var limitValue) &&
+            int.TryParse(limitValue, out var parsedLimit)
+                ? parsedLimit
+                : 10;
+
+        var leaderboard = await _childProfileService.GetLeaderboardAsync(currentChildId, limit);
+        return JsonResponse(HttpStatusCode.OK, leaderboard);
+    }
+
     public async Task<APIGatewayProxyResponse> GetStreakAsync(
         APIGatewayProxyRequest request,
         ILambdaContext context)

@@ -139,6 +139,15 @@ functions:
           cors: true
           authorizer:
             arn: ${self:custom.cognitoAuthorizerArn}
+  getChildProfileLeaderboard:
+    handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetLeaderboardAsync
+    events:
+      - http:
+          path: child-profiles/leaderboard
+          method: get
+          cors: true
+          authorizer:
+            arn: ${self:custom.cognitoAuthorizerArn}
   getChildProfileStreak:
     handler: GreenLens.Api::GreenLens.Api.Functions.ChildProfileFunction::GetStreakAsync
     events:

@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { UserProfile } from "@/services/greenLens"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
 import { FF_FREDOKA } from "@/utils/constants"
@@ -11,6 +11,10 @@ import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
 import { AchievementBadgeCircle } from "@/features/dashboard/components/AchievementBadge"
 import { XpLevelBar } from "@/features/dashboard/components/XpLevelBar"
 import { hasSavedChild } from "@/services/childProfileStorage"
+import {
+  getChildProfileLeaderboard,
+  type LeaderboardEntry,
+} from "@/services/childProfile"
 
 const BG = BACKGROUND_IMAGE
 
@@ -41,6 +45,8 @@ export function DashboardScreen({
   const displayName = profile.characterName?.trim() || cfg.characterName?.trim() || "bạn"
   const hasAccount = hasSavedChild()
   const isUnlocked = (id: string) => DEFAULT_UNLOCKED.includes(id as (typeof DEFAULT_UNLOCKED)[number])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardError, setLeaderboardError] = useState(false)
 
   const dashboardBadges = useMemo(() => {
     return [...ACHIEVEMENTS]
@@ -53,15 +59,37 @@ export function DashboardScreen({
       .slice(0, 4)
   }, [])
 
-  const leaderboard = useMemo(() => {
-    if (!hasAccount) return []
-    const userXp = xp
-    return [
-      { rank: 1, name: displayName, xp: userXp, isUser: true },
-      { rank: 2, name: "Người A", xp: Math.max(0, userXp - 5), isUser: false },
-      { rank: 3, name: "Người B", xp: Math.max(0, userXp - 10), isUser: false },
-    ]
-  }, [displayName, hasAccount, xp])
+  useEffect(() => {
+    if (!hasAccount) {
+      setLeaderboard([])
+      return
+    }
+
+    let cancelled = false
+    setLeaderboardError(false)
+
+    void getChildProfileLeaderboard(profile.badgeId, 3)
+      .then((rows) => {
+        if (!cancelled) setLeaderboard(rows)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLeaderboardError(true)
+        setLeaderboard([
+          {
+            rank: 1,
+            childId: profile.badgeId,
+            name: displayName,
+            miniGameHighScore: 0,
+            isCurrentUser: true,
+          },
+        ])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [displayName, hasAccount, profile.badgeId, xp])
 
   return (
     <div
@@ -105,18 +133,25 @@ export function DashboardScreen({
               <div className="flex flex-1 flex-col justify-center bg-white/45 px-2.5 pb-2.5">
                 {leaderboard.map((row) => (
                   <div
-                    key={`${row.rank}-${row.name}`}
+                    key={row.childId}
                     className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[14px] ${
-                      row.isUser ? "bg-[#b9f0af]" : ""
+                      row.isCurrentUser ? "bg-[#b9f0af]" : ""
                     }`}
                   >
                     <span className="min-w-0 truncate">
                       {row.rank}. {row.name}
-                      {row.isUser ? " (bạn)" : ""}
+                      {row.isCurrentUser ? " (bạn)" : ""}
                     </span>
-                    <span className="ml-1 shrink-0 text-[13px]">{row.xp} XP</span>
+                    <span className="ml-1 shrink-0 text-[13px]">{row.miniGameHighScore} điểm</span>
                   </div>
                 ))}
+                {leaderboard.length < 2 ? (
+                  <p className="px-2 pt-1 text-center text-[11px] text-slate-600">
+                    {leaderboardError
+                      ? "Đang dùng dữ liệu của bạn."
+                      : "Chưa có người chơi khác."}
+                  </p>
+                ) : null}
               </div>
             </section>
           ) : null}

@@ -103,6 +103,45 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         };
     }
 
+    public async Task<IReadOnlyList<ChildProfile>> ListTopByMiniGameHighScoreAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var requestedLimit = Math.Clamp(limit, 1, 50);
+        var items = new List<Dictionary<string, AttributeValue>>();
+        Dictionary<string, AttributeValue>? lastKey = null;
+
+        do
+        {
+            var response = await _dynamoDb.ScanAsync(
+                new ScanRequest
+                {
+                    TableName = _tableName,
+                    ExclusiveStartKey = lastKey,
+                    ProjectionExpression = "childId, cognitoSub, characterName, gender, hair, eyes, outfit, avatarPreview, xp, #level, streak, lastStreakDate, streakFreezeDaysUsed, aiCameraScanCount, miniGameHighScore, badges, rewards, createdAt, updatedAt",
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#level"] = "level"
+                    }
+                },
+                cancellationToken);
+
+            items.AddRange(response.Items);
+            lastKey = response.LastEvaluatedKey is { Count: > 0 }
+                ? response.LastEvaluatedKey
+                : null;
+        }
+        while (lastKey is not null);
+
+        return items
+            .Select(ToProfile)
+            .OrderByDescending(profile => profile.MiniGameHighScore)
+            .ThenByDescending(profile => profile.Xp)
+            .ThenBy(profile => profile.CreatedAt)
+            .Take(requestedLimit)
+            .ToList();
+    }
+
     public Task UpdateStreakAsync(
         string childId,
         string cognitoSub,
@@ -131,6 +170,32 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         };
 
         return _dynamoDb.UpdateItemAsync(request, cancellationToken);
+    }
+
+    private static ChildProfile ToProfile(Dictionary<string, AttributeValue> item)
+    {
+        return new ChildProfile
+        {
+            ChildId = GetRequiredString(item, "childId"),
+            CognitoSub = GetRequiredString(item, "cognitoSub"),
+            CharacterName = GetRequiredString(item, "characterName"),
+            Gender = GetRequiredString(item, "gender"),
+            Hair = GetRequiredString(item, "hair"),
+            Eyes = GetRequiredString(item, "eyes"),
+            Outfit = GetRequiredString(item, "outfit"),
+            AvatarPreview = GetRequiredString(item, "avatarPreview"),
+            Xp = GetInt(item, "xp"),
+            Level = GetInt(item, "level", 1),
+            Streak = GetInt(item, "streak"),
+            LastStreakDate = GetString(item, "lastStreakDate"),
+            StreakFreezeDaysUsed = GetInt(item, "streakFreezeDaysUsed"),
+            AiCameraScanCount = GetInt(item, "aiCameraScanCount"),
+            MiniGameHighScore = GetInt(item, "miniGameHighScore"),
+            Badges = GetStringList(item, "badges"),
+            Rewards = GetStringList(item, "rewards"),
+            CreatedAt = GetDate(item, "createdAt"),
+            UpdatedAt = GetDate(item, "updatedAt")
+        };
     }
 
     private static AttributeValue RequiredString(string value, string fieldName)

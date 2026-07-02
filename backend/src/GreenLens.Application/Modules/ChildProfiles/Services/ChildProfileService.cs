@@ -123,6 +123,28 @@ public sealed class ChildProfileService(
         return ToResponse(profile);
     }
 
+    public async Task<IReadOnlyList<LeaderboardEntryDto>> GetLeaderboardAsync(
+        string? currentChildId,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var clampedLimit = Math.Clamp(limit, 1, 50);
+        var profiles = await childProfileRepository.ListTopByMiniGameHighScoreAsync(clampedLimit, cancellationToken);
+        var currentId = currentChildId?.Trim();
+
+        return profiles
+            .Select((profile, index) => new LeaderboardEntryDto(
+                index + 1,
+                profile.ChildId,
+                string.IsNullOrWhiteSpace(profile.CharacterName)
+                    ? $"Người chơi {index + 1}"
+                    : profile.CharacterName.Trim(),
+                Math.Max(profile.MiniGameHighScore, 0),
+                !string.IsNullOrWhiteSpace(currentId) &&
+                    string.Equals(profile.ChildId, currentId, StringComparison.Ordinal)))
+            .ToList();
+    }
+
     public async Task<ChildStreakResponse> GetStreakAsync(
         string childId,
         string cognitoSub,

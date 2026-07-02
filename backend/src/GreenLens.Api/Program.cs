@@ -477,6 +477,20 @@ app.MapPost("/child-profiles", async (
     }
 });
 
+app.MapGet("/child-profiles/leaderboard", async (
+    HttpRequest httpRequest,
+    IChildProfileService childProfileService,
+    [FromQuery] string? currentChildId,
+    [FromQuery] int? limit) =>
+{
+    var leaderboard = await childProfileService.GetLeaderboardAsync(
+        currentChildId,
+        limit ?? 10,
+        httpRequest.HttpContext.RequestAborted);
+
+    return Results.Ok(leaderboard);
+});
+
 app.MapGet("/child-profiles/{childId}", async (
     HttpRequest httpRequest,
     string childId,

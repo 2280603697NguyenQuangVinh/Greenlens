@@ -21,6 +21,20 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
         return Task.FromResult(profile);
     }
 
+    public Task<IReadOnlyList<ChildProfile>> ListTopByMiniGameHighScoreAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var profiles = _profiles.Values
+            .OrderByDescending(profile => profile.MiniGameHighScore)
+            .ThenByDescending(profile => profile.Xp)
+            .ThenBy(profile => profile.CreatedAt)
+            .Take(Math.Clamp(limit, 1, 50))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<ChildProfile>>(profiles);
+    }
+
     public Task UpdateStreakAsync(
         string childId,
         string cognitoSub,

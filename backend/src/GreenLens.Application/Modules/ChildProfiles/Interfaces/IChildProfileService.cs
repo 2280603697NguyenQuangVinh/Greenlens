@@ -14,6 +14,11 @@ public interface IChildProfileService
         string cognitoSub,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<LeaderboardEntryDto>> GetLeaderboardAsync(
+        string? currentChildId,
+        int limit = 10,
+        CancellationToken cancellationToken = default);
+
     Task<ChildStreakResponse> GetStreakAsync(
         string childId,
         string cognitoSub,

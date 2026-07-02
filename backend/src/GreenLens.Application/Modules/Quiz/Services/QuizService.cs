@@ -12,6 +12,7 @@ public sealed class QuizService : IQuizService
     private const int XpPerWrongAnswer = 5;
     private const int MinTargetAge = 6;
     private const int MaxTargetAge = 12;
+    private static readonly string[] RandomTopics = ["recyclable", "organic", "hazardous", "trash"];
 
     private readonly IChildQuizContextReader _childContextReader;
     private readonly IQuizGenerator _quizGenerator;
@@ -45,16 +46,12 @@ public sealed class QuizService : IQuizService
             throw new ArgumentException("childId is required.", nameof(request));
         }
 
-        if (string.IsNullOrWhiteSpace(request.WasteType))
-        {
-            throw new ArgumentException("wasteType is required.", nameof(request));
-        }
-
         var childContext = await _childContextReader.GetAsync(
             request.ChildId.Trim(),
             cognitoSub,
             cancellationToken);
         var targetAge = Random.Shared.Next(MinTargetAge, MaxTargetAge + 1);
+        var selectedTopic = RandomTopics[Random.Shared.Next(RandomTopics.Length)];
 
         IReadOnlyList<QuizQuestionDto> questions;
         var usedFallback = false;
@@ -62,14 +59,14 @@ public sealed class QuizService : IQuizService
         try
         {
             questions = await _quizGenerator.GenerateAsync(
-                request.WasteType.Trim(),
+                selectedTopic,
                 targetAge,
                 cancellationToken);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             questions = await _quizRepository.GetFallbackQuestionsAsync(
-                request.WasteType.Trim(),
+                selectedTopic,
                 targetAge,
                 cancellationToken);
             usedFallback = true;
@@ -79,7 +76,7 @@ public sealed class QuizService : IQuizService
         if (questions.Count < QuestionCount)
         {
             questions = NormalizeQuestions(await _quizRepository.GetFallbackQuestionsAsync(
-                request.WasteType.Trim(),
+                selectedTopic,
                 targetAge,
                 cancellationToken));
             usedFallback = true;
@@ -90,7 +87,7 @@ public sealed class QuizService : IQuizService
             $"quiz_{Guid.NewGuid():N}",
             childContext.ChildId,
             QuizGameType,
-            request.WasteType.Trim(),
+            selectedTopic,
             targetAge,
             "InProgress",
             questions,

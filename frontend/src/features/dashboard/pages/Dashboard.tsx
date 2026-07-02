@@ -5,12 +5,6 @@ import { Star, Lock, Play } from "lucide-react";
 import { useAuth } from "@/redux/authStore";
 import { useReward } from "@/redux/rewardStore";
 
-const LEADERBOARD = [
-  { rank: 1, name: "Phúc", xp: 1280, highlight: true },
-  { rank: 2, name: "Người A", xp: 1280, highlight: false },
-  { rank: 3, name: "Người B", xp: 1280, highlight: false },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
   const { xp } = useReward();
@@ -101,7 +95,7 @@ export default function Dashboard() {
           <h2 className="font-bold text-orange-900 text-center text-sm">Xếp Hạng</h2>
         </div>
         <ul className="divide-y divide-slate-100">
-          {LEADERBOARD.map((row) => (
+          {[{ rank: 1, name, xp: xpDisplay, highlight: true }].map((row) => (
             <li
               key={row.rank}
               className={`flex items-center gap-3 px-4 py-3 ${
@@ -113,6 +107,9 @@ export default function Dashboard() {
               <span className="font-bold text-green-600 text-sm">{row.xp} XP</span>
             </li>
           ))}
+          <li className="px-4 py-3 text-center text-xs font-semibold text-slate-500">
+            Chưa có người chơi khác.
+          </li>
         </ul>
       </section>
 

@@ -89,7 +89,7 @@ export default function App() {
   useEffect(() => {
     if (phase !== "app" || screen !== 3 || !gl.profile) return
     if (gl.quizQuestions.length > 0 || gl.quizLoading) return
-    void gl.loadQuiz("general")
+    void gl.loadQuiz()
   }, [phase, screen, gl.profile, gl.quizQuestions.length, gl.quizLoading, gl.loadQuiz])
 
   // If profile is cleared while in app, move back to avatar setup

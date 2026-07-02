@@ -89,7 +89,6 @@ function mapBackendQuestion(
 
 export async function generateQuiz(
   childId: string,
-  wasteType: string,
 ): Promise<QuizSessionResult> {
   if (import.meta.env.VITE_USE_MOCK === "true") {
     return {
@@ -102,14 +101,13 @@ export async function generateQuiz(
     method: "POST",
     body: JSON.stringify({
       childId,
-      wasteType,
     }),
   })
 
   return {
     sessionId: response.sessionId,
     questions: response.questions.map((q, i) =>
-      mapBackendQuestion(q, i, response.wasteType || wasteType),
+      mapBackendQuestion(q, i, response.wasteType || "trash"),
     ),
   }
 }

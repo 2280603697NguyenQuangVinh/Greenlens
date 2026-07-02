@@ -19,7 +19,7 @@ import {
 import { hasActiveSession, setChildId, getStoredCognitoSub, getChildId } from "@/services/childProfileStorage"
 import { getAuthToken, setAuthToken } from "@/services/authToken"
 import { tryRefreshBearerToken } from "@/services/sessionAuth"
-import { speakBrowser, mapWasteCategoryKey } from "@/utils/browserSpeech"
+import { speakBrowser } from "@/utils/browserSpeech"
 import type { AiCameraResult } from "@/services/aiCamera"
 import {
   markDailyCameraComplete,
@@ -136,31 +136,20 @@ export function useGreenLens() {
       if (!res) return null
       setLastScan(res.result)
       if (res.profile) setProfile(res.profile)
-      const childId = profile?.badgeId ?? getChildId()
-      if (childId) {
-        try {
-          const wasteType = mapWasteCategoryKey(res.result.categoryKey || res.result.category)
-          const session = await generateQuiz(childId, wasteType)
-          setQuizSessionId(session.sessionId)
-          setQuizQuestions(session.questions)
-        } catch {
-          // optional quiz preload
-        }
-      }
       return res.result
     },
     [profile, run],
   )
 
   const loadQuiz = useCallback(
-    async (wasteType = "general") => {
+    async () => {
       const childId = profile?.badgeId ?? getChildId()
       if (!childId) return false
 
       setQuizLoading(true)
       setError(null)
       try {
-        const session = await generateQuiz(childId, wasteType)
+        const session = await generateQuiz(childId)
         setQuizSessionId(session.sessionId)
         setQuizQuestions(session.questions)
         return true
@@ -257,21 +246,10 @@ export function useGreenLens() {
     speakBrowser(text)
   }, [])
 
-  const handleCameraResult = useCallback(async (result: AiCameraResult) => {
+  const handleCameraResult = useCallback(async (_result: AiCameraResult) => {
     setError(null)
     markDailyCameraComplete()
-    try {
-      const childId = profile?.badgeId ?? getChildId()
-      if (!childId) return
-
-      const wasteType = mapWasteCategoryKey(result.wasteCategory)
-      const session = await generateQuiz(childId, wasteType)
-      setQuizSessionId(session.sessionId)
-      setQuizQuestions(session.questions)
-    } catch {
-      // Quiz preload is optional — don't block camera flow.
-    }
-  }, [profile])
+  }, [])
 
   const logout = useCallback(() => {
     logoutSession()
