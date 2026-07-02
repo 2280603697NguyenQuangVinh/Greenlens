@@ -43,6 +43,11 @@ provider:
     QUIZ_BEDROCK_TIMEOUT_SECONDS: ${env:QUIZ_BEDROCK_TIMEOUT_SECONDS, '10'}
     QUIZ_SESSIONS_TABLE_NAME: GreenLens-QuizSessions
     QUIZ_FALLBACK_TABLE_NAME: GreenLens-QuizFallbacks
+    QUIZ_POOL_TABLE_NAME: GreenLens-QuizPool
+    QUIZ_POOL_REFILL_FUNCTION_NAME: ${self:service}-${sls:stage}-quizPoolRefill
+    QUIZ_POOL_TARGET_READY_COUNT: ${env:QUIZ_POOL_TARGET_READY_COUNT, '5'}
+    QUIZ_POOL_REFILL_THRESHOLD: ${env:QUIZ_POOL_REFILL_THRESHOLD, '2'}
+    QUIZ_POOL_ITEM_TTL_DAYS: ${env:QUIZ_POOL_ITEM_TTL_DAYS, '14'}
     QUIZ_DEFAULT_AGE: ${env:QUIZ_DEFAULT_AGE, '8'}
     MINI_GAME_RESULTS_TABLE_NAME: GreenLens-MiniGameResults
     MINI_GAME_ITEMS_TABLE_NAME: GreenLens-MiniGameItems
@@ -65,9 +70,15 @@ provider:
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-ChildProfiles
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-QuizSessions
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-QuizFallbacks
+            - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-QuizPool
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameResults
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameResults/index/*
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-MiniGameItems
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:service}-${sls:stage}-quizPoolRefill
         - Effect: Allow
           Action:
             - dynamodb:UpdateItem
@@ -202,6 +213,9 @@ functions:
           cors: true
           authorizer:
             arn: ${self:custom.cognitoAuthorizerArn}
+  quizPoolRefill:
+    handler: GreenLens.Api::GreenLens.Api.Functions.QuizFunction::RefillAsync
+    timeout: 60
   miniGameTrashSortItems:
     handler: GreenLens.Api::GreenLens.Api.Functions.MiniGameFunction::GetTrashSortItemsAsync
     events:
@@ -223,6 +237,25 @@ functions:
 
 resources:
   Resources:
+    QuizPoolTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GreenLens-QuizPool
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: childId
+            AttributeType: S
+          - AttributeName: quizSetId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: childId
+            KeyType: HASH
+          - AttributeName: quizSetId
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
     GreenLensApiWebAcl:
       Type: AWS::WAFv2::WebACL
       Properties:

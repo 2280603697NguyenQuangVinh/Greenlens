@@ -2,9 +2,11 @@ using System.Net;
 using System.Text.Json;
 using Amazon.BedrockRuntime;
 using Amazon.DynamoDBv2;
+using Amazon.Lambda;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using GreenLens.Api.Auth;
+using GreenLens.Api.Services;
 using GreenLens.Application.Modules.Quiz.DTOs;
 using GreenLens.Application.Modules.Quiz.Interfaces;
 using GreenLens.Application.Modules.Quiz.Services;
@@ -100,6 +102,20 @@ public sealed class QuizFunction
             });
     }
 
+    public async Task RefillAsync(
+        QuizPoolRefillRequest request,
+        ILambdaContext context)
+    {
+        try
+        {
+            await CreateRefillService().RefillAsync(request);
+        }
+        catch (Exception exception)
+        {
+            context.Logger.LogLine($"Quiz pool refill failed: {exception}");
+        }
+    }
+
     private async Task<APIGatewayProxyResponse> HandleAsync(
         APIGatewayProxyRequest request,
         ILambdaContext context,
@@ -138,19 +154,36 @@ public sealed class QuizFunction
     private static IQuizService CreateService()
     {
         var dynamoDb = new AmazonDynamoDBClient();
-        var options = new QuizDynamoDbOptions
-        {
-            ChildProfilesTableName = Environment.GetEnvironmentVariable("CHILD_PROFILES_TABLE_NAME") ??
-                Environment.GetEnvironmentVariable("DYNAMODB_CHILD_PROFILES_TABLE") ??
-                "GreenLens-ChildProfiles",
-            QuizSessionsTableName = Environment.GetEnvironmentVariable("QUIZ_SESSIONS_TABLE_NAME") ?? "GreenLens-QuizSessions",
-            QuizFallbackTableName = Environment.GetEnvironmentVariable("QUIZ_FALLBACK_TABLE_NAME") ?? "GreenLens-QuizFallbacks",
-            DefaultAge = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_DEFAULT_AGE"), out var defaultAge)
-                ? defaultAge
-                : 8
-        };
+        var options = BuildQuizDynamoDbOptions();
+        var repository = new DynamoDbQuizRepository(dynamoDb, options);
 
-        var generator = new BedrockQuizGenerator(
+        return new QuizService(
+            new DynamoDbChildQuizContextReader(dynamoDb, options),
+            repository,
+            repository,
+            new LambdaQuizPoolRefillQueue(
+                new AmazonLambdaClient(),
+                Environment.GetEnvironmentVariable("QUIZ_POOL_REFILL_FUNCTION_NAME") ?? string.Empty),
+            new DynamoDbChildProgressService(dynamoDb, options.ChildProfilesTableName),
+            options.PoolRefillThreshold);
+    }
+
+    private static IQuizPoolRefillService CreateRefillService()
+    {
+        var dynamoDb = new AmazonDynamoDBClient();
+        var options = BuildQuizDynamoDbOptions();
+        var repository = new DynamoDbQuizRepository(dynamoDb, options);
+
+        return new QuizPoolRefillService(
+            BuildQuizGenerator(),
+            repository,
+            options.PoolTargetReadyCount,
+            options.PoolItemTtlDays);
+    }
+
+    private static BedrockQuizGenerator BuildQuizGenerator()
+    {
+        return new BedrockQuizGenerator(
             new AmazonBedrockRuntimeClient(),
             new BedrockQuizOptions
             {
@@ -159,17 +192,36 @@ public sealed class QuizFunction
                     "apac.amazon.nova-micro-v1:0",
                 MaxTokens = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_BEDROCK_MAX_TOKENS"), out var maxTokens)
                     ? maxTokens
-                    : 700,
+                    : 520,
                 TimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_BEDROCK_TIMEOUT_SECONDS"), out var timeoutSeconds)
                     ? timeoutSeconds
                     : 10
             });
+    }
 
-        return new QuizService(
-            new DynamoDbChildQuizContextReader(dynamoDb, options),
-            generator,
-            new DynamoDbQuizRepository(dynamoDb, options),
-            new DynamoDbChildProgressService(dynamoDb, options.ChildProfilesTableName));
+    private static QuizDynamoDbOptions BuildQuizDynamoDbOptions()
+    {
+        return new QuizDynamoDbOptions
+        {
+            ChildProfilesTableName = Environment.GetEnvironmentVariable("CHILD_PROFILES_TABLE_NAME") ??
+                Environment.GetEnvironmentVariable("DYNAMODB_CHILD_PROFILES_TABLE") ??
+                "GreenLens-ChildProfiles",
+            QuizSessionsTableName = Environment.GetEnvironmentVariable("QUIZ_SESSIONS_TABLE_NAME") ?? "GreenLens-QuizSessions",
+            QuizFallbackTableName = Environment.GetEnvironmentVariable("QUIZ_FALLBACK_TABLE_NAME") ?? "GreenLens-QuizFallbacks",
+            QuizPoolTableName = Environment.GetEnvironmentVariable("QUIZ_POOL_TABLE_NAME") ?? "GreenLens-QuizPool",
+            DefaultAge = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_DEFAULT_AGE"), out var defaultAge)
+                ? defaultAge
+                : 8,
+            PoolTargetReadyCount = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_POOL_TARGET_READY_COUNT"), out var poolTarget)
+                ? poolTarget
+                : 5,
+            PoolRefillThreshold = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_POOL_REFILL_THRESHOLD"), out var refillThreshold)
+                ? refillThreshold
+                : 2,
+            PoolItemTtlDays = int.TryParse(Environment.GetEnvironmentVariable("QUIZ_POOL_ITEM_TTL_DAYS"), out var ttlDays)
+                ? ttlDays
+                : 14
+        };
     }
 
     private static APIGatewayProxyResponse JsonResponse(HttpStatusCode statusCode, object body)

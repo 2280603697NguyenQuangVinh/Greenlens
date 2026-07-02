@@ -67,7 +67,9 @@ public sealed class BedrockQuizGenerator : IQuizGenerator
         var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(text, JsonOptions)
             ?? throw new InvalidOperationException("Bedrock returned empty quiz JSON.");
 
-        if (questions.Count < 3 || ContainsUnsafeContent(questions))
+        if (questions.Count < 3 ||
+            questions.Take(3).Any(question => question.Options.Count != 4) ||
+            ContainsUnsafeContent(questions))
         {
             throw new InvalidOperationException("Bedrock returned unsafe or incomplete quiz content.");
         }
@@ -81,11 +83,11 @@ public sealed class BedrockQuizGenerator : IQuizGenerator
 Create exactly 3 different multiple-choice quiz questions in Vietnamese for a {{age}} year old child.
 Topic: waste sorting and reuse for "{{wasteType}}".
 Use friendly language for kids 6-12. Keep each question short.
-Each question must have exactly 3 options, one correct answer copied exactly from options, and one short explanation.
+Each question must have exactly 4 options, one correct answer copied exactly from options, and one short explanation.
 Make the questions varied each time.
 Avoid scary, adult, violent, medical, sexual, or unsafe content.
 Return only valid compact JSON array:
-[{"question":"...","options":["A","B","C"],"correct":"A","explanation":"..."}]
+[{"question":"...","options":["A","B","C","D"],"correct":"A","explanation":"..."}]
 """;
     }
 

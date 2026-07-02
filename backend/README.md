@@ -252,7 +252,7 @@ Tat ca API Quiz can header:
 Authorization: Bearer <access_token>
 ```
 
-Tao quiz 3 cau hoi:
+Tao quiz 3 cau hoi, moi cau 4 lua chon:
 
 ```http
 POST http://localhost:5001/quiz/generate
@@ -260,12 +260,11 @@ POST http://localhost:5001/quiz/generate
 
 ```json
 {
-  "childId": "child_...",
-  "wasteType": "paper"
+  "childId": "child_..."
 }
 ```
 
-Response gom `gameType`, `targetAge`, `sessionId`, `questions` va `usedFallback`. `targetAge` la do tuoi random tu 6-12 de tao noi dung quiz, khong phai tuoi that trong profile. Backend se goi Bedrock Nova Micro voi timeout 10 giay. Neu Bedrock timeout, het quota, hoac tra ve noi dung khong phu hop, backend dung bo cau hoi fallback trong DynamoDB `GreenLens-QuizFallbacks`.
+Response gom `gameType`, `targetAge`, `sessionId`, `questions` va `usedFallback`. `targetAge` la do tuoi random tu 6-12 de tao noi dung quiz, khong phai tuoi that trong profile. Backend uu tien claim mot bo quiz da sinh san trong DynamoDB `GreenLens-QuizPool` de response nhanh. Neu pool can hoac chua co, backend tra fallback 4 lua chon ngay va trigger refill ngam de Bedrock tao them bo quiz cho lan sau.
 
 Response mau:
 
@@ -274,7 +273,7 @@ Response mau:
   "sessionId": "quiz_...",
   "childId": "child_...",
   "gameType": "quiz",
-  "wasteType": "paper",
+  "wasteType": "recyclable",
   "targetAge": 9,
   "questions": [],
   "usedFallback": true

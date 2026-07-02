@@ -8,6 +8,7 @@ public sealed class QuizService : IQuizService
 {
     private const string QuizGameType = "quiz";
     private const int QuestionCount = 3;
+    private const int OptionCount = 4;
     private const int XpPerCorrectAnswer = 10;
     private const int XpPerWrongAnswer = 5;
     private const int MinTargetAge = 6;
@@ -15,20 +16,26 @@ public sealed class QuizService : IQuizService
     private static readonly string[] RandomTopics = ["recyclable", "organic", "hazardous", "trash"];
 
     private readonly IChildQuizContextReader _childContextReader;
-    private readonly IQuizGenerator _quizGenerator;
     private readonly IQuizRepository _quizRepository;
+    private readonly IQuizPoolRepository _quizPoolRepository;
+    private readonly IQuizPoolRefillQueue _quizPoolRefillQueue;
     private readonly IChildProgressService _childProgressService;
+    private readonly int _poolRefillThreshold;
 
     public QuizService(
         IChildQuizContextReader childContextReader,
-        IQuizGenerator quizGenerator,
         IQuizRepository quizRepository,
-        IChildProgressService childProgressService)
+        IQuizPoolRepository quizPoolRepository,
+        IQuizPoolRefillQueue quizPoolRefillQueue,
+        IChildProgressService childProgressService,
+        int poolRefillThreshold = 2)
     {
         _childContextReader = childContextReader;
-        _quizGenerator = quizGenerator;
         _quizRepository = quizRepository;
+        _quizPoolRepository = quizPoolRepository;
+        _quizPoolRefillQueue = quizPoolRefillQueue;
         _childProgressService = childProgressService;
+        _poolRefillThreshold = Math.Max(1, poolRefillThreshold);
     }
 
     public async Task<GenerateQuizResponse> GenerateAsync(
@@ -50,29 +57,17 @@ public sealed class QuizService : IQuizService
             request.ChildId.Trim(),
             cognitoSub,
             cancellationToken);
-        var targetAge = Random.Shared.Next(MinTargetAge, MaxTargetAge + 1);
-        var selectedTopic = RandomTopics[Random.Shared.Next(RandomTopics.Length)];
 
-        IReadOnlyList<QuizQuestionDto> questions;
+        var poolItem = await _quizPoolRepository.ClaimReadyAsync(
+            childContext.ChildId,
+            cognitoSub,
+            cancellationToken);
+
+        var selectedTopic = poolItem?.Topic ?? RandomTopics[Random.Shared.Next(RandomTopics.Length)];
+        var targetAge = poolItem?.TargetAge ?? Random.Shared.Next(MinTargetAge, MaxTargetAge + 1);
+        var questions = NormalizeQuestions(poolItem?.Questions ?? []);
         var usedFallback = false;
 
-        try
-        {
-            questions = await _quizGenerator.GenerateAsync(
-                selectedTopic,
-                targetAge,
-                cancellationToken);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            questions = await _quizRepository.GetFallbackQuestionsAsync(
-                selectedTopic,
-                targetAge,
-                cancellationToken);
-            usedFallback = true;
-        }
-
-        questions = NormalizeQuestions(questions);
         if (questions.Count < QuestionCount)
         {
             questions = NormalizeQuestions(await _quizRepository.GetFallbackQuestionsAsync(
@@ -81,6 +76,8 @@ public sealed class QuizService : IQuizService
                 cancellationToken));
             usedFallback = true;
         }
+
+        await EnqueueRefillIfNeededAsync(childContext, cognitoSub, cancellationToken);
 
         var now = DateTime.UtcNow;
         var session = new QuizSessionDto(
@@ -104,6 +101,39 @@ public sealed class QuizService : IQuizService
             session.TargetAge,
             session.Questions,
             usedFallback);
+    }
+
+    private async Task EnqueueRefillIfNeededAsync(
+        ChildQuizContext childContext,
+        string cognitoSub,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var readyCount = await _quizPoolRepository.CountReadyAsync(
+                childContext.ChildId,
+                cognitoSub,
+                cancellationToken);
+
+            if (readyCount < _poolRefillThreshold)
+            {
+                await _quizPoolRefillQueue.EnqueueAsync(
+                    new QuizPoolRefillRequest(childContext.ChildId, cognitoSub),
+                    cancellationToken);
+            }
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await _quizPoolRefillQueue.EnqueueAsync(
+                    new QuizPoolRefillRequest(childContext.ChildId, cognitoSub),
+                    cancellationToken);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
     }
 
     public async Task<QuizSessionDto> GetSessionAsync(
@@ -182,7 +212,7 @@ public sealed class QuizService : IQuizService
         return questions
             .Where(question =>
                 !string.IsNullOrWhiteSpace(question.Question) &&
-                question.Options.Count >= 3 &&
+                question.Options.Count == OptionCount &&
                 !string.IsNullOrWhiteSpace(question.Correct) &&
                 question.Options.Any(option => string.Equals(option, question.Correct, StringComparison.OrdinalIgnoreCase)) &&
                 !string.IsNullOrWhiteSpace(question.Explanation))
