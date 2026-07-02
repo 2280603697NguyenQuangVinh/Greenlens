@@ -13,6 +13,7 @@ import CameraModule from "@/features/camera/pages/CameraModule"
 import { QuizScreen } from "@/features/quiz/pages/QuizScreen"
 import { GameScreen } from "@/features/game/pages/GameScreen"
 import { ProfileScreen } from "@/features/profile/pages/ProfileScreen"
+import { LeaderboardRankClimbOverlay } from "@/features/dashboard/components/LeaderboardRankClimbOverlay"
 
 // ---------------------------------------------------------------------------
 // Auth phase types
@@ -64,6 +65,7 @@ export default function App() {
   const [avatarFlow, setAvatarFlow] = useState<AvatarFlow>("startup")
   const [screen, setScreen] = useState(1)   // main app screens (1–5)
   const [streakRefreshKey, setStreakRefreshKey] = useState(0)
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0)
   const [cfg, setCfg] = useState<AvatarConfig>(
     stored
       ? profileToCfg(stored)
@@ -96,8 +98,21 @@ export default function App() {
 
   const go = useCallback((s: number) => {
     setScreen(s)
-    if (s === 1) setStreakRefreshKey((k) => k + 1)
+    if (s === 1) {
+      setStreakRefreshKey((k) => k + 1)
+      setLeaderboardRefreshKey((k) => k + 1)
+    }
   }, [])
+
+  const handleClearRankClimb = useCallback(() => {
+    gl.clearRankClimb()
+    setLeaderboardRefreshKey((k) => k + 1)
+  }, [gl])
+
+  useEffect(() => {
+    if (phase !== "app" || screen !== 4 || !gl.profile) return
+    void gl.prepareGameLeaderboard()
+  }, [phase, screen, gl.profile, gl.prepareGameLeaderboard])
 
   const handleSaveAvatar = async (finalCfg: AvatarConfig) => {
     if (avatarFlow === "profile") {
@@ -234,6 +249,7 @@ export default function App() {
                     go={go}
                     profile={gl.profile}
                     streakRefreshKey={streakRefreshKey}
+                    leaderboardRefreshKey={leaderboardRefreshKey}
                   />
                 </motion.div>
               )}
@@ -296,6 +312,11 @@ export default function App() {
           {avatarFlow === "startup" && hasSavedChild() ? "🎮 Chọn nhân vật" : "🎨 Tạo nhân vật"}
         </p>
       )}
+
+      <LeaderboardRankClimbOverlay
+        event={gl.rankClimb}
+        onComplete={handleClearRankClimb}
+      />
     </div>
   )
 }

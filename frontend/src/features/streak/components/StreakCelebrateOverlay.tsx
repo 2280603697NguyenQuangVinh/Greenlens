@@ -76,6 +76,7 @@ export function StreakCelebrateOverlay({
   streakStatus,
   gapAnchorDate,
   freezeGapDayKeys,
+  recoveredGapDayKeys,
   onComplete,
 }: {
   open: boolean
@@ -85,6 +86,7 @@ export function StreakCelebrateOverlay({
   streakStatus?: StreakStatusInfo
   gapAnchorDate?: string | null
   freezeGapDayKeys?: string[]
+  recoveredGapDayKeys?: string[]
   onComplete: () => void
 }) {
   const [visible, setVisible] = useState(false)
@@ -114,6 +116,7 @@ export function StreakCelebrateOverlay({
         lastActiveDate,
         gapAnchorDate,
         freezeGapDayKeys,
+        recoveredGapDayKeys,
       }),
     )
 
@@ -142,6 +145,7 @@ export function StreakCelebrateOverlay({
     lastActiveDate,
     gapAnchorDate,
     freezeGapDayKeys,
+    recoveredGapDayKeys,
   ])
 
   const displayStreak = Math.max(currentStreak, 1)
@@ -214,6 +218,7 @@ export function StreakCelebrateOverlay({
                   streakStatus,
                   gapAnchorDate,
                   freezeGapDayKeys,
+                  recoveredGapDayKeys,
                 })
                 const style = DOT_STYLES[isToday && todayPhase !== "idle" ? "today-done" : state]
                 const isRecoverDay =
@@ -228,6 +233,7 @@ export function StreakCelebrateOverlay({
                     lastActiveDate,
                     gapAnchorDate,
                     freezeGapDayKeys,
+                    recoveredGapDayKeys,
                   })
                 const recoverDelay = getRecoverFreezeStaggerDelay(
                   index,

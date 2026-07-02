@@ -84,6 +84,7 @@ export function WeeklyCalendar({
   streakStatus,
   gapAnchorDate = null,
   freezeGapDayKeys = [],
+  recoveredGapDayKeys = [],
   animateToday = false,
   compact = false,
 }: {
@@ -93,6 +94,7 @@ export function WeeklyCalendar({
   streakStatus?: StreakStatusInfo
   gapAnchorDate?: string | null
   freezeGapDayKeys?: string[]
+  recoveredGapDayKeys?: string[]
   animateToday?: boolean
   compact?: boolean
 }) {
@@ -125,6 +127,7 @@ export function WeeklyCalendar({
             streakStatus,
             gapAnchorDate,
             freezeGapDayKeys,
+            recoveredGapDayKeys,
           })
           const style = STATE_STYLES[state]
           const isToday = index === todayIndex
@@ -139,6 +142,7 @@ export function WeeklyCalendar({
               lastActiveDate,
               gapAnchorDate,
               freezeGapDayKeys,
+              recoveredGapDayKeys,
             })
           const recoverDelay = getRecoverFreezeStaggerDelay(index, streakStatus, freezeGapDayKeys)
 
