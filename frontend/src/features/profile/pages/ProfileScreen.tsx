@@ -17,16 +17,12 @@ export function ProfileScreen({
   profile,
   onEditAvatar,
   onLogout,
-  onAdminLogin,
-  adminAuthenticated = false,
 }: {
   cfg: AvatarConfig
   go: (s: number) => void
   profile: UserProfile
   onEditAvatar: () => void
   onLogout: () => void
-  onAdminLogin: () => void
-  adminAuthenticated?: boolean
 }) {
   const xp = profile.xp ?? 0
 
@@ -96,17 +92,6 @@ export function ProfileScreen({
           className="mx-auto mt-2 block rounded-full bg-[#22c55e] px-4 py-2 text-sm font-bold text-white active:scale-95"
         >
           Chỉnh sửa Avatar
-        </button>
-        <button
-          type="button"
-          onClick={onAdminLogin}
-          className={`mx-auto mt-3 block rounded-full px-4 py-2 text-sm font-bold border active:scale-95 ${
-            adminAuthenticated
-              ? "bg-green-600 border-green-700 text-white"
-              : "bg-white/90 border-green-300 text-green-700"
-          }`}
-        >
-          {adminAuthenticated ? "Admin mode đang bật" : "Admin Login"}
         </button>
       </div>
 

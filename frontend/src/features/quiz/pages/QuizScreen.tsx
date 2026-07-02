@@ -1,8 +1,31 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import type { QuizQuestion } from "@/services/greenLens"
-import { FALLBACK_QUIZ, FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
+import { wasteTypeEmoji, wasteTypeLabel } from "@/services/quiz/quizApi"
+import { FF_QUIZ } from "@/utils/constants"
+import { CHECK_ICON, LETTER_X_ICON, QUIZ_TASK_ICON, XP_REWARD_ICON } from "@/assets/iconAssets"
 import type { LocalQuizItem } from "@/utils/types"
+
+const QUIZ_FONT = { ...FF_QUIZ } as const
+const QUIZ_FONT_BOLD = { ...FF_QUIZ, fontWeight: 800 as const }
+const QUIZ_FONT_SEMI = { ...FF_QUIZ, fontWeight: 600 as const }
+
+function QuizShell({
+  children,
+  className = "",
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={`h-full flex flex-col ${className}`}
+      style={{ ...QUIZ_FONT, background: "#E8F8EF" }}
+    >
+      {children}
+    </div>
+  )
+}
 
 function mapQuestions(questions: QuizQuestion[]): LocalQuizItem[] {
   return questions.map((q) => ({
@@ -14,28 +37,49 @@ function mapQuestions(questions: QuizQuestion[]): LocalQuizItem[] {
   }))
 }
 
+type QuizMeta = {
+  wasteType: string
+  targetAge: number
+}
+
+type QuizCompleteResult = {
+  xpEarned: number
+  score?: number
+}
+
 type Props = {
   onBack: () => void
   busy: boolean
   loading?: boolean
+  quizMeta?: QuizMeta | null
   apiQuestions: QuizQuestion[]
-  onComplete: (correct: number, total: number) => Promise<number | null>
+  onRetry?: () => Promise<boolean> | boolean
+  onComplete: (correct: number, total: number) => Promise<QuizCompleteResult | null>
 }
 
-export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComplete }: Props) {
-  const QUIZ = useMemo(
-    () => (apiQuestions.length > 0 ? mapQuestions(apiQuestions) : FALLBACK_QUIZ),
-    [apiQuestions],
-  )
+export function QuizScreen({
+  onBack,
+  busy,
+  loading = false,
+  quizMeta = null,
+  apiQuestions,
+  onRetry,
+  onComplete,
+}: Props) {
+  const QUIZ = useMemo(() => mapQuestions(apiQuestions), [apiQuestions])
 
   const [qi, setQi] = useState(0)
   const [sel, setSel] = useState<number | null>(null)
   const [showXP, setShowXP] = useState(false)
+  const [xpPopup, setXpPopup] = useState("+10 XP")
   const [totalXP, setTotalXP] = useState(0)
   const [done, setDone] = useState(false)
   const [correctCount, setCorrectCount] = useState(0)
+  const [finalScore, setFinalScore] = useState(0)
 
   const q = QUIZ[qi]
+  const topicLabel = quizMeta ? wasteTypeLabel(quizMeta.wasteType) : "Eco Quiz"
+  const topicEmoji = quizMeta ? wasteTypeEmoji(quizMeta.wasteType) : "🧠"
 
   const answer = (i: number) => {
     if (sel !== null || busy || !q) return
@@ -43,11 +87,13 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
     const isCorrect = i === q.a
     const nextCorrect = isCorrect ? correctCount + 1 : correctCount
     if (isCorrect) {
+      setXpPopup("+10 XP")
       setShowXP(true)
-      setTotalXP((t) => t + 10)
       setTimeout(() => setShowXP(false), 1500)
     } else {
-      setTotalXP((t) => t + 5)
+      setXpPopup("+5 XP")
+      setShowXP(true)
+      setTimeout(() => setShowXP(false), 1500)
     }
     setCorrectCount(nextCorrect)
 
@@ -56,8 +102,11 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
         setQi((n) => n + 1)
         setSel(null)
       } else {
-        const earned = await onComplete(nextCorrect, QUIZ.length)
-        if (earned !== null) setTotalXP(earned)
+        const res = await onComplete(nextCorrect, QUIZ.length)
+        if (res) {
+          setTotalXP(res.xpEarned)
+          setFinalScore(res.score ?? nextCorrect * 10)
+        }
         setDone(true)
       }
     }, 1600)
@@ -65,39 +114,109 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
 
   if (done) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-[#F0FDF4] px-6">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300 }} className="text-center">
+      <QuizShell className="items-center justify-center px-6">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 300 }}
+          className="text-center w-full max-w-sm"
+        >
           <div className="text-7xl mb-4">🏆</div>
-          <h2 className="text-3xl font-bold text-green-700 mb-2" style={{ ...FF_FREDOKA, fontWeight: 700 }}>Nicely Done!</h2>
-          <p className="text-gray-500 mb-6" style={FF_COMFORTAA}>You answered all {QUIZ.length} questions</p>
-          <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl px-8 py-5 mb-8 inline-block">
-            <div className="text-amber-400 text-sm font-semibold mb-1" style={FF_COMFORTAA}>XP Earned</div>
-            <div className="text-5xl font-bold text-amber-500" style={{ ...FF_FREDOKA, fontWeight: 700 }}>+{totalXP} ⭐</div>
+          <h2 className="text-3xl text-green-800 mb-2" style={QUIZ_FONT_BOLD}>
+            Làm tốt lắm!
+          </h2>
+          <p className="text-green-700/90 mb-5 text-sm" style={QUIZ_FONT_SEMI}>
+            Em trả lời đúng {correctCount}/{QUIZ.length} câu
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="rounded-3xl border-2 border-green-200 bg-white px-4 py-4">
+              <div className="text-xs text-green-600 mb-1" style={QUIZ_FONT_SEMI}>
+                Điểm số
+              </div>
+              <div className="text-3xl text-green-700" style={QUIZ_FONT_BOLD}>
+                {finalScore}
+              </div>
+            </div>
+            <div className="rounded-3xl border-2 border-amber-200 bg-amber-50 px-4 py-4">
+              <div
+                className="text-xs text-amber-600 mb-1 flex items-center justify-center gap-1"
+                style={QUIZ_FONT_SEMI}
+              >
+                <img src={XP_REWARD_ICON} alt="" className="h-4 w-4" />
+                XP nhận được
+              </div>
+              <div className="text-3xl text-amber-500" style={QUIZ_FONT_BOLD}>
+                +{totalXP}
+              </div>
+            </div>
           </div>
+
           <button
+            type="button"
             onClick={onBack}
             disabled={busy}
-            className="w-full py-4 rounded-3xl text-white font-bold text-lg active:scale-95 transition-transform"
-            style={{ ...FF_FREDOKA, fontWeight: 700, background: "linear-gradient(135deg,#22C55E,#16A34A)" }}
+            className="w-full py-4 rounded-3xl text-white text-lg active:scale-95 transition-transform disabled:opacity-60"
+            style={{ ...QUIZ_FONT_BOLD, background: "linear-gradient(135deg,#22C55E,#16A34A)" }}
           >
-            Back to Home 🏠
+            Về trang chủ 🏠
           </button>
         </motion.div>
-      </div>
+      </QuizShell>
+    )
+  }
+
+  if (loading) {
+    return (
+      <QuizShell className="items-center justify-center px-6">
+        <img src={QUIZ_TASK_ICON} alt="" className="h-20 w-20 mb-4 animate-pulse" />
+        <h2 className="text-xl text-green-800 mb-2" style={QUIZ_FONT_BOLD}>
+          Đang tạo câu đố...
+        </h2>
+        <p className="text-sm text-green-700/80 text-center" style={QUIZ_FONT_SEMI}>
+          Đang tải câu hỏi phân loại rác cho em
+        </p>
+      </QuizShell>
     )
   }
 
   if (!q) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-[#F0FDF4] px-6">
-        <p style={FF_COMFORTAA}>Hãy quét rác trước để tạo quiz phù hợp.</p>
-        <button onClick={onBack} className="mt-4 px-6 py-3 rounded-2xl bg-green-600 text-white font-bold">← Home</button>
-      </div>
+      <QuizShell className="items-center justify-center px-6">
+        <div className="text-5xl mb-4">😅</div>
+        <h2 className="text-xl text-green-800 mb-2 text-center" style={QUIZ_FONT_BOLD}>
+          Chưa tải được câu đố
+        </h2>
+        <p className="text-sm text-green-700/80 text-center mb-6" style={QUIZ_FONT_SEMI}>
+          Hãy thử lại để bắt đầu phiên quiz mới
+        </p>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={() => void onRetry()}
+              disabled={busy}
+              className="w-full py-4 rounded-3xl text-white text-base active:scale-95 disabled:opacity-60"
+              style={{ ...QUIZ_FONT_BOLD, background: "linear-gradient(135deg,#22C55E,#16A34A)" }}
+            >
+              Thử lại
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full py-4 rounded-3xl bg-white border-2 border-green-300 text-green-700 text-base active:scale-95"
+            style={QUIZ_FONT_BOLD}
+          >
+            ← Về trang chủ
+          </button>
+        </div>
+      </QuizShell>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#F0FDF4] relative overflow-hidden">
+    <QuizShell className="relative overflow-hidden">
       <AnimatePresence>
         {showXP && (
           <motion.div
@@ -105,66 +224,89 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
             animate={{ opacity: 0, y: -80 }}
             transition={{ duration: 1.2 }}
             className="absolute z-50 left-1/2 top-1/2 pointer-events-none"
-            style={{ ...FF_FREDOKA, fontWeight: 700 }}
           >
-            <div className="text-2xl font-bold text-amber-400 drop-shadow-lg">+10 XP ⭐</div>
+            <div className="text-2xl text-amber-500 drop-shadow-lg" style={QUIZ_FONT_BOLD}>
+              {xpPopup} ⭐
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
-        <button type="button" onClick={onBack} className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-          <span className="text-gray-600">←</span>
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-green-100 active:scale-95"
+        >
+          <span className="text-green-700">←</span>
         </button>
-        <h2 className="text-green-700 font-bold text-base" style={{ ...FF_FREDOKA, fontWeight: 700 }}>🧠 Eco Quiz</h2>
-        <div className="bg-amber-100 text-amber-600 text-sm font-bold px-3 py-1 rounded-full" style={FF_FREDOKA}>
+        <div className="flex flex-col items-center">
+          <h2 className="text-green-800 text-base flex items-center gap-1.5" style={QUIZ_FONT_BOLD}>
+            <img src={QUIZ_TASK_ICON} alt="" className="h-5 w-5" />
+            Eco Quiz
+          </h2>
+          <span className="text-[11px] text-green-700/80 mt-0.5" style={QUIZ_FONT_SEMI}>
+            {topicEmoji} Chủ đề: {topicLabel}
+            {quizMeta ? ` · ${quizMeta.targetAge} tuổi` : ""}
+          </span>
+        </div>
+        <div
+          className="bg-white text-green-700 text-sm px-3 py-1 rounded-full border border-green-200"
+          style={QUIZ_FONT_BOLD}
+        >
           {qi + 1}/{QUIZ.length}
         </div>
       </div>
 
-      {loading ? (
-        <p className="px-4 pb-2 text-center text-xs font-semibold text-green-700" style={FF_COMFORTAA}>
-          Đang tải câu đố từ server...
-        </p>
-      ) : null}
-
-      <div className="px-4 mb-4 flex-shrink-0">
-        <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+      <div className="px-4 mb-3 flex-shrink-0">
+        <div className="h-3 bg-white/80 rounded-full overflow-hidden border border-green-100">
           <motion.div
             animate={{ width: `${((qi + 1) / QUIZ.length) * 100}%` }}
             transition={{ duration: 0.4 }}
             className="h-full rounded-full"
-            style={{ background: "linear-gradient(90deg,#22C55E,#FBBF24)" }}
+            style={{ background: "linear-gradient(90deg,#22C55E,#86EFAC)" }}
           />
         </div>
       </div>
 
-      <div className="flex-1 px-4 flex flex-col gap-4 overflow-hidden">
-        <motion.div key={qi} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="bg-white rounded-3xl p-5 shadow-md flex-shrink-0">
+      <div className="flex-1 px-4 flex flex-col gap-3 overflow-hidden pb-4">
+        <motion.div
+          key={qi}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white rounded-3xl p-5 shadow-md border-2 border-green-100 flex-shrink-0"
+        >
           <div className="flex justify-center mb-3">
-            <span style={{ fontSize: 56 }}>{q.e}</span>
+            <span style={{ fontSize: 52 }}>{q.e}</span>
           </div>
-          <h3 className="text-xl font-bold text-gray-800 text-center leading-snug" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
+          <h3 className="text-lg text-green-900 text-center leading-snug" style={QUIZ_FONT_BOLD}>
             {q.q}
           </h3>
         </motion.div>
 
-        <div className="flex flex-col gap-3 flex-1">
+        <div className="flex flex-col gap-2.5 flex-1">
           {q.o.map((opt, i) => {
-            let bg = "bg-white",
-              border = "border-gray-200",
-              text = "text-gray-700"
+            let bg = "bg-white"
+            let border = "border-green-100"
+            let text = "text-green-900"
+
             if (sel !== null) {
               if (i === q.a) {
                 bg = "bg-green-500"
-                border = "border-green-500"
+                border = "border-green-600"
                 text = "text-white"
-              } else if (i === sel && sel !== q.a) {
-                bg = "bg-red-500"
+              } else if (i === sel) {
+                bg = "bg-red-400"
                 border = "border-red-500"
                 text = "text-white"
+              } else {
+                bg = "bg-white/70"
+                border = "border-green-50"
+                text = "text-green-700/50"
               }
             }
+
             return (
               <motion.button
                 key={i}
@@ -172,12 +314,16 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
                 onClick={() => answer(i)}
                 disabled={sel !== null || busy}
                 whileTap={{ scale: 0.97 }}
-                className={`w-full py-4 px-5 rounded-2xl border-2 font-bold text-base text-left flex items-center justify-between transition-all ${bg} ${border} ${text} shadow-sm`}
-                style={{ ...FF_FREDOKA, fontWeight: 600 }}
+                className={`w-full py-3.5 px-4 rounded-2xl border-2 text-base text-left flex items-center justify-between transition-all ${bg} ${border} ${text} shadow-sm`}
+                style={QUIZ_FONT_SEMI}
               >
-                <span>{opt}</span>
-                {sel !== null && i === q.a && <span>✓</span>}
-                {sel !== null && i === sel && sel !== q.a && <span>✗</span>}
+                <span className="pr-2">{opt}</span>
+                {sel !== null && i === q.a ? (
+                  <img src={CHECK_ICON} alt="" className="h-5 w-5 flex-shrink-0" />
+                ) : null}
+                {sel !== null && i === sel && sel !== q.a ? (
+                  <img src={LETTER_X_ICON} alt="" className="h-5 w-5 flex-shrink-0" />
+                ) : null}
               </motion.button>
             )
           })}
@@ -185,12 +331,19 @@ export function QuizScreen({ onBack, busy, loading = false, apiQuestions, onComp
 
         <AnimatePresence>
           {sel !== null && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex-shrink-0 mb-4">
-              <p className="text-green-700 text-sm font-semibold" style={FF_COMFORTAA}>💡 {q.tip}</p>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white border-2 border-green-200 rounded-2xl px-4 py-3 flex-shrink-0"
+            >
+              <p className="text-green-800 text-sm leading-relaxed" style={QUIZ_FONT_SEMI}>
+                💡 {q.tip}
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </QuizShell>
   )
 }

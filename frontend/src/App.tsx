@@ -8,7 +8,6 @@ import { BRAND_MINT_BG, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { AvatarScreen } from "@/features/avatar/pages/AvatarScreen"
 import { SplashScreen } from "@/features/splash/pages/SplashScreen"
-import { AdminLoginScreen } from "@/features/auth/pages/AdminLoginScreen"
 import { DashboardScreen } from "@/features/dashboard/pages/DashboardScreen"
 import CameraModule from "@/features/camera/pages/CameraModule"
 import { QuizScreen } from "@/features/quiz/pages/QuizScreen"
@@ -63,8 +62,6 @@ export default function App() {
 
   const [phase, setPhase] = useState<AppPhase>("splash")
   const [avatarFlow, setAvatarFlow] = useState<AvatarFlow>("startup")
-  const [showAdminLogin, setShowAdminLogin] = useState(false)
-  const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [screen, setScreen] = useState(1)   // main app screens (1–5)
   const [streakRefreshKey, setStreakRefreshKey] = useState(0)
   const [cfg, setCfg] = useState<AvatarConfig>(
@@ -133,22 +130,6 @@ export default function App() {
     setScreen(5)
   }
 
-  const handleOpenAdminLogin = () => {
-    setShowAdminLogin(true)
-  }
-
-  const handleCloseAdminLogin = () => {
-    setShowAdminLogin(false)
-  }
-
-  const handleAdminPasswordLogin = (password: string) => {
-    if (password === "admin123") {
-      setAdminAuthenticated(true)
-      return true
-    }
-    return false
-  }
-
   const handleLogout = () => {
     gl.logout()
     const saved = loadSavedProfile()
@@ -156,8 +137,6 @@ export default function App() {
     setPhase("avatar")
     setScreen(1)
     setAvatarFlow("startup")
-    setShowAdminLogin(false)
-    setAdminAuthenticated(false)
   }
 
   const handleContinueSaved = async () => {
@@ -232,8 +211,6 @@ export default function App() {
                     onSave={handleSaveAvatar}
                     onClearError={() => gl.setError(null)}
                     onCancel={avatarFlow === "profile" ? handleCancelAvatarEdit : undefined}
-                    onAdminLogin={handleOpenAdminLogin}
-                    adminAuthenticated={adminAuthenticated}
                     isStartupFlow={avatarFlow === "startup"}
                     savedCharacterName={
                       avatarFlow === "startup" && hasSavedChild()
@@ -275,11 +252,16 @@ export default function App() {
                   <QuizScreen
                     busy={gl.busy}
                     loading={gl.quizLoading}
+                    quizMeta={gl.quizMeta}
                     apiQuestions={gl.quizQuestions}
-                    onBack={() => go(1)}
+                    onBack={() => {
+                      gl.resetQuizSession()
+                      go(1)
+                    }}
+                    onRetry={gl.loadQuiz}
                     onComplete={async (correct, total) => {
                       const res = await gl.completeQuiz(correct, total)
-                      return res?.xpEarned ?? null
+                      return res
                     }}
                   />
                 </motion.div>
@@ -301,18 +283,10 @@ export default function App() {
                     profile={gl.profile}
                     onEditAvatar={handleEditAvatarFromProfile}
                     onLogout={handleLogout}
-                    onAdminLogin={handleOpenAdminLogin}
-                    adminAuthenticated={adminAuthenticated}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
-            {(phase === "avatar" || phase === "app") && showAdminLogin ? (
-              <AdminLoginScreen
-                onClose={handleCloseAdminLogin}
-                onSubmit={handleAdminPasswordLogin}
-              />
-            ) : null}
           </div>
       </div>
 

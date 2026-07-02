@@ -28,9 +28,33 @@ type CompleteQuizResponse = {
   status: string
 }
 
-export type QuizSessionResult = {
+export type QuizSessionMeta = {
   sessionId: string
+  wasteType: string
+  targetAge: number
+  usedFallback: boolean
+}
+
+export type QuizSessionResult = QuizSessionMeta & {
   questions: QuizQuestion[]
+}
+
+export function wasteTypeLabel(wasteType: string): string {
+  const lower = wasteType.toLowerCase()
+  if (lower.includes("recycl")) return "Tái chế"
+  if (lower.includes("organic") || lower.includes("hữu")) return "Hữu cơ"
+  if (lower.includes("hazard") || lower.includes("nguy")) return "Nguy hại"
+  if (lower.includes("trash")) return "Rác thường"
+  return "Môi trường"
+}
+
+export function wasteTypeEmoji(wasteType: string): string {
+  const lower = wasteType.toLowerCase()
+  if (lower.includes("organic") || lower.includes("hữu")) return "🍃"
+  if (lower.includes("hazard") || lower.includes("nguy")) return "⚠️"
+  if (lower.includes("recycl") || lower.includes("paper") || lower.includes("plastic")) return "♻️"
+  if (lower.includes("trash")) return "🗑️"
+  return "🌍"
 }
 
 const MOCK_QUESTIONS: QuizQuestion[] = [
@@ -61,11 +85,7 @@ const MOCK_QUESTIONS: QuizQuestion[] = [
 ]
 
 function emojiForWasteType(wasteType: string): string {
-  const lower = wasteType.toLowerCase()
-  if (lower.includes("organic") || lower.includes("hữu")) return "🍃"
-  if (lower.includes("hazard") || lower.includes("nguy")) return "⚠️"
-  if (lower.includes("recycl") || lower.includes("paper") || lower.includes("plastic")) return "♻️"
-  return "🌍"
+  return wasteTypeEmoji(wasteType)
 }
 
 function mapBackendQuestion(
@@ -93,6 +113,9 @@ export async function generateQuiz(
   if (import.meta.env.VITE_USE_MOCK === "true") {
     return {
       sessionId: `mock_quiz_${Date.now()}`,
+      wasteType: "recyclable",
+      targetAge: 8,
+      usedFallback: false,
       questions: MOCK_QUESTIONS,
     }
   }
@@ -106,6 +129,9 @@ export async function generateQuiz(
 
   return {
     sessionId: response.sessionId,
+    wasteType: response.wasteType,
+    targetAge: response.targetAge,
+    usedFallback: response.usedFallback,
     questions: response.questions.map((q, i) =>
       mapBackendQuestion(q, i, response.wasteType || "trash"),
     ),
