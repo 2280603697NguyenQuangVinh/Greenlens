@@ -1,11 +1,13 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using Amazon.Lambda;
 using Amazon.CognitoIdentityProvider;
 using Amazon.BedrockRuntime;
 using Amazon.Rekognition;
 using Amazon.S3;
 using GreenLens.Api.Auth;
 using GreenLens.Api.Repositories;
+using GreenLens.Api.Services;
 using GreenLens.Application.Modules.AiCamera.DTOs;
 using GreenLens.Application.Modules.AiCamera.Interfaces;
 using GreenLens.Application.Modules.AiCamera.Services;
@@ -82,6 +84,7 @@ builder.Services.AddSingleton<CognitoSubExtractor>();
 builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
 builder.Services.AddSingleton<IAmazonRekognition>(_ => new AmazonRekognitionClient());
 builder.Services.AddSingleton<IAmazonBedrockRuntime>(_ => new AmazonBedrockRuntimeClient());
+builder.Services.AddSingleton<IAmazonLambda>(_ => new AmazonLambdaClient());
 builder.Services.AddSingleton<IAmazonCognitoIdentityProvider>(_ => new AmazonCognitoIdentityProviderClient());
 builder.Services.AddSingleton(new S3BucketOptions
 {
@@ -115,7 +118,7 @@ builder.Services.AddSingleton(new BedrockQuizOptions
     ModelId = builder.Configuration["QUIZ_BEDROCK_MODEL_ID"] ??
         builder.Configuration["BEDROCK_MODEL_ID"] ??
         "apac.amazon.nova-micro-v1:0",
-    MaxTokens = builder.Configuration.GetValue<int?>("QUIZ_BEDROCK_MAX_TOKENS") ?? 700,
+    MaxTokens = builder.Configuration.GetValue<int?>("QUIZ_BEDROCK_MAX_TOKENS") ?? 520,
     TimeoutSeconds = builder.Configuration.GetValue<int?>("QUIZ_BEDROCK_TIMEOUT_SECONDS") ?? 10
 });
 builder.Services.AddSingleton(new QuizDynamoDbOptions
@@ -125,7 +128,11 @@ builder.Services.AddSingleton(new QuizDynamoDbOptions
         "GreenLens-ChildProfiles",
     QuizSessionsTableName = builder.Configuration["QUIZ_SESSIONS_TABLE_NAME"] ?? "GreenLens-QuizSessions",
     QuizFallbackTableName = builder.Configuration["QUIZ_FALLBACK_TABLE_NAME"] ?? "GreenLens-QuizFallbacks",
-    DefaultAge = builder.Configuration.GetValue<int?>("QUIZ_DEFAULT_AGE") ?? 8
+    QuizPoolTableName = builder.Configuration["QUIZ_POOL_TABLE_NAME"] ?? "GreenLens-QuizPool",
+    DefaultAge = builder.Configuration.GetValue<int?>("QUIZ_DEFAULT_AGE") ?? 8,
+    PoolTargetReadyCount = builder.Configuration.GetValue<int?>("QUIZ_POOL_TARGET_READY_COUNT") ?? 5,
+    PoolRefillThreshold = builder.Configuration.GetValue<int?>("QUIZ_POOL_REFILL_THRESHOLD") ?? 2,
+    PoolItemTtlDays = builder.Configuration.GetValue<int?>("QUIZ_POOL_ITEM_TTL_DAYS") ?? 14
 });
 builder.Services.AddSingleton(new MiniGameDynamoDbOptions
 {
@@ -204,7 +211,52 @@ builder.Services.AddSingleton<IQuizRepository>(serviceProvider =>
         dynamoDb,
         serviceProvider.GetRequiredService<QuizDynamoDbOptions>());
 });
-builder.Services.AddSingleton<IQuizService, QuizService>();
+builder.Services.AddSingleton<IQuizPoolRepository>(serviceProvider =>
+{
+    var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];
+    var dynamoDb = string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+
+    return new DynamoDbQuizRepository(
+        dynamoDb,
+        serviceProvider.GetRequiredService<QuizDynamoDbOptions>());
+});
+builder.Services.AddSingleton<IQuizPoolRefillService>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<QuizDynamoDbOptions>();
+    return new QuizPoolRefillService(
+        serviceProvider.GetRequiredService<IQuizGenerator>(),
+        serviceProvider.GetRequiredService<IQuizPoolRepository>(),
+        options.PoolTargetReadyCount,
+        options.PoolItemTtlDays);
+});
+var quizPoolRefillFunctionName = builder.Configuration["QUIZ_POOL_REFILL_FUNCTION_NAME"];
+if (string.IsNullOrWhiteSpace(quizPoolRefillFunctionName))
+{
+    builder.Services.AddSingleton<LocalQuizPoolRefillQueue>();
+    builder.Services.AddSingleton<IQuizPoolRefillQueue>(serviceProvider =>
+        serviceProvider.GetRequiredService<LocalQuizPoolRefillQueue>());
+    builder.Services.AddHostedService<QuizPoolRefillBackgroundService>();
+}
+else
+{
+    builder.Services.AddSingleton<IQuizPoolRefillQueue>(serviceProvider =>
+        new LambdaQuizPoolRefillQueue(
+            serviceProvider.GetRequiredService<IAmazonLambda>(),
+            quizPoolRefillFunctionName));
+}
+builder.Services.AddSingleton<IQuizService>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<QuizDynamoDbOptions>();
+    return new QuizService(
+        serviceProvider.GetRequiredService<IChildQuizContextReader>(),
+        serviceProvider.GetRequiredService<IQuizRepository>(),
+        serviceProvider.GetRequiredService<IQuizPoolRepository>(),
+        serviceProvider.GetRequiredService<IQuizPoolRefillQueue>(),
+        serviceProvider.GetRequiredService<IChildProgressService>(),
+        options.PoolRefillThreshold);
+});
 builder.Services.AddSingleton<IMiniGameRepository>(serviceProvider =>
 {
     var serviceUrl = builder.Configuration["DYNAMODB_SERVICE_URL"];

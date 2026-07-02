@@ -6,7 +6,7 @@ using GreenLens.Application.Modules.Quiz.Interfaces;
 
 namespace GreenLens.Infrastructure.AWS.DynamoDB;
 
-public sealed class DynamoDbQuizRepository : IQuizRepository
+public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -44,7 +44,8 @@ public sealed class DynamoDbQuizRepository : IQuizRepository
                 !string.IsNullOrWhiteSpace(questionsJson.S))
             {
                 var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(questionsJson.S, JsonOptions);
-                if (questions is { Count: >= 3 })
+                if (questions is { Count: >= 3 } &&
+                    questions.Take(3).All(question => question.Options.Count == 4))
                 {
                     return questions.Take(3).ToList();
                 }
@@ -55,6 +56,164 @@ public sealed class DynamoDbQuizRepository : IQuizRepository
         }
 
         return BuiltInFallbacks.GetQuestions(key);
+    }
+
+    public async Task<QuizPoolItemDto?> ClaimReadyAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _dynamoDb.QueryAsync(
+                new QueryRequest
+                {
+                    TableName = _options.QuizPoolTableName,
+                    KeyConditionExpression = "childId = :childId",
+                    FilterExpression = "cognitoSub = :cognitoSub AND #status = :ready",
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#status"] = "status"
+                    },
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":childId"] = new() { S = childId },
+                        [":cognitoSub"] = new() { S = cognitoSub },
+                        [":ready"] = new() { S = "Ready" }
+                    },
+                    ScanIndexForward = true,
+                    Limit = Math.Max(_options.PoolTargetReadyCount * 2, 10)
+                },
+                cancellationToken);
+
+            foreach (var item in response.Items)
+            {
+                var poolItem = ToPoolItem(item);
+                if (poolItem.Questions.Count < 3 ||
+                    poolItem.Questions.Take(3).Any(question => question.Options.Count != 4))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await _dynamoDb.UpdateItemAsync(
+                        new UpdateItemRequest
+                        {
+                            TableName = _options.QuizPoolTableName,
+                            Key = new Dictionary<string, AttributeValue>
+                            {
+                                ["childId"] = new() { S = poolItem.ChildId },
+                                ["quizSetId"] = new() { S = poolItem.QuizSetId }
+                            },
+                            UpdateExpression = "SET #status = :claimed, claimedAt = :claimedAt",
+                            ConditionExpression = "#status = :ready AND cognitoSub = :cognitoSub",
+                            ExpressionAttributeNames = new Dictionary<string, string>
+                            {
+                                ["#status"] = "status"
+                            },
+                            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                            {
+                                [":claimed"] = new() { S = "Claimed" },
+                                [":claimedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
+                                [":ready"] = new() { S = "Ready" },
+                                [":cognitoSub"] = new() { S = cognitoSub }
+                            }
+                        },
+                        cancellationToken);
+
+                    return poolItem with { Status = "Claimed", ClaimedAt = DateTime.UtcNow };
+                }
+                catch (ConditionalCheckFailedException)
+                {
+                }
+            }
+        }
+        catch (ResourceNotFoundException)
+        {
+        }
+
+        return null;
+    }
+
+    public async Task<int> CountReadyAsync(
+        string childId,
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _dynamoDb.QueryAsync(
+                new QueryRequest
+                {
+                    TableName = _options.QuizPoolTableName,
+                    KeyConditionExpression = "childId = :childId",
+                    FilterExpression = "cognitoSub = :cognitoSub AND #status = :ready",
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#status"] = "status"
+                    },
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":childId"] = new() { S = childId },
+                        [":cognitoSub"] = new() { S = cognitoSub },
+                        [":ready"] = new() { S = "Ready" }
+                    }
+                },
+                cancellationToken);
+
+            return response.Items.Count(item =>
+            {
+                var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(
+                    GetString(item, "questionsJson") ?? "[]",
+                    JsonOptions) ?? [];
+                return questions.Count >= 3 &&
+                    questions.Take(3).All(question => question.Options.Count == 4);
+            });
+        }
+        catch (ResourceNotFoundException)
+        {
+            throw;
+        }
+    }
+
+    public Task SaveReadyAsync(
+        QuizPoolItemDto item,
+        CancellationToken cancellationToken = default)
+    {
+        return SavePoolItemAsync(item, cancellationToken);
+    }
+
+    public async Task SaveFailedAsync(
+        string childId,
+        string cognitoSub,
+        string topic,
+        int targetAge,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            await SavePoolItemAsync(
+                new QuizPoolItemDto(
+                    childId,
+                    $"quizset_failed_{Guid.NewGuid():N}",
+                    cognitoSub,
+                    topic,
+                    targetAge,
+                    [],
+                    "Failed",
+                    now,
+                    null,
+                    now,
+                    now.AddDays(Math.Max(_options.PoolItemTtlDays, 1))),
+                cancellationToken,
+                reason);
+        }
+        catch (ResourceNotFoundException)
+        {
+        }
     }
 
     public Task SaveSessionAsync(
@@ -161,6 +320,75 @@ public sealed class DynamoDbQuizRepository : IQuizRepository
             cancellationToken);
     }
 
+    private async Task SavePoolItemAsync(
+        QuizPoolItemDto item,
+        CancellationToken cancellationToken,
+        string? failureReason = null)
+    {
+        var attributes = new Dictionary<string, AttributeValue>
+        {
+            ["childId"] = new() { S = item.ChildId },
+            ["quizSetId"] = new() { S = item.QuizSetId },
+            ["cognitoSub"] = new() { S = item.CognitoSub },
+            ["topic"] = new() { S = item.Topic },
+            ["targetAge"] = new() { N = item.TargetAge.ToString() },
+            ["status"] = new() { S = item.Status },
+            ["questionsJson"] = new() { S = JsonSerializer.Serialize(item.Questions, JsonOptions) },
+            ["createdAt"] = new() { S = item.CreatedAt.ToString("O") },
+            ["expiresAt"] = new() { N = new DateTimeOffset(item.ExpiresAt).ToUnixTimeSeconds().ToString() }
+        };
+
+        if (item.ClaimedAt.HasValue)
+        {
+            attributes["claimedAt"] = new() { S = item.ClaimedAt.Value.ToString("O") };
+        }
+
+        if (item.FailedAt.HasValue)
+        {
+            attributes["failedAt"] = new() { S = item.FailedAt.Value.ToString("O") };
+        }
+
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            attributes["failureReason"] = new() { S = failureReason };
+        }
+
+        try
+        {
+            await _dynamoDb.PutItemAsync(
+                new PutItemRequest
+                {
+                    TableName = _options.QuizPoolTableName,
+                    Item = attributes,
+                    ConditionExpression = "attribute_not_exists(childId) AND attribute_not_exists(quizSetId)"
+                },
+                cancellationToken);
+        }
+        catch (ConditionalCheckFailedException)
+        {
+        }
+    }
+
+    private static QuizPoolItemDto ToPoolItem(Dictionary<string, AttributeValue> item)
+    {
+        var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(
+            GetString(item, "questionsJson") ?? "[]",
+            JsonOptions) ?? [];
+
+        return new QuizPoolItemDto(
+            GetString(item, "childId") ?? string.Empty,
+            GetString(item, "quizSetId") ?? string.Empty,
+            GetString(item, "cognitoSub") ?? string.Empty,
+            GetString(item, "topic") ?? "trash",
+            GetInt(item, "targetAge", 8),
+            questions,
+            GetString(item, "status") ?? "Ready",
+            GetDate(item, "createdAt"),
+            GetOptionalDate(item, "claimedAt"),
+            GetOptionalDate(item, "failedAt"),
+            GetUnixDate(item, "expiresAt"));
+    }
+
     private static string NormalizeWasteType(string wasteType)
     {
         return string.IsNullOrWhiteSpace(wasteType)
@@ -185,5 +413,20 @@ public sealed class DynamoDbQuizRepository : IQuizRepository
         return item.TryGetValue(name, out var value) && DateTime.TryParse(value.S, out var parsed)
             ? parsed
             : DateTime.UtcNow;
+    }
+
+    private static DateTime? GetOptionalDate(Dictionary<string, AttributeValue> item, string name)
+    {
+        return item.TryGetValue(name, out var value) && DateTime.TryParse(value.S, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static DateTime GetUnixDate(Dictionary<string, AttributeValue> item, string name)
+    {
+        return item.TryGetValue(name, out var value) &&
+            long.TryParse(value.N ?? value.S, out var seconds)
+                ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime
+                : DateTime.UtcNow.AddDays(14);
     }
 }

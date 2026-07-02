@@ -11,9 +11,9 @@ export const EYE_O = [["⚫", "Dark"], ["🔵", "Blue"], ["🟣", "Purple"], ["�
 export const OUTFIT_O = [["🌿", "Eco"], ["🌊", "Ocean"], ["☀️", "Sun"], ["🔥", "Fire"], ["✨", "Magic"]] as const
 
 export const FALLBACK_QUIZ: LocalQuizItem[] = [
-  { q: "Where does a plastic bottle go?", e: "🍶", o: ["♻️ Recycling", "🌿 Compost", "☠️ Hazardous"], a: 0, tip: "Plastic bottles can be recycled into brand-new products!" },
-  { q: "What breaks down naturally in soil?", e: "🍂", o: ["🔋 Battery", "🌱 Biodegradable", "🧪 Synthetic"], a: 1, tip: "Natural waste feeds the soil and helps plants grow!" },
-  { q: "Which is MOST dangerous in the trash?", e: "⚠️", o: ["📄 Paper", "🍌 Banana", "🔋 Battery"], a: 2, tip: "Old batteries contain toxic chemicals — never trash them!" },
+  { q: "Where does a plastic bottle go?", e: "🍶", o: ["♻️ Recycling", "🌿 Compost", "☠️ Hazardous", "🪴 Plant pot"], a: 0, tip: "Plastic bottles can be recycled into brand-new products!" },
+  { q: "What breaks down naturally in soil?", e: "🍂", o: ["🔋 Battery", "🌱 Biodegradable", "🧪 Synthetic", "🥫 Metal can"], a: 1, tip: "Natural waste feeds the soil and helps plants grow!" },
+  { q: "Which is MOST dangerous in the trash?", e: "⚠️", o: ["📄 Paper", "🍌 Banana", "🔋 Battery", "🥛 Milk carton"], a: 2, tip: "Old batteries contain toxic chemicals — never trash them!" },
 ]
 
 export type TrashCategory = "Recyclable" | "Organic" | "Hazardous"

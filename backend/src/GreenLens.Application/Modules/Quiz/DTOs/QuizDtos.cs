@@ -45,3 +45,20 @@ public sealed record CompleteQuizResponse(
 public sealed record ChildQuizContext(
     string ChildId,
     string CognitoSub);
+
+public sealed record QuizPoolItemDto(
+    string ChildId,
+    string QuizSetId,
+    string CognitoSub,
+    string Topic,
+    int TargetAge,
+    IReadOnlyList<QuizQuestionDto> Questions,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? ClaimedAt,
+    DateTime? FailedAt,
+    DateTime ExpiresAt);
+
+public sealed record QuizPoolRefillRequest(
+    string ChildId,
+    string CognitoSub);
