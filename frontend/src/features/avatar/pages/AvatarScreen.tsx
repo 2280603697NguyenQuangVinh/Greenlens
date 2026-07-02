@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { RefreshCw, Save, ShieldCheck, Sparkles, Play } from "lucide-react"
+import { RefreshCw, Save, Sparkles, Play } from "lucide-react"
 import { validateCharacterName } from "@/services/childProfile"
 import { FF_FREDOKA, FF_COMFORTAA } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
@@ -39,8 +39,6 @@ type Props = {
   onSave: (cfg: AvatarConfig) => void
   onClearError?: () => void
   onCancel?: () => void
-  onAdminLogin?: () => void
-  adminAuthenticated?: boolean
   isStartupFlow?: boolean
   savedCharacterName?: string
   onContinueSaved?: () => void
@@ -58,8 +56,6 @@ export function AvatarScreen({
   onSave,
   onClearError,
   onCancel,
-  onAdminLogin,
-  adminAuthenticated = false,
   isStartupFlow = true,
   savedCharacterName,
   onContinueSaved,
@@ -234,21 +230,6 @@ export function AvatarScreen({
             <>Chỉnh Sửa<br />Nhân Vật</>
           )}
         </h1>
-        {onAdminLogin ? (
-          <button
-            type="button"
-            onClick={onAdminLogin}
-            className={`ml-auto rounded-full px-3 py-2 text-[11px] font-black border flex items-center gap-1.5 active:scale-95 ${
-              adminAuthenticated
-                ? "bg-green-600 border-green-700 text-white"
-                : "bg-white border-green-300 text-green-700"
-            }`}
-            style={FF_FREDOKA}
-          >
-            <ShieldCheck size={14} />
-            {adminAuthenticated ? "Admin đã đăng nhập" : "Admin Login"}
-          </button>
-        ) : null}
       </div>
 
       {isStartupFlow && savedCharacterName && onContinueSaved ? (

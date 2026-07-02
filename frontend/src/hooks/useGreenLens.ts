@@ -26,7 +26,7 @@ import {
   markDailyGameComplete,
   markDailyQuizComplete,
 } from "@/services/streak/dailyActivityStorage"
-import { generateQuiz, completeQuizSession } from "@/services/quiz/quizApi"
+import { generateQuiz, completeQuizSession, type QuizSessionMeta } from "@/services/quiz/quizApi"
 import { submitTrashSortResult } from "@/services/miniGame/miniGameApi"
 import { getLevelFromXp } from "@/utils/levelProgress"
 
@@ -43,6 +43,7 @@ export function useGreenLens() {
   const [error, setError] = useState<string | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null)
+  const [quizMeta, setQuizMeta] = useState<Pick<QuizSessionMeta, "wasteType" | "targetAge"> | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
   const [lastScan, setLastScan] = useState<ClassificationResult | null>(null)
 
@@ -151,6 +152,10 @@ export function useGreenLens() {
       try {
         const session = await generateQuiz(childId)
         setQuizSessionId(session.sessionId)
+        setQuizMeta({
+          wasteType: session.wasteType,
+          targetAge: session.targetAge,
+        })
         setQuizQuestions(session.questions)
         return true
       } catch (e) {
@@ -191,8 +196,7 @@ export function useGreenLens() {
           return next
         })
         setQuizSessionId(null)
-        setQuizQuestions([])
-        return { xpEarned: res.xpAwarded }
+        return { xpEarned: res.xpAwarded, score: res.score }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Không lưu được kết quả quiz.")
         return null
@@ -202,6 +206,12 @@ export function useGreenLens() {
     },
     [quizSessionId],
   )
+
+  const resetQuizSession = useCallback(() => {
+    setQuizSessionId(null)
+    setQuizMeta(null)
+    setQuizQuestions([])
+  }, [])
 
   const submitGame = useCallback(
     async (payload: {
@@ -317,6 +327,7 @@ export function useGreenLens() {
     busy,
     error,
     quizQuestions,
+    quizMeta,
     quizLoading,
     lastScan,
     register,
@@ -330,6 +341,7 @@ export function useGreenLens() {
     logout,
     continueSession,
     loadQuiz,
+    resetQuizSession,
     updateAvatar,
     setError,
   }
