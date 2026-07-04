@@ -55,39 +55,46 @@ export function AdminBrandMark({ subtitle }: { subtitle?: string }) {
   )
 }
 
+export const ADMIN_CARD_CLASS =
+  "overflow-hidden rounded-xl bg-[#f4fbf6] ring-1 ring-inset ring-[#6bc97a]"
+
 export function AdminCard({
   title,
   action,
   children,
   className = "",
+  dense = false,
+  fill = false,
 }: {
   title?: string
   action?: ReactNode
   children: ReactNode
   className?: string
+  dense?: boolean
+  fill?: boolean
 }) {
   return (
-    <section
-      className={`overflow-hidden rounded-2xl border-2 border-[#6bc97a] bg-[#e8f8ef] shadow-[0_2px_12px_rgba(82,183,136,0.18)] ${className}`}
-    >
+    <section className={`${ADMIN_CARD_CLASS} ${fill ? "flex h-full flex-col" : ""} ${className}`}>
       {title ? (
-        <div className="flex items-center justify-between gap-2 border-b border-[#b9e4c4]/80 px-3 py-2">
-          <p className="flex-1 text-center text-[15px] font-extrabold" style={adminFontTitle}>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#b9e4c4] px-3.5 py-2">
+          <p className="text-sm font-extrabold tracking-tight" style={adminFontTitle}>
             {title}
           </p>
           {action ? <div className="shrink-0">{action}</div> : null}
         </div>
       ) : null}
-      <div className="bg-white/45 p-4">{children}</div>
+      <div className={`${dense ? "p-3" : "p-3.5"} ${fill ? "flex min-h-0 flex-1 flex-col" : ""}`}>
+        {children}
+      </div>
     </section>
   )
 }
 
 export function AdminStatCard({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <section className="rounded-2xl border-2 border-[#6bc97a] bg-[#e8f8ef]/90 p-4 shadow-[0_2px_12px_rgba(82,183,136,0.12)]">
-      <p className="text-sm font-normal text-[#2d6a4f]">{label}</p>
-      <p className="mt-2 text-3xl font-extrabold tabular-nums" style={adminFontTitle}>
+    <section className={`${ADMIN_CARD_CLASS} px-3 py-2.5`}>
+      <p className="text-[11px] font-medium leading-tight text-[#2d6a4f]">{label}</p>
+      <p className="mt-0.5 text-2xl font-extrabold leading-none tabular-nums" style={adminFontTitle}>
         {value}
       </p>
     </section>
@@ -124,7 +131,15 @@ export function AdminOutlineButton({
 
 export function AdminInsetRow({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl bg-[#f8fdf9] px-3 py-2 text-sm ${className}`}>{children}</div>
+    <div className={`rounded-lg bg-[#f8fdf9] px-2.5 py-1.5 text-sm ${className}`}>{children}</div>
+  )
+}
+
+export function AdminSectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#2d6a4f]/65">
+      {children}
+    </p>
   )
 }
 

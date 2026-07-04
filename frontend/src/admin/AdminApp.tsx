@@ -1,4 +1,14 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { BarChart3, Brain, Camera, Gamepad2, LogOut, Menu, RefreshCw, Star, Users, X } from "lucide-react"
 import {
   AdminBrandMark,
@@ -9,6 +19,7 @@ import {
   AdminPanelError,
   AdminPanelMessage,
   AdminPrimaryButton,
+  AdminSectionLabel,
   AdminShell,
   AdminStatCard,
   adminFontBody,
@@ -94,7 +105,7 @@ export default function AdminApp() {
   return (
     <AdminShell>
       <div className="mx-auto flex min-h-screen max-w-[1600px] gap-3 p-3 lg:p-4">
-        <aside className={`hidden w-[252px] shrink-0 flex-col overflow-hidden rounded-2xl border-2 border-[#a8e6b8] bg-white/90 shadow-sm lg:flex ${ADMIN_TYPE_CLASS}`}>
+        <aside className={`hidden w-[252px] shrink-0 flex-col overflow-hidden rounded-xl bg-[#f4fbf6] ring-1 ring-inset ring-[#a8e6b8] lg:flex ${ADMIN_TYPE_CLASS}`}>
           <div className="border-b border-[#d8f3dc] px-4 py-4">
             <AdminBrandMark subtitle="Nội bộ vận hành" />
           </div>
@@ -102,7 +113,7 @@ export default function AdminApp() {
         </aside>
 
         <main className="min-w-0 flex-1">
-          <header className={`sticky top-0 z-10 rounded-2xl border-2 border-[#a8e6b8] bg-white/92 px-4 py-3 shadow-sm backdrop-blur lg:px-5 ${ADMIN_TYPE_CLASS}`}>
+          <header className={`sticky top-0 z-10 overflow-hidden rounded-xl bg-[#f4fbf6] ring-1 ring-inset ring-[#a8e6b8] px-4 py-2.5 lg:px-5 ${ADMIN_TYPE_CLASS}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <button
@@ -144,7 +155,7 @@ export default function AdminApp() {
             ) : null}
           </header>
 
-          <div className={`py-4 lg:py-5 ${ADMIN_TYPE_CLASS}`}>
+          <div className={`py-3 lg:py-4 ${ADMIN_TYPE_CLASS}`}>
             {section === "overview" && <OverviewPanel />}
             {section === "children" && <ChildrenPanel />}
             {section === "quiz" && <QuizPanel />}
@@ -237,8 +248,8 @@ function OverviewPanel() {
   if (!data) return <AdminPanelMessage message="Đang tải dashboard..." />
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
         {[
           ["Tổng người chơi", data.totals.totalChildren],
           ["Lượt quét AI", data.totals.totalAiCameraScans],
@@ -251,62 +262,59 @@ function OverviewPanel() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <AdminCard
+          dense
+          fill
           title="Xu hướng 7 ngày"
           action={
-            <AdminOutlineButton className="!px-2.5 !py-1.5 text-xs" onClick={() => void load()}>
+            <AdminOutlineButton className="!px-2 !py-1 text-xs" onClick={() => void load()}>
               <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
             </AdminOutlineButton>
           }
         >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
-            {data.daily.map((item: any) => (
-              <div key={item.date} className="rounded-xl border border-[#d8f3dc] bg-[#f8fdf9] p-3">
-                <p className="text-xs font-bold text-[#2d6a4f]">{item.date.slice(5)}</p>
-                <div className="mt-3 space-y-2 text-xs">
-                  <MetricBar label="Đăng ký" value={item.signups} color="bg-[#2dd62d]" />
-                  <MetricBar label="Quét" value={item.scans} color="bg-sky-500" />
-                  <MetricBar label="Quiz" value={item.quizCompletions} color="bg-violet-500" />
-                  <MetricBar label="Game" value={item.miniGameSessions} color="bg-[#f4a261]" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <WeeklyTrendSection daily={data.daily} />
         </AdminCard>
 
-        <div className="space-y-5">
-          <AdminCard title="Sức khỏe hệ thống">
-            <div className="space-y-2 text-sm">
-              <AdminKeyValue label="Quiz pool ready" value={data.quizPool.readyCount} />
-              <AdminKeyValue label="Claimed" value={data.quizPool.claimedCount} />
-              <AdminKeyValue label="Failed" value={data.quizPool.failedCount} />
-              <AdminKeyValue label="Superseded" value={data.quizPool.supersededCount} />
-              <AdminKeyValue label="Fallback active" value={data.quizPool.fallbackCount} />
-            </div>
-          </AdminCard>
+        <AdminCard dense fill title="Vận hành">
+          <div className="flex h-full flex-col gap-3">
+            <section>
+              <AdminSectionLabel>Sức khỏe hệ thống</AdminSectionLabel>
+              <div className="space-y-1 text-sm">
+                <AdminKeyValue label="Quiz pool ready" value={data.quizPool.readyCount} />
+                <AdminKeyValue label="Claimed" value={data.quizPool.claimedCount} />
+                <AdminKeyValue label="Failed" value={data.quizPool.failedCount} />
+                <AdminKeyValue label="Superseded" value={data.quizPool.supersededCount} />
+                <AdminKeyValue label="Fallback active" value={data.quizPool.fallbackCount} />
+              </div>
+            </section>
 
-          <AdminCard title="Streak">
-            <div className="space-y-2 text-sm">
-              <AdminKeyValue label="Hoạt động hôm nay" value={data.streak.activeToday} />
-              <AdminKeyValue label="≥ 7 ngày" value={data.streak.streak7OrMore} />
-              <AdminKeyValue label="≥ 30 ngày" value={data.streak.streak30OrMore} />
-              <AdminKeyValue label="Đã khóa" value={data.streak.disabledChildren} />
-              <AdminKeyValue label="Đã lưu trữ" value={data.streak.archivedChildren} />
+            <div className="border-t border-[#d8f3dc]/80 pt-3">
+              <AdminSectionLabel>Streak</AdminSectionLabel>
+              <div className="space-y-1 text-sm">
+                <AdminKeyValue label="Hoạt động hôm nay" value={data.streak.activeToday} />
+                <AdminKeyValue label="≥ 7 ngày" value={data.streak.streak7OrMore} />
+                <AdminKeyValue label="≥ 30 ngày" value={data.streak.streak30OrMore} />
+                <AdminKeyValue label="Đã khóa" value={data.streak.disabledChildren} />
+                <AdminKeyValue label="Đã lưu trữ" value={data.streak.archivedChildren} />
+              </div>
             </div>
-          </AdminCard>
 
-          <AdminCard title="Ghi chú">
-            <ul className="space-y-2 text-sm text-[#2d6a4f]">
-              {data.notes.map((note: string) => (
-                <li key={note} className="rounded-lg bg-[#f8fdf9] px-3 py-2">
-                  • {note}
-                </li>
-              ))}
-            </ul>
-          </AdminCard>
-        </div>
+            {data.notes.length > 0 ? (
+              <div className="border-t border-[#d8f3dc]/80 pt-3">
+                <AdminSectionLabel>Ghi chú</AdminSectionLabel>
+                <ul className="space-y-1 text-xs leading-relaxed text-[#2d6a4f]/85">
+                  {data.notes.map((note: string) => (
+                    <li key={note} className="rounded-lg bg-[#f8fdf9] px-2.5 py-1.5">
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </AdminCard>
       </div>
     </div>
   )
@@ -894,17 +902,100 @@ function RewardsPanel() {
   )
 }
 
-function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
-  const width = Math.min(Math.max(value * 12, 8), 100)
+const TREND_METRICS = [
+  { key: "signups", label: "Đăng ký", color: "#2dd62d", field: "signups" as const },
+  { key: "scans", label: "Quét", color: "#0ea5e9", field: "scans" as const },
+  { key: "quiz", label: "Quiz", color: "#8b5cf6", field: "quizCompletions" as const },
+  { key: "game", label: "Game", color: "#7ED957", field: "miniGameSessions" as const },
+]
+
+type DailyTrendItem = {
+  date: string
+  signups: number
+  scans: number
+  quizCompletions: number
+  miniGameSessions: number
+}
+
+function formatTrendDay(date: string) {
+  return date.slice(5).replace("-", "/")
+}
+
+const CHART_TICK = { fontSize: 11, fill: "#2d6a4f", fontFamily: "Nunito, system-ui, sans-serif" }
+
+function WeeklyTrendSection({ daily }: { daily: DailyTrendItem[] }) {
+  const chartData = useMemo(
+    () =>
+      daily.map((item) => ({
+        day: formatTrendDay(item.date),
+        signups: item.signups,
+        scans: item.scans,
+        quiz: item.quizCompletions,
+        game: item.miniGameSessions,
+      })),
+    [daily],
+  )
+
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span>{label}</span>
-        <span className="tabular-nums">{value}</span>
-      </div>
-      <div className="mt-1 h-2 rounded-full bg-[#e8f5ec]">
-        <div className={`h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
-      </div>
+    <div className="min-h-[220px] w-full flex-1 [&_.recharts-surface]:bg-transparent [&_.recharts-wrapper]:bg-transparent">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={1} barCategoryGap="20%">
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8f3dc" />
+          <XAxis
+            dataKey="day"
+            tick={CHART_TICK}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={CHART_TICK}
+            axisLine={false}
+            tickLine={false}
+            width={36}
+            allowDecimals={false}
+            tickFormatter={(value) => String(value)}
+          />
+          <Tooltip content={<TrendTooltip />} cursor={{ fill: "rgba(232,245,236,0.45)" }} />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, paddingTop: 6, color: "#2d6a4f" }}
+          />
+          {TREND_METRICS.map((metric) => (
+            <Bar
+              key={metric.key}
+              dataKey={metric.key}
+              name={metric.label}
+              fill={metric.color}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={10}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function TrendTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: Array<{ name: string; value: number; color: string }>
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+
+  return (
+    <div className="rounded-lg border border-[#d8f3dc] bg-white px-3 py-2 text-xs shadow-md">
+      <p className="mb-1 font-bold text-[#1b4332]">{label}</p>
+      {payload.map((entry) => (
+        <p key={entry.name} className="tabular-nums" style={{ color: entry.color }}>
+          {entry.name}: {entry.value}
+        </p>
+      ))}
     </div>
   )
 }
