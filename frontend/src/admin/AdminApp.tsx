@@ -1,14 +1,32 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
-import { BarChart3, Brain, Camera, Gamepad2, LogOut, RefreshCw, Shield, Star, Users } from "lucide-react"
+import { useEffect, useState, type FormEvent } from "react"
+import { BarChart3, Brain, Camera, Gamepad2, LogOut, Menu, RefreshCw, Star, Users, X } from "lucide-react"
+import {
+  AdminBrandMark,
+  AdminCard,
+  AdminInsetRow,
+  AdminKeyValue,
+  AdminOutlineButton,
+  AdminPanelError,
+  AdminPanelMessage,
+  AdminPrimaryButton,
+  AdminShell,
+  AdminStatCard,
+  adminFontBody,
+  adminFontTitle,
+  ADMIN_TYPE_CLASS,
+} from "@/admin/adminTheme"
 import { adminApi } from "@/admin/api"
 import { clearAdminSession, getAdminSession, loginAdmin, type AdminSession } from "@/admin/auth"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { FF_COMFORTAA, FF_FREDOKA } from "@/utils/constants"
+
+const adminInputClass =
+  "rounded-xl border-2 border-[#a8e6b8] bg-[#f8fdf9] font-['Nunito',sans-serif] font-normal focus-visible:border-[#2dd62d] focus-visible:ring-[#2dd62d]/30"
+const adminBadgeClass = "rounded-full border-[#a8e6b8] bg-[#f0fdf9] font-normal text-[#1b4332]"
+const adminTableClass = "[&_th]:font-bold [&_td]:font-normal"
 
 type AdminSection = "overview" | "children" | "quiz" | "camera" | "games" | "rewards"
 
@@ -29,6 +47,7 @@ function readSection(): AdminSection {
 export default function AdminApp() {
   const [session, setSession] = useState<AdminSession | null>(() => getAdminSession())
   const [section, setSection] = useState<AdminSection>(() => readSection())
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     const onHashChange = () => setSection(readSection())
@@ -43,67 +62,89 @@ export default function AdminApp() {
   const navigate = (next: AdminSection) => {
     window.location.hash = next
     setSection(next)
+    setMobileNavOpen(false)
   }
 
+  const currentLabel = NAV_ITEMS.find((item) => item.key === section)?.label ?? "Admin"
+
+  const navButtons = (
+    <>
+      {NAV_ITEMS.map((item) => {
+        const Icon = item.icon
+        const active = section === item.key
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => navigate(item.key)}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-normal transition ${
+              active
+                ? "bg-[#b9f0af] font-bold text-[#1b4332] shadow-sm"
+                : "text-[#2d6a4f] hover:bg-white/70"
+            }`}
+          >
+            <Icon size={18} />
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
+    </>
+  )
+
   return (
-    <div className="min-h-screen bg-[#f6f8fb] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="hidden w-[250px] shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-          <div className="border-b border-slate-200 px-5 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-600 text-white">
-                <Shield size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-black" style={FF_FREDOKA}>GreenLens Admin</p>
-                <p className="text-xs text-slate-500" style={FF_COMFORTAA}>Nội bộ vận hành</p>
-              </div>
-            </div>
+    <AdminShell>
+      <div className="mx-auto flex min-h-screen max-w-[1600px] gap-3 p-3 lg:p-4">
+        <aside className={`hidden w-[252px] shrink-0 flex-col overflow-hidden rounded-2xl border-2 border-[#a8e6b8] bg-white/90 shadow-sm lg:flex ${ADMIN_TYPE_CLASS}`}>
+          <div className="border-b border-[#d8f3dc] px-4 py-4">
+            <AdminBrandMark subtitle="Nội bộ vận hành" />
           </div>
-          <nav className="flex-1 space-y-1 px-3 py-4">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon
-              const active = section === item.key
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => navigate(item.key)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${
-                    active ? "bg-green-50 text-green-700" : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
+          <nav className="flex-1 space-y-1 px-3 py-4">{navButtons}</nav>
         </aside>
 
         <main className="min-w-0 flex-1">
-          <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
-            <div className="flex items-center justify-between gap-4 px-4 py-4 lg:px-6">
-              <div>
-                <p className="text-lg font-black" style={FF_FREDOKA}>{NAV_ITEMS.find((item) => item.key === section)?.label}</p>
-                <p className="text-xs text-slate-500" style={FF_COMFORTAA}>Đăng nhập bởi {session.username}</p>
+          <header className={`sticky top-0 z-10 rounded-2xl border-2 border-[#a8e6b8] bg-white/92 px-4 py-3 shadow-sm backdrop-blur lg:px-5 ${ADMIN_TYPE_CLASS}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#a8e6b8] bg-white lg:hidden"
+                  onClick={() => setMobileNavOpen((open) => !open)}
+                  aria-label="Mở menu"
+                >
+                  {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-extrabold" style={adminFontTitle}>
+                    {currentLabel}
+                  </p>
+                  <p className="truncate text-xs font-normal text-[#2d6a4f]/80">
+                    Xin chào, {session.username}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">admin</Badge>
-                <Button
-                  variant="outline"
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="outline" className={adminBadgeClass}>
+                  admin
+                </Badge>
+                <AdminOutlineButton
+                  className="!px-3 !py-2"
                   onClick={() => {
                     clearAdminSession()
                     setSession(null)
                   }}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Đăng xuất
-                </Button>
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Đăng xuất</span>
+                </AdminOutlineButton>
               </div>
             </div>
+
+            {mobileNavOpen ? (
+              <nav className="mt-3 space-y-1 border-t border-[#d8f3dc] pt-3 lg:hidden">{navButtons}</nav>
+            ) : null}
           </header>
 
-          <div className="p-4 lg:p-6">
+          <div className={`py-4 lg:py-5 ${ADMIN_TYPE_CLASS}`}>
             {section === "overview" && <OverviewPanel />}
             {section === "children" && <ChildrenPanel />}
             {section === "quiz" && <QuizPanel />}
@@ -113,7 +154,7 @@ export default function AdminApp() {
           </div>
         </main>
       </div>
-    </div>
+    </AdminShell>
   )
 }
 
@@ -137,20 +178,41 @@ function AdminLoginPage({ onLoggedIn }: { onLoggedIn: (session: AdminSession) =>
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f8fb] p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-[420px] rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xl font-black" style={FF_FREDOKA}>GreenLens Admin</p>
-        <p className="mt-1 text-sm text-slate-500" style={FF_COMFORTAA}>Đăng nhập bằng tài khoản Cognito thuộc group admin.</p>
-        <div className="mt-5 space-y-3">
-          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username admin" />
-          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
-        </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <Button type="submit" className="mt-4 w-full" disabled={busy}>
-          {busy ? "Đang đăng nhập..." : "Đăng nhập Admin"}
-        </Button>
-      </form>
-    </div>
+    <AdminShell>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-[420px] overflow-hidden rounded-3xl border-2 border-[#a8e6b8] bg-white/95 p-6 shadow-[0_8px_32px_rgba(45,106,79,0.12)]"
+          style={adminFontBody}
+        >
+          <div className="flex justify-center">
+            <AdminBrandMark subtitle="Đăng nhập quản trị" />
+          </div>
+          <p className="mt-4 text-center text-sm text-[#2d6a4f]">
+            Tài khoản thuộc nhóm admin trên Cognito.
+          </p>
+          <div className="mt-5 space-y-3">
+            <Input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Tên đăng nhập"
+              className={adminInputClass}
+            />
+            <Input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Mật khẩu"
+              className={adminInputClass}
+            />
+          </div>
+          {error ? <p className="mt-3 text-center text-sm text-red-600">{error}</p> : null}
+          <AdminPrimaryButton type="submit" className="mt-5 w-full py-3" disabled={busy}>
+            {busy ? "Đang đăng nhập..." : "Đăng nhập"}
+          </AdminPrimaryButton>
+        </form>
+      </div>
+    </AdminShell>
   )
 }
 
@@ -171,81 +233,80 @@ function OverviewPanel() {
     void load()
   }, [])
 
-  if (error) return <PanelError error={error} onRetry={() => void load()} />
-  if (!data) return <PanelMessage message="Đang tải dashboard..." />
+  if (error) return <AdminPanelError error={error} onRetry={() => void load()} />
+  if (!data) return <AdminPanelMessage message="Đang tải dashboard..." />
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          ["Tổng child", data.totals.totalChildren],
-          ["AI camera scans", data.totals.totalAiCameraScans],
-          ["Quiz sessions", data.totals.totalQuizSessions],
-          ["Mini-game sessions", data.totals.totalMiniGameSessions],
-          ["DAU gần nhất", data.totals.dailyActiveUsers],
+          ["Tổng người chơi", data.totals.totalChildren],
+          ["Lượt quét AI", data.totals.totalAiCameraScans],
+          ["Phiên quiz", data.totals.totalQuizSessions],
+          ["Phiên mini-game", data.totals.totalMiniGameSessions],
+          ["Hoạt động hôm nay", data.totals.dailyActiveUsers],
           ["Streak đang chạy", data.totals.childrenWithActiveStreak],
         ].map(([label, value]) => (
-          <section key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="mt-2 text-3xl font-black" style={FF_FREDOKA}>{value}</p>
-          </section>
+          <AdminStatCard key={String(label)} label={String(label)} value={value} />
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="font-black" style={FF_FREDOKA}>Xu hướng 7 ngày</p>
-            <Button variant="outline" size="sm" onClick={() => void load()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <AdminCard
+          title="Xu hướng 7 ngày"
+          action={
+            <AdminOutlineButton className="!px-2.5 !py-1.5 text-xs" onClick={() => void load()}>
+              <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
-            </Button>
-          </div>
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-7">
+            </AdminOutlineButton>
+          }
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
             {data.daily.map((item: any) => (
-              <div key={item.date} className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">{item.date.slice(5)}</p>
+              <div key={item.date} className="rounded-xl border border-[#d8f3dc] bg-[#f8fdf9] p-3">
+                <p className="text-xs font-bold text-[#2d6a4f]">{item.date.slice(5)}</p>
                 <div className="mt-3 space-y-2 text-xs">
-                  <MetricBar label="Signups" value={item.signups} color="bg-green-500" />
-                  <MetricBar label="Scans" value={item.scans} color="bg-sky-500" />
+                  <MetricBar label="Đăng ký" value={item.signups} color="bg-[#2dd62d]" />
+                  <MetricBar label="Quét" value={item.scans} color="bg-sky-500" />
                   <MetricBar label="Quiz" value={item.quizCompletions} color="bg-violet-500" />
-                  <MetricBar label="Game" value={item.miniGameSessions} color="bg-amber-500" />
+                  <MetricBar label="Game" value={item.miniGameSessions} color="bg-[#f4a261]" />
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </AdminCard>
 
-        <section className="space-y-6 rounded-xl border border-slate-200 bg-white p-4">
-          <div>
-            <p className="font-black" style={FF_FREDOKA}>Sức khỏe hệ thống</p>
-            <div className="mt-3 space-y-2 text-sm">
-              <KeyValue label="Quiz pool ready" value={data.quizPool.readyCount} />
-              <KeyValue label="Claimed" value={data.quizPool.claimedCount} />
-              <KeyValue label="Failed" value={data.quizPool.failedCount} />
-              <KeyValue label="Superseded" value={data.quizPool.supersededCount} />
-              <KeyValue label="Fallback active" value={data.quizPool.fallbackCount} />
+        <div className="space-y-5">
+          <AdminCard title="Sức khỏe hệ thống">
+            <div className="space-y-2 text-sm">
+              <AdminKeyValue label="Quiz pool ready" value={data.quizPool.readyCount} />
+              <AdminKeyValue label="Claimed" value={data.quizPool.claimedCount} />
+              <AdminKeyValue label="Failed" value={data.quizPool.failedCount} />
+              <AdminKeyValue label="Superseded" value={data.quizPool.supersededCount} />
+              <AdminKeyValue label="Fallback active" value={data.quizPool.fallbackCount} />
             </div>
-          </div>
+          </AdminCard>
 
-          <div>
-            <p className="font-black" style={FF_FREDOKA}>Streak</p>
-            <div className="mt-3 space-y-2 text-sm">
-              <KeyValue label="Active today" value={data.streak.activeToday} />
-              <KeyValue label=">= 7 days" value={data.streak.streak7OrMore} />
-              <KeyValue label=">= 30 days" value={data.streak.streak30OrMore} />
-              <KeyValue label="Disabled" value={data.streak.disabledChildren} />
-              <KeyValue label="Archived" value={data.streak.archivedChildren} />
+          <AdminCard title="Streak">
+            <div className="space-y-2 text-sm">
+              <AdminKeyValue label="Hoạt động hôm nay" value={data.streak.activeToday} />
+              <AdminKeyValue label="≥ 7 ngày" value={data.streak.streak7OrMore} />
+              <AdminKeyValue label="≥ 30 ngày" value={data.streak.streak30OrMore} />
+              <AdminKeyValue label="Đã khóa" value={data.streak.disabledChildren} />
+              <AdminKeyValue label="Đã lưu trữ" value={data.streak.archivedChildren} />
             </div>
-          </div>
+          </AdminCard>
 
-          <div>
-            <p className="font-black" style={FF_FREDOKA}>Ghi chú</p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              {data.notes.map((note: string) => <li key={note}>• {note}</li>)}
+          <AdminCard title="Ghi chú">
+            <ul className="space-y-2 text-sm text-[#2d6a4f]">
+              {data.notes.map((note: string) => (
+                <li key={note} className="rounded-lg bg-[#f8fdf9] px-3 py-2">
+                  • {note}
+                </li>
+              ))}
             </ul>
-          </div>
-        </section>
+          </AdminCard>
+        </div>
       </div>
     </div>
   )
@@ -287,12 +348,19 @@ function ChildrenPanel() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="grid gap-5 xl:grid-cols-[1.25fr_0.95fr]">
+      <AdminCard title="Danh sách người chơi">
         <div className="flex flex-wrap items-center gap-3">
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên hoặc childId" className="max-w-sm" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm theo tên hoặc childId"
+            className={`max-w-sm ${adminInputClass}`}
+          />
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
+            <SelectTrigger className={`w-[180px] ${adminInputClass}`}>
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="Active">Active</SelectItem>
@@ -300,116 +368,165 @@ function ChildrenPanel() {
               <SelectItem value="Archived">Archived</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => void load()}>Lọc</Button>
+          <AdminPrimaryButton className="!px-4 !py-2" onClick={() => void load()}>
+            Lọc
+          </AdminPrimaryButton>
         </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <div className="mt-4 overflow-x-auto">
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        <div className={`mt-4 overflow-x-auto rounded-xl border border-[#d8f3dc] ${adminTableClass}`}>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="border-[#d8f3dc] hover:bg-transparent">
                 <TableHead>Tên</TableHead>
                 <TableHead>childId</TableHead>
                 <TableHead>Level</TableHead>
                 <TableHead>XP</TableHead>
                 <TableHead>Streak</TableHead>
-                <TableHead>Score</TableHead>
+                <TableHead>Điểm</TableHead>
                 <TableHead>Trạng thái</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((item: any) => (
-                <TableRow key={item.childId} className="cursor-pointer" onClick={() => setSelectedChildId(item.childId)}>
+                <TableRow
+                  key={item.childId}
+                  className={`cursor-pointer border-[#eef8f0] ${
+                    selectedChildId === item.childId ? "bg-[#b9f0af]/60" : "hover:bg-[#f8fdf9]"
+                  }`}
+                  onClick={() => setSelectedChildId(item.childId)}
+                >
                   <TableCell>{item.characterName}</TableCell>
-                  <TableCell>{item.childId}</TableCell>
+                  <TableCell className="max-w-[120px] truncate text-xs">{item.childId}</TableCell>
                   <TableCell>{item.level}</TableCell>
                   <TableCell>{item.xp}</TableCell>
                   <TableCell>{item.streak}</TableCell>
                   <TableCell>{item.miniGameHighScore}</TableCell>
-                  <TableCell><Badge variant="outline">{item.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={adminBadgeClass}>
+                      {item.status}
+                    </Badge>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      </section>
+      </AdminCard>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <AdminCard title="Chi tiết">
         {!detail ? (
-          <PanelMessage message="Chọn một child để xem chi tiết." />
+          <p className="py-6 text-center text-sm text-[#2d6a4f]">Chọn một người chơi để xem chi tiết.</p>
         ) : (
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-lg font-black" style={FF_FREDOKA}>{detail.characterName}</p>
-                <p className="text-xs text-slate-500">{detail.childId}</p>
+                <p className="text-lg font-extrabold" style={adminFontTitle}>
+                  {detail.characterName}
+                </p>
+                <p className="text-xs text-[#2d6a4f]">{detail.childId}</p>
               </div>
-              <Badge variant="outline">{detail.status}</Badge>
+              <Badge variant="outline" className={adminBadgeClass}>
+                {detail.status}
+              </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <KeyValue label="Level" value={detail.level} />
-              <KeyValue label="XP" value={detail.xp} />
-              <KeyValue label="Streak" value={detail.streak} />
-              <KeyValue label="Best score" value={detail.miniGameHighScore} />
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <AdminKeyValue label="Level" value={detail.level} />
+              <AdminKeyValue label="XP" value={detail.xp} />
+              <AdminKeyValue label="Streak" value={detail.streak} />
+              <AdminKeyValue label="Điểm cao nhất" value={detail.miniGameHighScore} />
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={async () => {
-                if (!window.confirm("Khóa child này?")) return
-                await adminApi.lockChild(detail.childId)
-                await load()
-                await refreshDetail()
-              }}>Khóa</Button>
-              <Button size="sm" variant="outline" onClick={async () => {
-                if (!window.confirm("Mở khóa child này?")) return
-                await adminApi.unlockChild(detail.childId)
-                await load()
-                await refreshDetail()
-              }}>Mở khóa</Button>
-              <Button size="sm" variant="outline" onClick={async () => {
-                if (!window.confirm("Lưu trữ child này?")) return
-                await adminApi.archiveChild(detail.childId)
-                await load()
-                await refreshDetail()
-              }}>Lưu trữ</Button>
-              <Button size="sm" variant="outline" onClick={async () => {
-                if (!window.confirm("Reset streak của child này?")) return
-                await adminApi.resetChildStreak(detail.childId)
-                await refreshDetail()
-              }}>Reset streak</Button>
-              <Button size="sm" onClick={async () => {
-                const next = window.prompt("Nhập XP mới", String(detail.xp))
-                if (!next) return
-                await adminApi.adjustChildXp(detail.childId, Number(next))
-                await load()
-                await refreshDetail()
-              }}>Chỉnh XP</Button>
+              <AdminOutlineButton
+                className="!px-3 !py-1.5 text-xs"
+                onClick={async () => {
+                  if (!window.confirm("Khóa người chơi này?")) return
+                  await adminApi.lockChild(detail.childId)
+                  await load()
+                  await refreshDetail()
+                }}
+              >
+                Khóa
+              </AdminOutlineButton>
+              <AdminOutlineButton
+                className="!px-3 !py-1.5 text-xs"
+                onClick={async () => {
+                  if (!window.confirm("Mở khóa người chơi này?")) return
+                  await adminApi.unlockChild(detail.childId)
+                  await load()
+                  await refreshDetail()
+                }}
+              >
+                Mở khóa
+              </AdminOutlineButton>
+              <AdminOutlineButton
+                className="!px-3 !py-1.5 text-xs"
+                onClick={async () => {
+                  if (!window.confirm("Lưu trữ người chơi này?")) return
+                  await adminApi.archiveChild(detail.childId)
+                  await load()
+                  await refreshDetail()
+                }}
+              >
+                Lưu trữ
+              </AdminOutlineButton>
+              <AdminOutlineButton
+                className="!px-3 !py-1.5 text-xs"
+                onClick={async () => {
+                  if (!window.confirm("Reset streak?")) return
+                  await adminApi.resetChildStreak(detail.childId)
+                  await refreshDetail()
+                }}
+              >
+                Reset streak
+              </AdminOutlineButton>
+              <AdminPrimaryButton
+                className="!px-3 !py-1.5 text-xs"
+                onClick={async () => {
+                  const next = window.prompt("Nhập XP mới", String(detail.xp))
+                  if (!next) return
+                  await adminApi.adjustChildXp(detail.childId, Number(next))
+                  await load()
+                  await refreshDetail()
+                }}
+              >
+                Chỉnh XP
+              </AdminPrimaryButton>
             </div>
 
             <div>
-              <p className="text-sm font-semibold">Badges</p>
+              <p className="text-sm font-bold text-[#1b4332]">Huy hiệu</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(detail.badges ?? []).map((badge: string) => <Badge key={badge}>{badge}</Badge>)}
+                {(detail.badges ?? []).map((badge: string) => (
+                  <Badge key={badge} className="rounded-full bg-[#b9f0af] text-[#1b4332] hover:bg-[#b9f0af]">
+                    {badge}
+                  </Badge>
+                ))}
               </div>
             </div>
 
             <div>
-              <p className="text-sm font-semibold">Quiz gần đây</p>
+              <p className="text-sm font-bold text-[#1b4332]">Quiz gần đây</p>
               <div className="mt-2 space-y-2">
                 {(detail.recentQuizSessions ?? []).slice(0, 4).map((session: any) => (
-                  <div key={session.sessionId} className="rounded-lg bg-slate-50 p-3 text-sm">
-                    <div className="flex items-center justify-between">
+                  <AdminInsetRow key={session.sessionId}>
+                    <div className="flex items-center justify-between gap-2">
                       <span>{session.wasteType}</span>
-                      <Badge variant="outline">{session.status}</Badge>
+                      <Badge variant="outline" className={adminBadgeClass}>
+                        {session.status}
+                      </Badge>
                     </div>
-                    <p className="mt-1 text-slate-500">Correct: {session.correctAnswers} | XP: {session.xpAwarded}</p>
-                  </div>
+                    <p className="mt-1 text-[#2d6a4f]">
+                      Đúng: {session.correctAnswers} | XP: {session.xpAwarded}
+                    </p>
+                  </AdminInsetRow>
                 ))}
               </div>
             </div>
           </div>
         )}
-      </section>
+      </AdminCard>
     </div>
   )
 }
@@ -441,103 +558,155 @@ function QuizPanel() {
   }, [])
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-black" style={FF_FREDOKA}>Quiz fallback</p>
+    <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+      <AdminCard
+        title="Quiz fallback"
+        action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void load()}>Làm mới</Button>
-            <Button onClick={() => {
-              setSelected({ fallbackKey: "", targetAge: 8, questions: [] })
-              setJsonValue("[]")
-            }}>Tạo mới</Button>
+            <AdminOutlineButton className="!px-2.5 !py-1.5 text-xs" onClick={() => void load()}>
+              Làm mới
+            </AdminOutlineButton>
+            <AdminPrimaryButton
+              className="!px-2.5 !py-1.5 text-xs"
+              onClick={() => {
+                setSelected({ fallbackKey: "", targetAge: 8, questions: [] })
+                setJsonValue("[]")
+              }}
+            >
+              Tạo mới
+            </AdminPrimaryButton>
           </div>
-        </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <div className="mt-4 space-y-2">
+        }
+      >
+        {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
+        <div className="space-y-2">
           {fallbacks.map((item) => (
             <button
               key={item.fallbackKey}
+              type="button"
               onClick={() => {
                 setSelected(item)
                 setJsonValue(JSON.stringify(item.questions, null, 2))
               }}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-3 text-left hover:bg-slate-50"
+              className={`flex w-full items-center justify-between rounded-xl border-2 px-3 py-3 text-left transition ${
+                selected?.fallbackKey === item.fallbackKey
+                  ? "border-[#a8e6b8] bg-[#b9f0af]/50"
+                  : "border-[#d8f3dc] bg-[#f8fdf9] hover:bg-white"
+              }`}
             >
               <div>
-                <p className="font-medium">{item.fallbackKey}</p>
-                <p className="text-xs text-slate-500">Age {item.targetAge} • {item.questions.length} questions</p>
+                <p className="font-bold">{item.fallbackKey}</p>
+                <p className="text-xs text-[#2d6a4f]">
+                  Tuổi {item.targetAge} • {item.questions.length} câu
+                </p>
               </div>
-              <Badge variant="outline">{item.status}</Badge>
+              <Badge variant="outline" className={adminBadgeClass}>
+                {item.status}
+              </Badge>
             </button>
           ))}
         </div>
-      </section>
+      </AdminCard>
 
-      <section className="space-y-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="font-black" style={FF_FREDOKA}>Fallback editor</p>
+      <div className="space-y-5">
+        <AdminCard
+          title="Chỉnh sửa fallback"
+          action={
             <div className="flex gap-2">
               {selected?.fallbackKey ? (
-                <Button variant="outline" onClick={async () => {
-                  if (!window.confirm("Archive fallback này?")) return
-                  await adminApi.archiveQuizFallback(selected.fallbackKey)
-                  await load()
-                }}>Archive</Button>
+                <AdminOutlineButton
+                  className="!px-2.5 !py-1.5 text-xs"
+                  onClick={async () => {
+                    if (!window.confirm("Archive fallback này?")) return
+                    await adminApi.archiveQuizFallback(selected.fallbackKey)
+                    await load()
+                  }}
+                >
+                  Archive
+                </AdminOutlineButton>
               ) : null}
-              <Button onClick={async () => {
-                try {
-                  const key = selected?.fallbackKey || window.prompt("fallbackKey mới") || ""
-                  await adminApi.saveQuizFallback(
-                    {
-                      fallbackKey: key,
-                      targetAge: Number(selected?.targetAge ?? 8),
-                      questions: JSON.parse(jsonValue),
-                    },
-                    selected?.fallbackKey || undefined,
-                  )
-                  await load()
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : "Không lưu được fallback.")
-                }
-              }}>Lưu</Button>
+              <AdminPrimaryButton
+                className="!px-2.5 !py-1.5 text-xs"
+                onClick={async () => {
+                  try {
+                    const key = selected?.fallbackKey || window.prompt("fallbackKey mới") || ""
+                    await adminApi.saveQuizFallback(
+                      {
+                        fallbackKey: key,
+                        targetAge: Number(selected?.targetAge ?? 8),
+                        questions: JSON.parse(jsonValue),
+                      },
+                      selected?.fallbackKey || undefined,
+                    )
+                    await load()
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Không lưu được fallback.")
+                  }
+                }}
+              >
+                Lưu
+              </AdminPrimaryButton>
             </div>
+          }
+        >
+          <div className="space-y-3">
+            <Input
+              value={selected?.fallbackKey ?? ""}
+              onChange={(event) => setSelected((prev: any) => ({ ...(prev ?? {}), fallbackKey: event.target.value }))}
+              placeholder="fallbackKey"
+              className={adminInputClass}
+            />
+            <Input
+              value={String(selected?.targetAge ?? 8)}
+              onChange={(event) => setSelected((prev: any) => ({ ...(prev ?? {}), targetAge: Number(event.target.value || 8) }))}
+              placeholder="targetAge"
+              className={adminInputClass}
+            />
+            <Textarea
+              value={jsonValue}
+              onChange={(event) => setJsonValue(event.target.value)}
+              className={`min-h-[360px] font-mono text-xs ${adminInputClass}`}
+            />
           </div>
-          <div className="mt-4 space-y-3">
-            <Input value={selected?.fallbackKey ?? ""} onChange={(event) => setSelected((prev: any) => ({ ...(prev ?? {}), fallbackKey: event.target.value }))} placeholder="fallbackKey" />
-            <Input value={String(selected?.targetAge ?? 8)} onChange={(event) => setSelected((prev: any) => ({ ...(prev ?? {}), targetAge: Number(event.target.value || 8) }))} placeholder="targetAge" />
-            <Textarea value={jsonValue} onChange={(event) => setJsonValue(event.target.value)} className="min-h-[360px] font-mono text-xs" />
-          </div>
-        </div>
+        </AdminCard>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <p className="font-black" style={FF_FREDOKA}>Quiz pool</p>
-            <Button onClick={async () => {
-              await adminApi.refillQuizPool()
-              await load()
-            }}>Trigger refill</Button>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <KeyValue label="Ready" value={pool?.health?.readyCount ?? 0} />
-            <KeyValue label="Claimed" value={pool?.health?.claimedCount ?? 0} />
-            <KeyValue label="Failed" value={pool?.health?.failedCount ?? 0} />
-            <KeyValue label="Superseded" value={pool?.health?.supersededCount ?? 0} />
+        <AdminCard
+          title="Quiz pool"
+          action={
+            <AdminPrimaryButton
+              className="!px-2.5 !py-1.5 text-xs"
+              onClick={async () => {
+                await adminApi.refillQuizPool()
+                await load()
+              }}
+            >
+              Refill
+            </AdminPrimaryButton>
+          }
+        >
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <AdminKeyValue label="Ready" value={pool?.health?.readyCount ?? 0} />
+            <AdminKeyValue label="Claimed" value={pool?.health?.claimedCount ?? 0} />
+            <AdminKeyValue label="Failed" value={pool?.health?.failedCount ?? 0} />
+            <AdminKeyValue label="Superseded" value={pool?.health?.supersededCount ?? 0} />
           </div>
           <div className="mt-4 space-y-2">
             {(pool?.items ?? []).slice(0, 8).map((item: any) => (
-              <div key={item.quizSetId} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between">
+              <AdminInsetRow key={item.quizSetId}>
+                <div className="flex items-center justify-between gap-2">
                   <span>{item.topic}</span>
-                  <Badge variant="outline">{item.status}</Badge>
+                  <Badge variant="outline" className={adminBadgeClass}>
+                    {item.status}
+                  </Badge>
                 </div>
-                <p className="text-xs text-slate-500">{item.quizSetId} • {item.questionCount} câu</p>
-              </div>
+                <p className="mt-1 text-xs text-[#2d6a4f]">
+                  {item.quizSetId} • {item.questionCount} câu
+                </p>
+              </AdminInsetRow>
             ))}
           </div>
-        </div>
-      </section>
+        </AdminCard>
+      </div>
     </div>
   )
 }
@@ -549,15 +718,16 @@ function CameraPanel() {
     void adminApi.getAiCameraClassifications().then(setItems).catch(() => setItems([]))
   }, [])
 
-  if (!items) return <PanelMessage message="Đang tải AI camera history..." />
+  if (!items) return <AdminPanelMessage message="Đang tải AI camera history..." />
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="font-black" style={FF_FREDOKA}>AI Camera classifications</p>
+    <AdminCard title="AI Camera">
       {items.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">Hiện backend chưa lưu classification history thành bảng riêng, nên trang này đang rỗng.</p>
+        <p className="text-sm text-[#2d6a4f]">
+          Backend chưa lưu lịch sử phân loại riêng — trang này tạm trống.
+        </p>
       ) : null}
-    </section>
+    </AdminCard>
   )
 }
 
@@ -580,79 +750,108 @@ function MiniGamePanel() {
   }, [])
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-black" style={FF_FREDOKA}>Mini-game items</p>
-          <Button variant="outline" onClick={() => void load()}>Làm mới</Button>
-        </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <div className="mt-4 overflow-x-auto">
+    <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <AdminCard
+        title="Mini-game items"
+        action={
+          <AdminOutlineButton className="!px-2.5 !py-1.5 text-xs" onClick={() => void load()}>
+            Làm mới
+          </AdminOutlineButton>
+        }
+      >
+        {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
+        <div className={`overflow-x-auto rounded-xl border border-[#d8f3dc] ${adminTableClass}`}>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="border-[#d8f3dc] hover:bg-transparent">
                 <TableHead>Item</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Difficulty</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Loại</TableHead>
+                <TableHead>Độ khó</TableHead>
+                <TableHead>Trạng thái</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((item: any) => (
-                <TableRow key={item.itemId}>
+                <TableRow key={item.itemId} className="border-[#eef8f0] hover:bg-[#f8fdf9]">
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.category}</TableCell>
                   <TableCell>{item.difficulty}</TableCell>
-                  <TableCell><Badge variant="outline">{item.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={adminBadgeClass}>
+                      {item.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="space-x-2 text-right">
-                    <Button size="sm" variant="outline" onClick={() => setDraft(item)}>Sửa</Button>
-                    <Button size="sm" variant="outline" onClick={async () => {
-                      if (!window.confirm("Archive item này?")) return
-                      await adminApi.archiveMiniGameItem(item.itemId)
-                      await load()
-                    }}>Archive</Button>
+                    <AdminOutlineButton className="!px-2.5 !py-1 text-xs" onClick={() => setDraft(item)}>
+                      Sửa
+                    </AdminOutlineButton>
+                    <AdminOutlineButton
+                      className="!px-2.5 !py-1 text-xs"
+                      onClick={async () => {
+                        if (!window.confirm("Archive item này?")) return
+                        await adminApi.archiveMiniGameItem(item.itemId)
+                        await load()
+                      }}
+                    >
+                      Archive
+                    </AdminOutlineButton>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      </section>
+      </AdminCard>
 
-      <section className="space-y-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="font-black" style={FF_FREDOKA}>Item editor</p>
-          <div className="mt-4 space-y-3">
+      <div className="space-y-5">
+        <AdminCard title="Chỉnh sửa item">
+          <div className="space-y-3">
             {["itemId", "name", "category", "binColor", "iconKey", "difficulty"].map((field) => (
-              <Input key={field} value={draft[field] ?? ""} onChange={(event) => setDraft((prev: any) => ({ ...prev, [field]: event.target.value }))} placeholder={field} />
+              <Input
+                key={field}
+                value={draft[field] ?? ""}
+                onChange={(event) => setDraft((prev: any) => ({ ...prev, [field]: event.target.value }))}
+                placeholder={field}
+                className={adminInputClass}
+              />
             ))}
-            <Select value={draft.isActive ? "true" : "false"} onValueChange={(value) => setDraft((prev: any) => ({ ...prev, isActive: value === "true" }))}>
-              <SelectTrigger><SelectValue placeholder="isActive" /></SelectTrigger>
+            <Select
+              value={draft.isActive ? "true" : "false"}
+              onValueChange={(value) => setDraft((prev: any) => ({ ...prev, isActive: value === "true" }))}
+            >
+              <SelectTrigger className={adminInputClass}>
+                <SelectValue placeholder="isActive" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Active</SelectItem>
                 <SelectItem value="false">Disabled</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={async () => {
-              await adminApi.saveMiniGameItem(draft, draft.itemId || undefined)
-              await load()
-            }}>Lưu item</Button>
+            <AdminPrimaryButton
+              onClick={async () => {
+                await adminApi.saveMiniGameItem(draft, draft.itemId || undefined)
+                await load()
+              }}
+            >
+              Lưu item
+            </AdminPrimaryButton>
           </div>
-        </div>
+        </AdminCard>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="font-black" style={FF_FREDOKA}>Leaderboard</p>
-          <div className="mt-3 space-y-2">
+        <AdminCard title="Xếp hạng">
+          <div className="space-y-2">
             {(data?.leaderboard ?? []).map((entry: any) => (
-              <div key={entry.childId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                <span>#{entry.rank} {entry.name}</span>
-                <span>{entry.miniGameHighScore}</span>
-              </div>
+              <AdminInsetRow key={entry.childId} className="flex items-center justify-between">
+                <span>
+                  #{entry.rank} {entry.name}
+                </span>
+                <span className="font-bold tabular-nums">{entry.miniGameHighScore} điểm</span>
+              </AdminInsetRow>
             ))}
           </div>
-        </div>
-      </section>
+        </AdminCard>
+      </div>
     </div>
   )
 }
@@ -664,33 +863,33 @@ function RewardsPanel() {
     void adminApi.getOverview().then(setData).catch(() => setData(null))
   }, [])
 
-  if (!data) return <PanelMessage message="Đang tải rewards & streak..." />
+  if (!data) return <AdminPanelMessage message="Đang tải rewards & streak..." />
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="font-black" style={FF_FREDOKA}>Streak summary</p>
-        <div className="mt-4 space-y-2 text-sm">
-          <KeyValue label="Active today" value={data.streak.activeToday} />
-          <KeyValue label="Streak >= 7" value={data.streak.streak7OrMore} />
-          <KeyValue label="Streak >= 30" value={data.streak.streak30OrMore} />
+    <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+      <AdminCard title="Tóm tắt streak">
+        <div className="space-y-2 text-sm">
+          <AdminKeyValue label="Hoạt động hôm nay" value={data.streak.activeToday} />
+          <AdminKeyValue label="Streak ≥ 7" value={data.streak.streak7OrMore} />
+          <AdminKeyValue label="Streak ≥ 30" value={data.streak.streak30OrMore} />
         </div>
-      </section>
+      </AdminCard>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="font-black" style={FF_FREDOKA}>Badge catalog</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <AdminCard title="Danh mục huy hiệu">
+        <div className="grid gap-3 md:grid-cols-2">
           {data.badgeCatalog.map((badge: any) => (
-            <div key={badge.code} className="rounded-lg border border-slate-200 p-3">
+            <div key={badge.code} className="rounded-xl border-2 border-[#d8f3dc] bg-[#f8fdf9] p-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold">{badge.name}</p>
-                <Badge variant="outline">{badge.enabled ? "Enabled" : "Disabled"}</Badge>
+                <p className="font-bold text-[#1b4332]">{badge.name}</p>
+                <Badge variant="outline" className={adminBadgeClass}>
+                  {badge.enabled ? "Bật" : "Tắt"}
+                </Badge>
               </div>
-              <p className="mt-2 text-sm text-slate-500">{badge.description}</p>
+              <p className="mt-2 text-sm text-[#2d6a4f]">{badge.description}</p>
             </div>
           ))}
         </div>
-      </section>
+      </AdminCard>
     </div>
   )
 }
@@ -701,33 +900,11 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
     <div>
       <div className="flex items-center justify-between">
         <span>{label}</span>
-        <span>{value}</span>
+        <span className="tabular-nums">{value}</span>
       </div>
-      <div className="mt-1 h-2 rounded-full bg-slate-200">
+      <div className="mt-1 h-2 rounded-full bg-[#e8f5ec]">
         <div className={`h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
       </div>
     </div>
-  )
-}
-
-function KeyValue({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  )
-}
-
-function PanelMessage({ message }: { message: string }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{message}</section>
-}
-
-function PanelError({ error, onRetry }: { error: string; onRetry: () => void }) {
-  return (
-    <section className="rounded-xl border border-red-200 bg-white p-6">
-      <p className="text-sm text-red-600">{error}</p>
-      <Button className="mt-3" variant="outline" onClick={onRetry}>Thử lại</Button>
-    </section>
   )
 }
