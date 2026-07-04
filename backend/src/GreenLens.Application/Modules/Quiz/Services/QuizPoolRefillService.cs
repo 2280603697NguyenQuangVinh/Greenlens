@@ -51,6 +51,12 @@ public sealed class QuizPoolRefillService : IQuizPoolRefillService
             return;
         }
 
+        if (readyCount > 0 && readyCount < _targetReadyCount)
+        {
+            await _quizPoolRepository.SupersedeReadyAsync(cancellationToken);
+            readyCount = 0;
+        }
+
         var missingCount = Math.Max(_targetReadyCount - readyCount, 0);
         for (var i = 0; i < missingCount; i++)
         {

@@ -256,6 +256,11 @@ public sealed class ChildProfileService(
             throw new UnauthorizedAccessException("Child profile does not belong to this user.");
         }
 
+        if (!string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Child profile is disabled.");
+        }
+
         return profile;
     }
 

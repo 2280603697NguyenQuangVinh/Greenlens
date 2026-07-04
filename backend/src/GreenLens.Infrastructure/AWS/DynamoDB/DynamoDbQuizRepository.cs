@@ -8,6 +8,8 @@ namespace GreenLens.Infrastructure.AWS.DynamoDB;
 
 public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepository
 {
+    private const string GlobalPoolChildId = "global";
+    private const string ProgressQuizSetId = "state";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IAmazonDynamoDB _dynamoDb;
@@ -41,7 +43,10 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
                 cancellationToken);
 
             if (response.Item.TryGetValue("questionsJson", out var questionsJson) &&
-                !string.IsNullOrWhiteSpace(questionsJson.S))
+                !string.IsNullOrWhiteSpace(questionsJson.S) &&
+                (!response.Item.TryGetValue("status", out var status) ||
+                    string.IsNullOrWhiteSpace(status.S) ||
+                    string.Equals(status.S, "Active", StringComparison.OrdinalIgnoreCase)))
             {
                 var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(questionsJson.S, JsonOptions);
                 if (questions is { Count: >= 3 } &&
@@ -69,16 +74,15 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
                 new QueryRequest
                 {
                     TableName = _options.QuizPoolTableName,
-                    KeyConditionExpression = "childId = :childId",
-                    FilterExpression = "cognitoSub = :cognitoSub AND #status = :ready",
+                    KeyConditionExpression = "childId = :global",
+                    FilterExpression = "#status = :ready",
                     ExpressionAttributeNames = new Dictionary<string, string>
                     {
                         ["#status"] = "status"
                     },
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                     {
-                        [":childId"] = new() { S = childId },
-                        [":cognitoSub"] = new() { S = cognitoSub },
+                        [":global"] = new() { S = GlobalPoolChildId },
                         [":ready"] = new() { S = "Ready" }
                     },
                     ScanIndexForward = true,
@@ -86,47 +90,23 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
                 },
                 cancellationToken);
 
+            var usedIds = await GetUsedQuizSetIdsAsync(childId, cancellationToken);
             foreach (var item in response.Items)
             {
                 var poolItem = ToPoolItem(item);
+                if (usedIds.Contains(poolItem.QuizSetId))
+                {
+                    continue;
+                }
+
                 if (poolItem.Questions.Count < 3 ||
                     poolItem.Questions.Take(3).Any(question => question.Options.Count != 4))
                 {
                     continue;
                 }
 
-                try
-                {
-                    await _dynamoDb.UpdateItemAsync(
-                        new UpdateItemRequest
-                        {
-                            TableName = _options.QuizPoolTableName,
-                            Key = new Dictionary<string, AttributeValue>
-                            {
-                                ["childId"] = new() { S = poolItem.ChildId },
-                                ["quizSetId"] = new() { S = poolItem.QuizSetId }
-                            },
-                            UpdateExpression = "SET #status = :claimed, claimedAt = :claimedAt",
-                            ConditionExpression = "#status = :ready AND cognitoSub = :cognitoSub",
-                            ExpressionAttributeNames = new Dictionary<string, string>
-                            {
-                                ["#status"] = "status"
-                            },
-                            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                            {
-                                [":claimed"] = new() { S = "Claimed" },
-                                [":claimedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
-                                [":ready"] = new() { S = "Ready" },
-                                [":cognitoSub"] = new() { S = cognitoSub }
-                            }
-                        },
-                        cancellationToken);
-
-                    return poolItem with { Status = "Claimed", ClaimedAt = DateTime.UtcNow };
-                }
-                catch (ConditionalCheckFailedException)
-                {
-                }
+                await MarkQuizSetUsedAsync(childId, cognitoSub, poolItem.QuizSetId, cancellationToken);
+                return poolItem with { Status = "Ready", ClaimedAt = DateTime.UtcNow };
             }
         }
         catch (ResourceNotFoundException)
@@ -147,23 +127,30 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
                 new QueryRequest
                 {
                     TableName = _options.QuizPoolTableName,
-                    KeyConditionExpression = "childId = :childId",
-                    FilterExpression = "cognitoSub = :cognitoSub AND #status = :ready",
+                    KeyConditionExpression = "childId = :global",
+                    FilterExpression = "#status = :ready",
                     ExpressionAttributeNames = new Dictionary<string, string>
                     {
                         ["#status"] = "status"
                     },
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                     {
-                        [":childId"] = new() { S = childId },
-                        [":cognitoSub"] = new() { S = cognitoSub },
+                        [":global"] = new() { S = GlobalPoolChildId },
                         [":ready"] = new() { S = "Ready" }
                     }
                 },
                 cancellationToken);
 
+            var usedIds = await GetUsedQuizSetIdsAsync(childId, cancellationToken);
             return response.Items.Count(item =>
             {
+                if (item.TryGetValue("quizSetId", out var quizSetId) &&
+                    !string.IsNullOrWhiteSpace(quizSetId.S) &&
+                    usedIds.Contains(quizSetId.S))
+                {
+                    return false;
+                }
+
                 var questions = JsonSerializer.Deserialize<List<QuizQuestionDto>>(
                     GetString(item, "questionsJson") ?? "[]",
                     JsonOptions) ?? [];
@@ -181,7 +168,62 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
         QuizPoolItemDto item,
         CancellationToken cancellationToken = default)
     {
-        return SavePoolItemAsync(item, cancellationToken);
+        return SavePoolItemAsync(item with { ChildId = GlobalPoolChildId, CognitoSub = "global" }, cancellationToken);
+    }
+
+    public async Task SupersedeReadyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _dynamoDb.QueryAsync(
+            new QueryRequest
+            {
+                TableName = _options.QuizPoolTableName,
+                KeyConditionExpression = "childId = :global",
+                FilterExpression = "#status = :ready",
+                ExpressionAttributeNames = new Dictionary<string, string>
+                {
+                    ["#status"] = "status"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":global"] = new() { S = GlobalPoolChildId },
+                    [":ready"] = new() { S = "Ready" }
+                }
+            },
+            cancellationToken);
+
+        foreach (var item in response.Items)
+        {
+            var quizSetId = GetString(item, "quizSetId");
+            if (string.IsNullOrWhiteSpace(quizSetId))
+            {
+                continue;
+            }
+
+            await _dynamoDb.UpdateItemAsync(
+                new UpdateItemRequest
+                {
+                    TableName = _options.QuizPoolTableName,
+                    Key = new Dictionary<string, AttributeValue>
+                    {
+                        ["childId"] = new() { S = GlobalPoolChildId },
+                        ["quizSetId"] = new() { S = quizSetId }
+                    },
+                    UpdateExpression = "SET #status = :superseded, supersededAt = :now",
+                    ConditionExpression = "#status = :ready",
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#status"] = "status"
+                    },
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":superseded"] = new() { S = "Superseded" },
+                        [":now"] = new() { S = DateTime.UtcNow.ToString("O") },
+                        [":ready"] = new() { S = "Ready" }
+                    }
+                },
+                cancellationToken);
+        }
     }
 
     public async Task SaveFailedAsync(
@@ -367,6 +409,63 @@ public sealed class DynamoDbQuizRepository : IQuizRepository, IQuizPoolRepositor
         catch (ConditionalCheckFailedException)
         {
         }
+    }
+
+    private async Task<HashSet<string>> GetUsedQuizSetIdsAsync(
+        string childId,
+        CancellationToken cancellationToken)
+    {
+        var response = await _dynamoDb.GetItemAsync(
+            new GetItemRequest
+            {
+                TableName = _options.QuizPoolTableName,
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    ["childId"] = new() { S = ToProgressChildId(childId) },
+                    ["quizSetId"] = new() { S = ProgressQuizSetId }
+                }
+            },
+            cancellationToken);
+
+        if (response.Item.Count == 0 ||
+            !response.Item.TryGetValue("usedQuizSetIds", out var value) ||
+            value.SS is null)
+        {
+            return [];
+        }
+
+        return value.SS.ToHashSet(StringComparer.Ordinal);
+    }
+
+    private async Task MarkQuizSetUsedAsync(
+        string childId,
+        string cognitoSub,
+        string quizSetId,
+        CancellationToken cancellationToken)
+    {
+        await _dynamoDb.UpdateItemAsync(
+            new UpdateItemRequest
+            {
+                TableName = _options.QuizPoolTableName,
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    ["childId"] = new() { S = ToProgressChildId(childId) },
+                    ["quizSetId"] = new() { S = ProgressQuizSetId }
+                },
+                UpdateExpression = "SET cognitoSub = :cognitoSub, updatedAt = :updatedAt ADD usedQuizSetIds :quizSetId",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":cognitoSub"] = new() { S = cognitoSub },
+                    [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
+                    [":quizSetId"] = new() { SS = [quizSetId] }
+                }
+            },
+            cancellationToken);
+    }
+
+    private static string ToProgressChildId(string childId)
+    {
+        return $"progress#{childId}";
     }
 
     private static QuizPoolItemDto ToPoolItem(Dictionary<string, AttributeValue> item)

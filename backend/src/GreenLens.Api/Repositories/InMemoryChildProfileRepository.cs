@@ -26,6 +26,7 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
         CancellationToken cancellationToken = default)
     {
         var profiles = _profiles.Values
+            .Where(profile => string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(profile => profile.MiniGameHighScore)
             .ThenByDescending(profile => profile.Xp)
             .ThenBy(profile => profile.CreatedAt)
@@ -72,6 +73,8 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
             MiniGameHighScore = profile.MiniGameHighScore,
             Badges = profile.Badges,
             Rewards = profile.Rewards,
+            Status = profile.Status,
+            UpdatedBy = profile.UpdatedBy,
             CreatedAt = profile.CreatedAt,
             UpdatedAt = DateTime.UtcNow
         };

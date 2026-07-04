@@ -6,6 +6,7 @@ using Amazon.BedrockRuntime;
 using Amazon.Rekognition;
 using Amazon.S3;
 using GreenLens.Api.Auth;
+using GreenLens.Api.Admin;
 using GreenLens.Api.Repositories;
 using GreenLens.Api.Services;
 using GreenLens.Application.Modules.AiCamera.DTOs;
@@ -80,7 +81,21 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<AiCameraAnalyzeOperationFilter>();
 });
 
+builder.Services.AddSingleton(new DevAuthOptions
+{
+    DefaultAdminUsername = builder.Configuration["DEV_ADMIN_USERNAME"] ?? "admin",
+    DefaultAdminPassword = builder.Configuration["DEV_ADMIN_PASSWORD"] ?? "Admin@123",
+    EnableDefaultAdmin = builder.Configuration.GetValue<bool?>("ENABLE_DEV_ADMIN_SEED") ?? true
+});
 builder.Services.AddSingleton<CognitoSubExtractor>();
+builder.Services.AddSingleton<IAmazonDynamoDB>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var serviceUrl = configuration["DYNAMODB_SERVICE_URL"];
+    return string.IsNullOrWhiteSpace(serviceUrl)
+        ? new AmazonDynamoDBClient()
+        : new AmazonDynamoDBClient(new AmazonDynamoDBConfig { ServiceURL = serviceUrl });
+});
 builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
 builder.Services.AddSingleton<IAmazonRekognition>(_ => new AmazonRekognitionClient());
 builder.Services.AddSingleton<IAmazonBedrockRuntime>(_ => new AmazonBedrockRuntimeClient());
@@ -284,7 +299,7 @@ builder.Services.AddSingleton<IAuthService>(serviceProvider =>
             (string.IsNullOrWhiteSpace(cognitoOptions.UserPoolId) ||
              string.IsNullOrWhiteSpace(cognitoOptions.AppClientId))))
     {
-        return new InMemoryAuthService();
+        return new InMemoryAuthService(serviceProvider.GetRequiredService<DevAuthOptions>());
     }
 
     return new CognitoAuthService(
@@ -323,6 +338,7 @@ builder.Services.AddSingleton<IChildIdentityService>(serviceProvider =>
     return new CognitoChildIdentityService(new AmazonCognitoIdentityProviderClient());
 });
 builder.Services.AddSingleton<IChildProfileService, ChildProfileService>();
+builder.Services.AddSingleton<IAdminService, AdminService>();
 
 var app = builder.Build();
 
@@ -348,9 +364,10 @@ app.Use(async (context, next) =>
     }
 
     var authorizationHeader = context.Request.Headers.Authorization.FirstOrDefault();
-    var sub = context.RequestServices
+    var principal = context.RequestServices
         .GetRequiredService<CognitoSubExtractor>()
-        .ExtractFromAuthorizationHeader(authorizationHeader);
+        .ExtractPrincipalFromAuthorizationHeader(authorizationHeader);
+    var sub = principal.Subject;
 
     if (string.IsNullOrWhiteSpace(sub))
     {
@@ -361,6 +378,16 @@ app.Use(async (context, next) =>
     }
 
     context.Items["cognitoSub"] = sub;
+    context.Items["cognitoGroups"] = principal.Groups;
+
+    if (context.Request.Path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) &&
+        !principal.IsAdmin)
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { message = "Admin access is required." });
+        return;
+    }
+
     await next();
 });
 
@@ -631,6 +658,215 @@ app.MapPost("/child-profiles/{childId}/streak/check-in", async (
     {
         return Results.NotFound(new { message = exception.Message });
     }
+});
+
+app.MapGet("/admin/overview", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    var response = await adminService.GetOverviewAsync(httpRequest.HttpContext.RequestAborted);
+    return Results.Ok(response);
+});
+
+app.MapGet("/admin/children", async (
+    HttpRequest httpRequest,
+    IAdminService adminService,
+    [FromQuery] string? search,
+    [FromQuery] string? status) =>
+{
+    var response = await adminService.GetChildrenAsync(search, status, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok(response);
+});
+
+app.MapGet("/admin/children/{childId}", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    try
+    {
+        return Results.Ok(await adminService.GetChildAsync(childId, httpRequest.HttpContext.RequestAborted));
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+});
+
+app.MapPost("/admin/children/{childId}/archive", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.ArchiveChildAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapPost("/admin/children/{childId}/lock", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.LockChildAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapPost("/admin/children/{childId}/unlock", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.UnlockChildAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapPost("/admin/children/{childId}/streak/reset", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.ResetChildStreakAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapPost("/admin/children/{childId}/xp-adjust", async (
+    HttpRequest httpRequest,
+    string childId,
+    AdminAdjustXpRequest request,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.AdjustChildXpAsync(childId, adminSub, request.Xp, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapGet("/admin/quiz/fallbacks", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    return Results.Ok(await adminService.GetQuizFallbacksAsync(httpRequest.HttpContext.RequestAborted));
+});
+
+app.MapPost("/admin/quiz/fallbacks", async (
+    HttpRequest httpRequest,
+    AdminSaveQuizFallbackRequest request,
+    IAdminService adminService) =>
+{
+    try
+    {
+        var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+        return Results.Ok(await adminService.SaveQuizFallbackAsync(request, adminSub, httpRequest.HttpContext.RequestAborted));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+});
+
+app.MapPut("/admin/quiz/fallbacks/{fallbackKey}", async (
+    HttpRequest httpRequest,
+    string fallbackKey,
+    AdminSaveQuizFallbackRequest request,
+    IAdminService adminService) =>
+{
+    try
+    {
+        var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+        var normalizedRequest = request with { FallbackKey = fallbackKey };
+        return Results.Ok(await adminService.SaveQuizFallbackAsync(normalizedRequest, adminSub, httpRequest.HttpContext.RequestAborted));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+});
+
+app.MapPost("/admin/quiz/fallbacks/{fallbackKey}/archive", async (
+    HttpRequest httpRequest,
+    string fallbackKey,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.ArchiveQuizFallbackAsync(fallbackKey, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
+});
+
+app.MapGet("/admin/quiz/pool", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    return Results.Ok(await adminService.GetQuizPoolAsync(httpRequest.HttpContext.RequestAborted));
+});
+
+app.MapPost("/admin/quiz/pool/refill", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.TriggerQuizPoolRefillAsync(adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Accepted();
+});
+
+app.MapGet("/admin/ai-camera/classifications", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    return Results.Ok(await adminService.GetAiCameraClassificationsAsync(httpRequest.HttpContext.RequestAborted));
+});
+
+app.MapGet("/admin/mini-games/items", async (
+    HttpRequest httpRequest,
+    IAdminService adminService) =>
+{
+    return Results.Ok(await adminService.GetMiniGameItemsAsync(httpRequest.HttpContext.RequestAborted));
+});
+
+app.MapPost("/admin/mini-games/items", async (
+    HttpRequest httpRequest,
+    AdminSaveMiniGameItemRequest request,
+    IAdminService adminService) =>
+{
+    try
+    {
+        var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+        return Results.Ok(await adminService.SaveMiniGameItemAsync(request, adminSub, httpRequest.HttpContext.RequestAborted));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+});
+
+app.MapPut("/admin/mini-games/items/{itemId}", async (
+    HttpRequest httpRequest,
+    string itemId,
+    AdminSaveMiniGameItemRequest request,
+    IAdminService adminService) =>
+{
+    try
+    {
+        var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+        var normalizedRequest = request with { ItemId = itemId };
+        return Results.Ok(await adminService.SaveMiniGameItemAsync(normalizedRequest, adminSub, httpRequest.HttpContext.RequestAborted));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+});
+
+app.MapPost("/admin/mini-games/items/{itemId}/archive", async (
+    HttpRequest httpRequest,
+    string itemId,
+    IAdminService adminService) =>
+{
+    var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+    await adminService.ArchiveMiniGameItemAsync(itemId, adminSub, httpRequest.HttpContext.RequestAborted);
+    return Results.Ok();
 });
 
 app.MapPost("/ai-camera/analyze", async (

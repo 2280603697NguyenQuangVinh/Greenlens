@@ -37,6 +37,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             ["streakFreezeDaysUsed"] = new() { N = profile.StreakFreezeDaysUsed.ToString() },
             ["aiCameraScanCount"] = new() { N = profile.AiCameraScanCount.ToString() },
             ["miniGameHighScore"] = new() { N = profile.MiniGameHighScore.ToString() },
+            ["status"] = new() { S = string.IsNullOrWhiteSpace(profile.Status) ? "Active" : profile.Status },
             ["createdAt"] = new() { S = profile.CreatedAt.ToString("O") },
             ["updatedAt"] = new() { S = profile.UpdatedAt.ToString("O") }
         };
@@ -48,6 +49,11 @@ public sealed class ChildProfileRepository : IChildProfileRepository
 
         AddStringList(item, "badges", profile.Badges);
         AddStringList(item, "rewards", profile.Rewards);
+
+        if (!string.IsNullOrWhiteSpace(profile.UpdatedBy))
+        {
+            item["updatedBy"] = new AttributeValue { S = profile.UpdatedBy };
+        }
 
         var request = new PutItemRequest
         {
@@ -98,6 +104,8 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             MiniGameHighScore = GetInt(response.Item, "miniGameHighScore"),
             Badges = GetStringList(response.Item, "badges"),
             Rewards = GetStringList(response.Item, "rewards"),
+            Status = GetString(response.Item, "status") ?? "Active",
+            UpdatedBy = GetString(response.Item, "updatedBy"),
             CreatedAt = GetDate(response.Item, "createdAt"),
             UpdatedAt = GetDate(response.Item, "updatedAt")
         };
@@ -135,6 +143,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
 
         return items
             .Select(ToProfile)
+            .Where(profile => string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(profile => profile.MiniGameHighScore)
             .ThenByDescending(profile => profile.Xp)
             .ThenBy(profile => profile.CreatedAt)
@@ -193,6 +202,8 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             MiniGameHighScore = GetInt(item, "miniGameHighScore"),
             Badges = GetStringList(item, "badges"),
             Rewards = GetStringList(item, "rewards"),
+            Status = GetString(item, "status") ?? "Active",
+            UpdatedBy = GetString(item, "updatedBy"),
             CreatedAt = GetDate(item, "createdAt"),
             UpdatedAt = GetDate(item, "updatedAt")
         };

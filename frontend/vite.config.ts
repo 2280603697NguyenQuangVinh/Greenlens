@@ -102,6 +102,14 @@ export default defineConfig(({ mode }) => {
 
         },
 
+        '^/admin/.+': {
+
+          target: apiTarget,
+
+          changeOrigin: true,
+
+        },
+
         '/users': {
 
           target: apiTarget,
@@ -154,5 +162,4 @@ export default defineConfig(({ mode }) => {
   }
 
 })
-
 

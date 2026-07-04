@@ -7,6 +7,17 @@ namespace GreenLens.Api.Repositories;
 public sealed class InMemoryAuthService : IAuthService
 {
     private readonly Dictionary<string, string> _passwords = new(StringComparer.OrdinalIgnoreCase);
+    private readonly DevAuthOptions _options;
+
+    public InMemoryAuthService(DevAuthOptions? options = null)
+    {
+        _options = options ?? new DevAuthOptions();
+
+        if (_options.EnableDefaultAdmin)
+        {
+            _passwords[_options.DefaultAdminUsername.Trim()] = _options.DefaultAdminPassword;
+        }
+    }
 
     public Task<AuthTokenResponse> RegisterAsync(
         AuthRegisterRequest request,
@@ -19,7 +30,7 @@ public sealed class InMemoryAuthService : IAuthService
 
         _passwords[username] = password;
 
-        return Task.FromResult(DevBearerTokenFactory.Create(username));
+        return Task.FromResult(DevBearerTokenFactory.Create(username, ResolveGroups(username)));
     }
 
     public Task<AuthTokenResponse> LoginAsync(
@@ -35,7 +46,7 @@ public sealed class InMemoryAuthService : IAuthService
         }
 
         _passwords.TryAdd(username, password);
-        return Task.FromResult(DevBearerTokenFactory.Create(username));
+        return Task.FromResult(DevBearerTokenFactory.Create(username, ResolveGroups(username)));
     }
 
     public Task<AuthTokenResponse> RefreshAsync(
@@ -48,7 +59,15 @@ public sealed class InMemoryAuthService : IAuthService
         }
 
         var username = NormalizeUsername(request.Username ?? "local-child");
-        return Task.FromResult(DevBearerTokenFactory.Create(username));
+        return Task.FromResult(DevBearerTokenFactory.Create(username, ResolveGroups(username)));
+    }
+
+    private IReadOnlyCollection<string> ResolveGroups(string username)
+    {
+        return _options.EnableDefaultAdmin &&
+               string.Equals(username, _options.DefaultAdminUsername.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? ["admin"]
+            : [];
     }
 
     private static string NormalizeUsername(string? username)

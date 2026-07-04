@@ -33,11 +33,16 @@ public sealed class DynamoDbMiniGameRepository : IMiniGameRepository
                 new ScanRequest
                 {
                     TableName = _options.ItemsTableName,
-                    FilterExpression = "gameType = :gameType AND isActive = :isActive",
+                    FilterExpression = "gameType = :gameType AND isActive = :isActive AND (#status = :active OR attribute_not_exists(#status))",
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#status"] = "status"
+                    },
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                     {
                         [":gameType"] = new() { S = gameType },
-                        [":isActive"] = new() { BOOL = true }
+                        [":isActive"] = new() { BOOL = true },
+                        [":active"] = new() { S = "Active" }
                     },
                     ExclusiveStartKey = lastEvaluatedKey
                 },

@@ -45,6 +45,13 @@ public sealed class DynamoDbChildQuizContextReader : IChildQuizContextReader
             throw new UnauthorizedAccessException("Child profile does not belong to this user.");
         }
 
+        var status = GetString(response.Item, "status");
+        if (!string.IsNullOrWhiteSpace(status) &&
+            !string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Child profile is disabled.");
+        }
+
         return new ChildQuizContext(
             childId,
             cognitoSub);

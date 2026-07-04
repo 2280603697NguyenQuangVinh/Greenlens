@@ -18,6 +18,9 @@ public interface IQuizPoolRepository
         QuizPoolItemDto item,
         CancellationToken cancellationToken = default);
 
+    Task SupersedeReadyAsync(
+        CancellationToken cancellationToken = default);
+
     Task SaveFailedAsync(
         string childId,
         string cognitoSub,

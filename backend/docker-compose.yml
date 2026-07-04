@@ -16,7 +16,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ALLOW_DEV_AUTH=true
       - USE_IN_MEMORY_CHILD_PROFILES=false
-      - USE_IN_MEMORY_AUTH=${USE_IN_MEMORY_AUTH:-false}
+      - USE_IN_MEMORY_AUTH=${USE_IN_MEMORY_AUTH:-true}
+      - ENABLE_DEV_ADMIN_SEED=${ENABLE_DEV_ADMIN_SEED:-true}
+      - DEV_ADMIN_USERNAME=${DEV_ADMIN_USERNAME:-admin}
+      - DEV_ADMIN_PASSWORD=${DEV_ADMIN_PASSWORD:-Admin@123}
       - CHILD_PROFILES_TABLE_NAME=${CHILD_PROFILES_TABLE_NAME:-GreenLens-ChildProfiles}
 
     restart: unless-stopped

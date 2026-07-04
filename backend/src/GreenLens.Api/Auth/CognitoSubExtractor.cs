@@ -5,22 +5,37 @@ namespace GreenLens.Api.Auth;
 
 public sealed class CognitoSubExtractor
 {
-    public string? Extract(APIGatewayProxyRequest request)
+    public CognitoPrincipal ExtractPrincipal(APIGatewayProxyRequest request)
     {
-        var authorizerSub = ExtractFromAuthorizer(request);
-        if (!string.IsNullOrWhiteSpace(authorizerSub))
+        var subject = ExtractFromAuthorizer(request);
+        var groups = ExtractGroupsFromAuthorizer(request);
+        if (!string.IsNullOrWhiteSpace(subject))
         {
-            return authorizerSub;
+            return new CognitoPrincipal(subject, groups);
         }
 
         var token = ExtractBearerToken(request);
-        return string.IsNullOrWhiteSpace(token) ? null : ExtractFromJwt(token);
+        return string.IsNullOrWhiteSpace(token)
+            ? new CognitoPrincipal(null, [])
+            : ExtractPrincipalFromJwt(token);
+    }
+
+    public CognitoPrincipal ExtractPrincipalFromAuthorizationHeader(string? authorizationHeader)
+    {
+        var token = ExtractBearerToken(authorizationHeader);
+        return string.IsNullOrWhiteSpace(token)
+            ? new CognitoPrincipal(null, [])
+            : ExtractPrincipalFromJwt(token);
+    }
+
+    public string? Extract(APIGatewayProxyRequest request)
+    {
+        return ExtractPrincipal(request).Subject;
     }
 
     public string? ExtractFromAuthorizationHeader(string? authorizationHeader)
     {
-        var token = ExtractBearerToken(authorizationHeader);
-        return string.IsNullOrWhiteSpace(token) ? null : ExtractFromJwt(token);
+        return ExtractPrincipalFromAuthorizationHeader(authorizationHeader).Subject;
     }
 
     private static string? ExtractFromAuthorizer(APIGatewayProxyRequest request)
@@ -42,6 +57,25 @@ public sealed class CognitoSubExtractor
         }
 
         return null;
+    }
+
+    private static IReadOnlyList<string> ExtractGroupsFromAuthorizer(APIGatewayProxyRequest request)
+    {
+        var claims = request.RequestContext?.Authorizer?.Claims;
+        if (claims is null)
+        {
+            return [];
+        }
+
+        if (!claims.TryGetValue("cognito:groups", out var groupsValue) ||
+            string.IsNullOrWhiteSpace(groupsValue))
+        {
+            return [];
+        }
+
+        return groupsValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
     }
 
     private static string? ExtractBearerToken(APIGatewayProxyRequest request)
@@ -68,7 +102,7 @@ public sealed class CognitoSubExtractor
         return authorizationHeader["Bearer ".Length..].Trim();
     }
 
-    private static string? ExtractFromJwt(string token)
+    private static CognitoPrincipal ExtractPrincipalFromJwt(string token)
     {
         try
         {
@@ -83,23 +117,76 @@ public sealed class CognitoSubExtractor
 
             if (IsExpired(root) || IsNotYetValid(root))
             {
-                return null;
+                return new CognitoPrincipal(null, []);
             }
 
-            return root.TryGetProperty("sub", out var sub) ? sub.GetString() : null;
+            var subject = root.TryGetProperty("sub", out var sub) ? sub.GetString() : null;
+            var groups = ExtractGroups(root);
+            return new CognitoPrincipal(subject, groups);
         }
         catch (FormatException)
         {
-            return null;
+            return new CognitoPrincipal(null, []);
         }
         catch (JsonException)
         {
-            return null;
+            return new CognitoPrincipal(null, []);
         }
         catch (ArgumentException)
         {
-            return null;
+            return new CognitoPrincipal(null, []);
         }
+    }
+
+    private static IReadOnlyList<string> ExtractGroups(JsonElement root)
+    {
+        if (!root.TryGetProperty("cognito:groups", out var groups))
+        {
+            return [];
+        }
+
+        if (groups.ValueKind == JsonValueKind.Array)
+        {
+            return groups.EnumerateArray()
+                .Select(item => item.GetString())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item!)
+                .ToList();
+        }
+
+        if (groups.ValueKind == JsonValueKind.String)
+        {
+            var value = groups.GetString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return [];
+            }
+
+            if (value.StartsWith("[", StringComparison.Ordinal))
+            {
+                try
+                {
+                    using var parsed = JsonDocument.Parse(value);
+                    if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        return parsed.RootElement.EnumerateArray()
+                            .Select(item => item.GetString())
+                            .Where(item => !string.IsNullOrWhiteSpace(item))
+                            .Select(item => item!)
+                            .ToList();
+                    }
+                }
+                catch (JsonException)
+                {
+                }
+            }
+
+            return value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+        }
+
+        return [];
     }
 
     private static bool IsExpired(JsonElement root)

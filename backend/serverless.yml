@@ -177,6 +177,15 @@ functions:
           cors: true
           authorizer:
             arn: ${self:custom.cognitoAuthorizerArn}
+  adminApi:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AdminFunction::HandleAsync
+    events:
+      - http:
+          path: admin/{proxy+}
+          method: any
+          cors: true
+          authorizer:
+            arn: ${self:custom.cognitoAuthorizerArn}
   aiCameraAnalyze:
     handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
     events:

@@ -264,7 +264,7 @@ POST http://localhost:5001/quiz/generate
 }
 ```
 
-Response gom `gameType`, `targetAge`, `sessionId`, `questions` va `usedFallback`. `targetAge` la do tuoi random tu 6-12 de tao noi dung quiz, khong phai tuoi that trong profile. Backend uu tien claim mot bo quiz da sinh san trong DynamoDB `GreenLens-QuizPool` de response nhanh. Neu pool can hoac chua co, backend tra fallback 4 lua chon ngay va trigger refill ngam de Bedrock tao them bo quiz cho lan sau.
+Response gom `gameType`, `targetAge`, `sessionId`, `questions` va `usedFallback`. `targetAge` la do tuoi random tu 6-12 de tao noi dung quiz, khong phai tuoi that trong profile. Backend uu tien lay mot bo quiz tu pool global 5 bo trong DynamoDB `GreenLens-QuizPool` de response nhanh; moi child chi luu tien do da lam bo nao. Neu child da lam gan het pool hoac pool chua co, backend tra fallback 4 lua chon ngay va trigger refill ngam de Bedrock tao lo 5 bo global moi cho lan sau.
 
 Response mau:
 

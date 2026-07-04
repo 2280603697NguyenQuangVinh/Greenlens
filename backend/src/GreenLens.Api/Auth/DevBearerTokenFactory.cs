@@ -7,7 +7,7 @@ public static class DevBearerTokenFactory
 {
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromHours(8);
 
-    public static AuthTokenResponse Create(string cognitoSub)
+    public static AuthTokenResponse Create(string cognitoSub, IReadOnlyCollection<string>? groups = null)
     {
         if (string.IsNullOrWhiteSpace(cognitoSub))
         {
@@ -16,7 +16,7 @@ public static class DevBearerTokenFactory
 
         var username = cognitoSub.Trim();
         var now = DateTimeOffset.UtcNow;
-        var token = BuildUnsignedJwt(username, now.Add(TokenLifetime));
+        var token = BuildUnsignedJwt(username, now.Add(TokenLifetime), groups ?? []);
 
         return new AuthTokenResponse(
             "Bearer",
@@ -28,7 +28,7 @@ public static class DevBearerTokenFactory
             username);
     }
 
-    private static string BuildUnsignedJwt(string cognitoSub, DateTimeOffset expiresAt)
+    private static string BuildUnsignedJwt(string cognitoSub, DateTimeOffset expiresAt, IReadOnlyCollection<string> groups)
     {
         var header = Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new
         {
@@ -36,13 +36,18 @@ public static class DevBearerTokenFactory
             typ = "JWT"
         }));
 
-        var payload = Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new
+        var payloadJson = $$"""
         {
-            sub = cognitoSub,
-            username = cognitoSub,
-            exp = expiresAt.ToUnixTimeSeconds(),
-            iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-        }));
+          "sub": {{JsonSerializer.Serialize(cognitoSub)}},
+          "username": {{JsonSerializer.Serialize(cognitoSub)}},
+          "cognito:groups": {{JsonSerializer.Serialize(groups)}},
+          "exp": {{expiresAt.ToUnixTimeSeconds()}},
+          "iat": {{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}}
+        }
+        """;
+
+        var payload = Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(
+            JsonSerializer.Deserialize<JsonElement>(payloadJson)));
 
         return $"{header}.{payload}.dev-signature";
     }
