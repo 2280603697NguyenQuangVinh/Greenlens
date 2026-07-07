@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "build:child": "vite build",
+    "build:admin": "VITE_FORCE_ADMIN_APP=true vite build",
     "build": "vite build",
     "dev": "vite --host",
     "test": "vitest run",

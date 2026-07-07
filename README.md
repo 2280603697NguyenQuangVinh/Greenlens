@@ -1,316 +1,372 @@
 # GreenLens Kids
 
-GreenLens Kids is an environmental education app for children. Kids create their own character, scan waste with an AI Camera, learn how to classify trash, complete quizzes, play mini games, and earn rewards for building green habits.
+GreenLens Kids is an environmental education project for children. The product combines a playful character-driven experience with AI-assisted waste classification, quizzes, mini-games, streaks, rewards, and an internal admin panel for operations.
 
-The goal of the project is to make environmental learning playful and continuous. A child character follows the player throughout the app, progress is tracked through `childId`, and the backend can link the profile silently with AWS Cognito and DynamoDB.
+The project currently includes:
 
-## Key Features
+- a web app for children
+- a separate admin web
+- a .NET 8 backend API
+- Docker-based local development
+- AWS-oriented infrastructure for deployment and operations
 
-- Create a child profile and first character.
-- Customize character gender, hair, eyes, outfit, and name.
-- AI Camera flow for waste recognition and classification.
-- Environmental education quizzes.
-- Mini games for children.
-- XP, level, streak, badges, and rewards.
-- React web frontend and Expo/React Native mobile app.
-- .NET 8 backend using a Clean Architecture/module-based structure.
-- Planned AWS infrastructure: API Gateway, Lambda, DynamoDB, Cognito, S3, Rekognition, and Bedrock.
+## What The Project Does
 
-## Child Profile Creation Flow
+GreenLens helps children learn green habits through interactive activities:
 
-```text
-Child opens the app
--> Creates a character
--> Selects gender/hair/eyes/outfit
--> Enters character name
--> Confirms the character
--> Backend generates childId
--> Backend silently creates a child identity in Cognito
--> Backend saves the profile to DynamoDB
--> App stores childId for progress tracking
-```
+- Create and customize a child character
+- Track progress with `childId`
+- Scan trash with AI Camera
+- Learn waste categories with guided feedback
+- Answer environmental quizzes
+- Play mini-games
+- Earn XP, levels, streaks, badges, and rewards
 
-In the current local development mode, the backend uses in-memory storage for fast API testing. When real AWS configuration is enabled, the backend will call Cognito and DynamoDB.
+For operators and maintainers, the project also includes an admin web for:
 
-## Project Structure
+- viewing overall system usage
+- managing child profiles
+- reviewing quiz fallback content
+- monitoring quiz pool and mini-game content
 
-```text
-Greenlens/
-├── backend/
-│   ├── datasets/
-│   │   ├── raw/
-│   │   ├── filtered/
-│   │   ├── rejected_blurry/
-│   │   ├── class-map.json
-│   │   ├── labeling-guideline.md
-│   │   ├── download_garbage_classification.py
-│   │   ├── filter_clear_images.py
-│   │   └── upload_to_s3.sh
-│   ├── src/
-│   │   ├── GreenLens.Api/
-│   │   ├── GreenLens.Application/
-│   │   ├── GreenLens.Domain/
-│   │   ├── GreenLens.Infrastructure/
-│   │   └── GreenLens.Shared/
-│   ├── infrastructure/
-│   │   ├── dynamodb/
-│   │   ├── iam/
-│   │   ├── s3/
-│   │   └── serverless/
-│   ├── docker/
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── serverless.yml
-│   └── README.md
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── assets/
-│   │   ├── features/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   ├── shared/
-│   │   ├── state/
-│   │   └── styles/
-│   ├── mobile/
-│   ├── public/
-│   ├── _ui-sample/
-│   ├── guidelines/
-│   ├── supabase/
-│   ├── utils/
-│   ├── dist/
-│   ├── package.json
-│   └── README.md
-└── README.md
-```
+## Main Modules
 
-Notes:
+### Child App
 
-- `frontend/node_modules/`, `frontend/mobile/node_modules/`, and `backend/datasets/.venv/` are dependency/local environment folders.
-- `frontend/dist/` is the frontend build output.
-- `backend/datasets/raw/`, `backend/datasets/filtered/`, and `backend/datasets/rejected_blurry/` contain data used by the AI/dataset pipeline.
+- Authentication and session handling
+- Avatar creation and profile setup
+- Dashboard and leaderboard
+- AI Camera
+- Quiz
+- Mini-games
+- Streak / rewards
+
+### Admin Web
+
+- Overview dashboard
+- Child profile management
+- Quiz fallback management
+- Quiz pool monitoring
+- Mini-game item management
+
+### Backend API
+
+- Auth endpoints
+- Child profile APIs
+- AI Camera APIs
+- Quiz generation and completion APIs
+- Mini-game APIs
+- Admin APIs
 
 ## Tech Stack
 
-Frontend web:
+### Frontend
 
 - React
 - TypeScript
 - Vite
-- React Router
 - Tailwind CSS
 - Radix UI / shadcn-style components
 - Lucide icons
 
-Mobile:
+### Mobile
 
 - React Native
 - Expo
 
-Backend:
+### Backend
 
 - .NET 8
-- AWS Lambda-style API layer
-- ASP.NET Core local host for Docker testing
-- DynamoDB
-- Cognito
-- Serverless Framework
-- Docker
-
-Planned AWS services:
-
-- API Gateway
-- Lambda
+- ASP.NET Core minimal APIs for local runtime
+- AWS Lambda-style handlers for deployment
 - DynamoDB
 - Cognito
 - S3
 - Rekognition
 - Bedrock
-- IAM
 
-## Run Backend Locally
+### DevOps / Infra
 
-The backend has its own detailed guide:
+- Docker / Docker Compose
+- Serverless Framework
+- CloudWatch
+- SNS
 
-```text
-backend/README.md
-```
-
-Quick start:
-
-```bash
-cd backend
-cp .env.example .env
-docker compose up --build -d api
-```
-
-Local API URL:
+## Repository Structure
 
 ```text
-http://localhost:5001
+Greenlens/
+├── backend/                    # .NET 8 API, Lambda handlers, serverless config
+├── frontend/                   # React web app + separate admin web build
+├── docs/                       # Project and architecture documents
+├── docker-compose.yml          # Full local stack
+└── README.md
 ```
 
-Test child profile creation:
+Useful subfolders:
 
-```http
-POST http://localhost:5001/child-profiles
+```text
+backend/src/GreenLens.Api/      # API entrypoints, auth, admin APIs
+backend/src/GreenLens.Application/
+backend/src/GreenLens.Domain/
+backend/src/GreenLens.Infrastructure/
+backend/serverless.yml          # AWS deployment + alarms/dashboard
+frontend/src/                   # Main web app source
+frontend/src/admin/             # Admin web source
+frontend/Dockerfile             # Child web image
+frontend/Dockerfile.admin       # Admin web image
 ```
 
-Request body:
+## Local URLs
 
-```json
-{
-  "characterName": "Gau Xanh",
-  "gender": "male",
-  "hair": "hair_01",
-  "eyes": "eyes_01",
-  "outfit": "outfit_01",
-  "avatarPreview": "character_preview_01"
-}
-```
+When the project is running locally with Docker:
 
-Stop the backend:
+- Child web: `http://localhost:3000`
+- Admin web: `http://localhost:3001`
+- Backend API: `http://localhost:5001`
+- Swagger: `http://localhost:5001/swagger/index.html`
+
+## Prerequisites
+
+Make sure you have:
+
+- Docker Desktop
+- Git
+
+Optional for non-Docker workflows:
+
+- Node.js 20+
+- npm
+- .NET 8 SDK
+
+## Quick Start
+
+### 1. Prepare environment
+
+The root Docker stack reads backend environment variables from:
+
+`backend/.env`
+
+If you already have that file, you can keep using it. If not, create it based on your backend setup.
+
+### 2. Run the full stack
+
+From the repository root:
 
 ```bash
-docker compose down
-```
-
-## Run Full Stack With Docker
-
-From the repo root:
-
-```bash
-cp backend/.env.example backend/.env
 docker compose up --build -d
 ```
 
-Open the web app:
+### 3. Verify containers
 
-```text
-http://localhost:3000
+```bash
+docker compose ps
 ```
 
-Local API and Swagger are still exposed separately:
+You should see these services running:
 
-```text
-http://localhost:5001
-http://localhost:5001/swagger/index.html
-```
+- `api`
+- `frontend`
+- `admin-web`
 
-In the full-stack Docker setup, the frontend is served by Nginx and proxies these paths to the backend container:
+### 4. Open the applications
 
-```text
-/auth
-/child-profiles
-/ai-camera
-/quiz
-/mini-games
-/users
-/api
-```
+- Child web: `http://localhost:3000`
+- Admin web: `http://localhost:3001`
+- Swagger: `http://localhost:5001/swagger/index.html`
 
-Stop the full stack:
+## Stop The Project
 
 ```bash
 docker compose down
 ```
 
-## AI Camera Dataset
+## Rebuild After Source Changes
 
-The dataset folder is located at:
-
-```text
-backend/datasets/
-```
-
-Purpose:
-
-- Store waste classification datasets.
-- Download garbage classification datasets.
-- Filter clear images and reject blurry/low-quality images.
-- Generate manifests for Rekognition Custom Labels.
-- Upload processed datasets to S3.
-
-Important files:
-
-```text
-backend/datasets/README.md
-backend/datasets/class-map.json
-backend/datasets/labeling-guideline.md
-backend/datasets/download_garbage_classification.py
-backend/datasets/download_garbage_classification.sh
-backend/datasets/filter_clear_images.py
-backend/datasets/sample-manifest.json
-backend/datasets/upload_to_s3.sh
-backend/datasets/requirements.txt
-```
-
-Data folders:
-
-```text
-backend/datasets/raw/
-backend/datasets/filtered/
-backend/datasets/rejected_blurry/
-```
-
-Folder meanings:
-
-- `raw/`: original downloaded dataset.
-- `filtered/`: filtered images and generated manifests.
-- `rejected_blurry/`: images rejected because of blur or poor quality.
-
-For more details, see:
-
-```text
-backend/datasets/README.md
-```
-
-## Run Web Frontend
+If you changed UI or backend code and want fresh images:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+docker compose down --rmi local
+docker compose up --build -d
 ```
 
-Vite will print the local development URL in the terminal, usually:
+## Admin Login In Local Docker
 
-```text
-http://localhost:5173
-```
+The local Docker setup currently uses in-memory auth for development and seeds a default admin account.
 
-## Run Mobile App
+Default admin credentials:
+
+- username: `admin`
+- password: `Admin@123`
+
+Admin login page:
+
+- `http://localhost:3001`
+
+Notes:
+
+- This is for local development only
+- In production, admin access should come from Cognito group-based authorization
+
+## Running Individual Services
+
+### Run only backend
 
 ```bash
-cd frontend/mobile
-npm install
-npx expo start
+docker compose up --build -d api
 ```
 
-## Current Project Status
+### Run only admin web and backend
 
-- Web frontend includes UI and mock APIs for the main modules.
-- Mobile app has an Expo/React Native scaffold.
-- Backend has a module-based structure.
-- Backend includes a dataset pipeline in `backend/datasets/` for AI Camera/Rekognition work.
-- `POST /child-profiles` can run locally with Docker.
-- Local backend currently uses in-memory storage unless `USE_IN_MEMORY_CHILD_PROFILES` is disabled.
-- Backend README includes detailed instructions for running and testing the API.
+```bash
+docker compose up --build -d api admin-web
+```
 
-## Development Notes
+### Run only child web and backend
 
-- Use `backend/README.md` for backend setup and API testing.
-- Use `frontend/README.md` for web/mobile frontend setup.
-- Do not commit `.env` files.
-- The local backend uses port `5001` because port `5000` can be occupied by macOS system services.
-- To use real AWS services, configure AWS credentials, Cognito User Pool, DynamoDB table, and IAM permissions.
+```bash
+docker compose up --build -d api frontend
+```
 
-## Next Steps
+## How Local Routing Works
 
-- Connect the frontend create-character screen to `POST /child-profiles`.
-- Switch backend local persistence from in-memory storage to DynamoDB Local or real DynamoDB depending on the environment.
-- Add an API to fetch a child profile by `childId`.
-- Add APIs to update XP, level, streak, and rewards.
-- Complete the AI Camera flow with S3 and Rekognition.
-- Add backend unit and integration tests.
+In Docker local mode:
+
+- `frontend` serves the child-facing web on port `3000`
+- `admin-web` serves the admin UI on port `3001`
+- `api` serves the backend on port `5001`
+
+The frontend containers use Nginx and proxy API requests to the backend container.
+
+Important proxied paths include:
+
+- `/auth`
+- `/child-profiles`
+- `/ai-camera`
+- `/quiz`
+- `/mini-games`
+- `/users`
+- `/api`
+- `/admin` for admin API routes
+
+## Key Backend Capabilities
+
+### Authentication
+
+- Local development can use in-memory auth
+- AWS deployment uses Cognito
+- Admin APIs require admin authorization
+
+### AI Camera
+
+- Upload and analyze waste images
+- Uses Rekognition and Bedrock-oriented backend services
+- Includes quota and guardrails for usage
+
+### Quiz
+
+- Generate quiz sessions
+- Store quiz sessions
+- Support fallback quiz content
+- Support quiz pool / refill flow
+
+### Mini-games
+
+- Trash sort gameplay support
+- Score submission
+- High-score tracking
+
+### Admin
+
+- Overview metrics
+- Child profile actions
+- Quiz fallback CRUD
+- Quiz pool monitoring
+- Mini-game item management
+
+## AWS / Deployment Notes
+
+The backend is prepared for AWS deployment through:
+
+- `backend/serverless.yml`
+
+Operational features already described in the backend include:
+
+- CloudWatch Logs
+- CloudWatch Metrics
+- CloudWatch Dashboard
+- CloudWatch Alarms
+- SNS email alerts
+
+The admin web and child web are currently easy to run locally with Docker, and are suitable to deploy separately as static frontends.
+
+For the next deployment step, use Amplify Hosting with two separate frontend apps:
+
+- child web
+- admin web
+
+Deployment docs:
+
+- [docs/deployment/amplify-deployment-guide.md](/Users/nguyenquangvinh/Documents/Greenlens/docs/deployment/amplify-deployment-guide.md)
+- [docs/deployment/github-pages-note.md](/Users/nguyenquangvinh/Documents/Greenlens/docs/deployment/github-pages-note.md)
+
+## Useful Commands
+
+### View logs
+
+```bash
+docker compose logs -f
+```
+
+### View backend logs only
+
+```bash
+docker compose logs -f api
+```
+
+### View admin web logs only
+
+```bash
+docker compose logs -f admin-web
+```
+
+### View child web logs only
+
+```bash
+docker compose logs -f frontend
+```
+
+## Related Documents
+
+- [backend/README.md](/Users/nguyenquangvinh/Documents/Greenlens/backend/README.md)
+- [frontend/README.md](/Users/nguyenquangvinh/Documents/Greenlens/frontend/README.md)
+- [docs/greenlens-project-overview.md](/Users/nguyenquangvinh/Documents/Greenlens/docs/greenlens-project-overview.md)
+- [docs/architecture/greenlens-aws-architecture.md](/Users/nguyenquangvinh/Documents/Greenlens/docs/architecture/greenlens-aws-architecture.md)
+
+## Notes For Contributors
+
+- The project has both child-facing and admin-facing web flows
+- Local Docker is the fastest way to run the full system
+- Some AWS-backed features depend on the values inside `backend/.env`
+- For admin UI local testing, use the seeded dev admin account unless you switch back to Cognito auth
+
+## Current Recommended Local Workflow
+
+1. Pull latest code
+2. Run:
+
+```bash
+docker compose up --build -d
+```
+
+3. Open:
+   - `http://localhost:3000`
+   - `http://localhost:3001`
+4. If images feel stale after major UI/backend updates:
+
+```bash
+docker compose down --rmi local
+docker compose up --build -d
+```
+
+That is the quickest path for a new user or teammate to bring the project up locally.
