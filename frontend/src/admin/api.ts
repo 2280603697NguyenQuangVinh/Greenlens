@@ -1,6 +1,19 @@
 import { getAdminSession } from "@/admin/auth"
 import { apiUrl } from "@/services/http"
 
+function formatAdminApiError(status: number, body: unknown): string {
+  const payload = body as { message?: string; detail?: string; title?: string }
+  if (payload.message?.trim()) return payload.message.trim()
+  if (payload.detail?.trim()) return payload.detail.trim()
+  if (payload.title?.trim()) return payload.title.trim()
+
+  if (status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+  if (status === 403) return "Tài khoản không có quyền quản trị."
+  if (status === 404) return "Không tìm thấy dữ liệu yêu cầu."
+  if (status >= 500) return "Máy chủ đang gặp sự cố. Hãy thử lại sau."
+  return "Không tải được dữ liệu. Kiểm tra kết nối API rồi thử lại."
+}
+
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const session = getAdminSession()
   if (!session) throw new Error("Phiên admin đã hết hạn.")
@@ -14,12 +27,7 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
   const res = await fetch(apiUrl(path), { ...init, headers })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error(
-      (body as { message?: string; detail?: string; title?: string }).message ||
-      (body as { detail?: string }).detail ||
-      (body as { title?: string }).title ||
-      "Admin API failed.",
-    )
+    throw new Error(formatAdminApiError(res.status, body))
   }
 
   return body as T
