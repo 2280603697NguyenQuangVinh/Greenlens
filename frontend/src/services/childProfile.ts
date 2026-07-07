@@ -6,7 +6,7 @@ import {
 import type { AvatarConfig } from "@/utils/types"
 import { ApiError, NetworkError, ValidationError } from "@/services/errors"
 import { apiUrl } from "@/services/http"
-import { getAuthToken, mapAuthErrorMessage, setAuthToken } from "@/services/authToken"
+import { getAuthToken, mapAuthErrorMessage, setAuthSession, setAuthToken } from "@/services/authToken"
 import { tryRefreshBearerToken } from "@/services/sessionAuth"
 import {
   getChildId,
@@ -24,6 +24,7 @@ export { ApiError, NetworkError, ValidationError }
 
 const CHILD_PROFILES_PATH = apiUrl("/child-profiles")
 const DEV_LOGIN_PATH = apiUrl("/auth/dev-login")
+const REGISTER_CHILD_PATH = apiUrl("/auth/register-child")
 
 const MOCK_TOKEN = "mock-greenlens-token"
 
@@ -31,6 +32,13 @@ type AuthTokenResponse = {
   idToken?: string
   accessToken?: string
   bearerToken?: string
+  refreshToken?: string
+  username?: string
+}
+
+type RegisterChildApiResponse = {
+  auth: AuthTokenResponse
+  profile: ChildProfileResponse
 }
 
 export type ChildProfileSetupResult = {
@@ -68,6 +76,10 @@ function buildChildUsername(characterName: string): string {
     .replace(/^-|-$/g, "")
   const suffix = Math.random().toString(36).slice(2, 8)
   return `${slug || "greenlens"}-${suffix}`
+}
+
+function shouldUseDevAuth(): boolean {
+  return !import.meta.env.VITE_API_URL?.trim()
 }
 
 function extractBearerToken(auth: AuthTokenResponse): string | null {
@@ -147,6 +159,54 @@ async function ensureOnboardingToken(characterName: string): Promise<string> {
   setAuthToken(token)
   setStoredCognitoSub(cognitoSub)
   return token
+}
+
+async function registerChildWithAuth(
+  cfg: AvatarConfig,
+  characterName: string,
+): Promise<ChildProfileSetupResult> {
+  const username = buildChildUsername(characterName)
+  const body = {
+    username,
+    displayName: characterName.trim(),
+    characterName: characterName.trim(),
+    ...toChildProfilePayload(cfg, characterName),
+  }
+
+  let res: Response
+  try {
+    res = await fetch(REGISTER_CHILD_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new NetworkError("Không có kết nối mạng. Hãy thử lại sau nhé!")
+  }
+
+  if (!res.ok) {
+    const raw = await readApiErrorMessage(
+      res,
+      "Không tạo được hồ sơ nhân vật. Hãy thử lại nhé!",
+    )
+    throw new ApiError(mapAuthErrorMessage(raw, res.status))
+  }
+
+  const payload = (await res.json()) as RegisterChildApiResponse
+  const token = extractBearerToken(payload.auth)
+  if (!token) {
+    throw new ApiError("Máy chủ không trả về token đăng nhập.")
+  }
+
+  setAuthSession(token, payload.auth.refreshToken, payload.auth.username || username)
+  if (payload.profile.cognitoSub?.trim()) {
+    setStoredCognitoSub(payload.profile.cognitoSub.trim())
+  }
+
+  return {
+    token,
+    profile: payload.profile,
+  }
 }
 
 /** Restore session after reload when childId is already in localStorage. */
@@ -314,7 +374,9 @@ export async function createChildProfile(
 }
 
 /**
- * Character Creation flow: validate → auth token (dev-login) → POST /child-profiles.
+ * Character Creation flow:
+ * - local/dev: dev-login -> POST /child-profiles
+ * - deployed env: POST /auth/register-child
  * Uses in-browser mock when VITE_USE_MOCK=true.
  */
 export async function setupChildProfile(
@@ -330,6 +392,10 @@ export async function setupChildProfile(
     const result = await mockSetupChildProfile(cfg, characterName)
     setStoredCognitoSub(buildChildUsername(characterName))
     return result
+  }
+
+  if (!shouldUseDevAuth()) {
+    return registerChildWithAuth(cfg, characterName)
   }
 
   const token = await ensureOnboardingToken(characterName)

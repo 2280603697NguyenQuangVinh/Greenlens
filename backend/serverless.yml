@@ -118,6 +118,13 @@ functions:
           path: auth/register
           method: post
           cors: true
+  authRegisterChild:
+    handler: GreenLens.Api::GreenLens.Api.Functions.AuthFunction::RegisterChildAsync
+    events:
+      - http:
+          path: auth/register-child
+          method: post
+          cors: true
   authLogin:
     handler: GreenLens.Api::GreenLens.Api.Functions.AuthFunction::LoginAsync
     events:

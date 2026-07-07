@@ -1,4 +1,14 @@
-import { getToken, removeToken, setToken } from "@/services/tokenStorage"
+import {
+  getAuthUsername,
+  getRefreshToken,
+  getToken,
+  removeAuthUsername,
+  removeRefreshToken,
+  removeToken,
+  setAuthUsername,
+  setRefreshToken,
+  setToken,
+} from "@/services/tokenStorage"
 import { ensureSessionBearerToken, tryRefreshBearerToken } from "@/services/sessionAuth"
 
 const SESSION_TOKEN_KEY = "gl_token"
@@ -25,6 +35,32 @@ export function setAuthToken(token: string): void {
 export function clearAuthToken(): void {
   sessionStorage.removeItem(SESSION_TOKEN_KEY)
   removeToken()
+  removeRefreshToken()
+  removeAuthUsername()
+}
+
+export function setAuthSession(
+  token: string,
+  refreshToken?: string | null,
+  username?: string | null,
+): void {
+  setAuthToken(token)
+  if (refreshToken?.trim()) {
+    setRefreshToken(refreshToken.trim())
+  }
+  if (username?.trim()) {
+    setAuthUsername(username.trim())
+  }
+}
+
+export function getStoredRefreshToken(): string | null {
+  const value = getRefreshToken()
+  return value?.trim() || null
+}
+
+export function getStoredAuthUsername(): string | null {
+  const value = getAuthUsername()
+  return value?.trim() || null
 }
 
 export async function ensureBearerToken(): Promise<string> {

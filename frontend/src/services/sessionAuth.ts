@@ -5,9 +5,11 @@ import {
   setStoredCognitoSub,
 } from "@/services/childProfileStorage"
 import { apiUrl } from "@/services/http"
+import { getStoredAuthUsername, getStoredRefreshToken } from "@/services/authToken"
 
 const SESSION_TOKEN_KEY = "gl_token"
 const DEV_LOGIN_PATH = apiUrl("/auth/dev-login")
+const REFRESH_PATH = apiUrl("/auth/refresh")
 const LOCAL_PROFILE_KEY = "gl_profile_local"
 const MOCK_TOKEN = "mock-greenlens-token"
 
@@ -15,6 +17,12 @@ type AuthTokenResponse = {
   idToken?: string
   accessToken?: string
   bearerToken?: string
+  refreshToken?: string
+  username?: string
+}
+
+function shouldUseDevLogin(): boolean {
+  return !import.meta.env.VITE_API_URL?.trim()
 }
 
 function readSessionToken(): string | null {
@@ -105,6 +113,34 @@ async function fetchDevLoginToken(cognitoSub: string): Promise<string> {
   return token
 }
 
+async function refreshProductionToken(
+  refreshToken: string,
+  username: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(REFRESH_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken, username }),
+    })
+
+    if (!res.ok) {
+      return null
+    }
+
+    const auth = (await res.json()) as AuthTokenResponse
+    const token = extractBearerToken(auth)
+    if (!token) {
+      return null
+    }
+
+    writeSessionToken(token)
+    return token
+  } catch {
+    return null
+  }
+}
+
 async function verifyChildProfileAccess(
   childId: string,
   token: string,
@@ -127,6 +163,16 @@ export async function tryRefreshBearerToken(): Promise<string | null> {
   if (import.meta.env.VITE_USE_MOCK === "true") {
     writeSessionToken(MOCK_TOKEN)
     return MOCK_TOKEN
+  }
+
+  if (!shouldUseDevLogin()) {
+    const refreshToken = getStoredRefreshToken()
+    const username = getStoredAuthUsername()
+    if (refreshToken && username) {
+      const refreshed = await refreshProductionToken(refreshToken, username)
+      if (refreshed) return refreshed
+    }
+    return null
   }
 
   const childId = getChildId()
