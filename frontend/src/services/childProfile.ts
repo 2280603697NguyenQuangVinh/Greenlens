@@ -221,7 +221,7 @@ export async function getChildProfileById(
 /** Backend: GET /child-profiles/leaderboard */
 export async function getChildProfileLeaderboard(
   currentChildId?: string,
-  limit = 3,
+  limit = 10,
   token?: string,
 ): Promise<LeaderboardEntry[]> {
   if (import.meta.env.VITE_USE_MOCK === "true") {

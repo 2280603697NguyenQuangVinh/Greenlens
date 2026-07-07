@@ -84,4 +84,6 @@ export interface StreakBundle {
   gapAnchorDate?: string | null
   /** Các ngày trong tuần từng đóng băng (persist local). */
   freezeGapDayKeys?: string[]
+  /** Ngày gap đã recover — luôn hiển thị lửa sau khi recover. */
+  recoveredGapDayKeys?: string[]
 }

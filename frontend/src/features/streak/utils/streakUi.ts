@@ -143,6 +143,7 @@ export function isRecoveredFreezeWeekDay(params: {
   lastActiveDate: string | null
   gapAnchorDate?: string | null
   freezeGapDayKeys?: string[]
+  recoveredGapDayKeys?: string[]
 }): boolean {
   const {
     index,
@@ -153,6 +154,7 @@ export function isRecoveredFreezeWeekDay(params: {
     lastActiveDate,
     gapAnchorDate,
     freezeGapDayKeys = [],
+    recoveredGapDayKeys = [],
   } = params
   if (index >= todayIndex || !shouldShowRecoveredFireOnGap(streakStatus, todayCompletedCount, freezeGapDayKeys)) {
     return false
@@ -163,6 +165,10 @@ export function isRecoveredFreezeWeekDay(params: {
   const dayKey = addDaysToDateKey(monday, index)
   const lastActive = lastActiveDate?.slice(0, 10) ?? null
   const gapAnchor = gapAnchorDate?.slice(0, 10) ?? null
+
+  if (recoveredGapDayKeys.includes(dayKey)) {
+    return false
+  }
 
   // Ngày check-in streak thật (vd. T3) — không phải ngày đóng băng.
   if (getStreakCheckInDayKeys(currentStreak, lastActive).includes(dayKey)) {
@@ -233,9 +239,14 @@ function getStreakFireDayKeys(
   streakStatus: StreakStatusInfo | undefined,
   todayCompletedCount: number,
   gapAnchorDate?: string | null,
+  recoveredGapDayKeys: string[] = [],
 ): Set<string> {
   const keys = new Set<string>()
   if (!lastActive) return keys
+
+  for (const dayKey of recoveredGapDayKeys) {
+    if (dayKey < today) keys.add(dayKey)
+  }
 
   const status = streakStatus?.status ?? "NotStarted"
   const freezeUsed = getFreezeDaysUsed(streakStatus)
@@ -289,6 +300,7 @@ export function getWeekDayState(params: {
   streakStatus?: StreakStatusInfo
   gapAnchorDate?: string | null
   freezeGapDayKeys?: string[]
+  recoveredGapDayKeys?: string[]
 }): WeekDayState {
   const {
     index,
@@ -299,6 +311,7 @@ export function getWeekDayState(params: {
     streakStatus,
     gapAnchorDate,
     freezeGapDayKeys = [],
+    recoveredGapDayKeys = [],
   } = params
 
   const today = getVietnamTodayKey()
@@ -307,7 +320,10 @@ export function getWeekDayState(params: {
   const lastActive = lastActiveDate?.slice(0, 10) ?? null
   const gapAnchor = gapAnchorDate?.slice(0, 10) ?? null
   const status = streakStatus?.status ?? "NotStarted"
-  const isGap = isFreezeGapDay(dayKey, today, lastActive, gapAnchor, freezeGapDayKeys)
+  const isRecoveredGap = recoveredGapDayKeys.includes(dayKey)
+  const isGap =
+    !isRecoveredGap &&
+    isFreezeGapDay(dayKey, today, lastActive, gapAnchor, freezeGapDayKeys)
 
   if (status === "Expired" || status === "Reset") {
     if (index === todayIndex) {
@@ -334,7 +350,12 @@ export function getWeekDayState(params: {
     streakStatus,
     todayCompletedCount,
     gapAnchor,
+    recoveredGapDayKeys,
   )
+
+  if (isRecoveredGap && index < todayIndex && currentStreak > 0) {
+    return "streak"
+  }
 
   if (streakDays.has(dayKey) && (currentStreak > 0 || todayCompletedCount >= 1)) {
     return "streak"

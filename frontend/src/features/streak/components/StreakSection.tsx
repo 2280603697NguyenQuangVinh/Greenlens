@@ -94,7 +94,7 @@ export function StreakSection({
 
   if (!data) return null
 
-  const { streak, dailyActivity, rewards, milestones, streakStatus, gapAnchorDate, freezeGapDayKeys } = data
+  const { streak, dailyActivity, rewards, milestones, streakStatus, gapAnchorDate, freezeGapDayKeys, recoveredGapDayKeys } = data
   const statusBanner = getStreakStatusBanner(streakStatus)
   const mascotMessage = getMascotStreakMessage(
     streak,
@@ -117,6 +117,7 @@ export function StreakSection({
         streakStatus={streakStatus}
         gapAnchorDate={gapAnchorDate}
         freezeGapDayKeys={freezeGapDayKeys}
+        recoveredGapDayKeys={recoveredGapDayKeys}
         onComplete={handleCelebrateComplete}
       />
 
@@ -168,6 +169,7 @@ export function StreakSection({
             streakStatus={streakStatus}
             gapAnchorDate={gapAnchorDate}
             freezeGapDayKeys={freezeGapDayKeys}
+            recoveredGapDayKeys={recoveredGapDayKeys}
             compact
           />
 

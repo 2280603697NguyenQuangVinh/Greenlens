@@ -113,6 +113,7 @@ function mockStreakBundle(childId: string): StreakBundle {
     streakStatus: buildStreakStatusInfo(null),
     gapAnchorDate: null,
     freezeGapDayKeys: [],
+    recoveredGapDayKeys: [],
   }
 }
 
@@ -311,5 +312,6 @@ export async function fetchStreakBundle(): Promise<StreakBundle> {
     streakStatus: buildStreakStatusInfo(backendStreak),
     gapAnchorDate: freezeGap.gapAnchorDate,
     freezeGapDayKeys: freezeGap.freezeGapDayKeys,
+    recoveredGapDayKeys: freezeGap.recoveredGapDayKeys,
   }
 }

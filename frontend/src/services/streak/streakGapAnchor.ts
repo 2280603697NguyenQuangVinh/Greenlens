@@ -3,10 +3,12 @@ import { getStreakCheckInDayKeys } from "@/services/streak/streakUtils"
 
 const ANCHOR_PREFIX = "gl_streak_gap_anchor_"
 const GAP_DAYS_PREFIX = "gl_streak_freeze_gap_days_"
+const RECOVERED_GAP_DAYS_PREFIX = "gl_streak_recovered_gap_days_"
 
 export type FreezeGapContext = {
   gapAnchorDate: string | null
   freezeGapDayKeys: string[]
+  recoveredGapDayKeys: string[]
 }
 
 function gapDaysFromAnchor(anchor: string, today: string): string[] {
@@ -64,6 +66,42 @@ function writeGapDays(childId: string, days: string[]): void {
   } catch {
     // ignore
   }
+}
+
+function readRecoveredGapDays(childId: string): string[] {
+  try {
+    const raw = localStorage.getItem(`${RECOVERED_GAP_DAYS_PREFIX}${childId}`)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed)
+      ? parsed.filter((d): d is string => typeof d === "string")
+      : []
+  } catch {
+    return []
+  }
+}
+
+function writeRecoveredGapDays(childId: string, days: string[]): void {
+  try {
+    const key = `${RECOVERED_GAP_DAYS_PREFIX}${childId}`
+    if (days.length === 0) {
+      localStorage.removeItem(key)
+      return
+    }
+    localStorage.setItem(key, JSON.stringify([...new Set(days)].sort()))
+  } catch {
+    // ignore
+  }
+}
+
+/** Ghi nhớ ngày gap đã recover — giữ lửa trên calendar các ngày sau. */
+export function recordRecoveredGapDays(childId: string, dayKeys: string[]): void {
+  if (dayKeys.length === 0) return
+  writeRecoveredGapDays(childId, mergeGapDays(readRecoveredGapDays(childId), dayKeys))
+}
+
+function clearRecoveredGapDays(childId: string): void {
+  writeRecoveredGapDays(childId, [])
 }
 
 function inferGapDaysFromFreeze(
@@ -144,6 +182,22 @@ function mergeGapDays(...lists: string[][]): string[] {
 function clearFreezeGapCache(childId: string): void {
   writeAnchor(childId, null)
   writeGapDays(childId, [])
+  clearRecoveredGapDays(childId)
+}
+
+function inferRecoveredFromStreakProgress(
+  gapDays: string[],
+  lastActive: string | null,
+  currentStreak: number,
+  today: string,
+): string[] {
+  if (!lastActive || currentStreak <= 0 || gapDays.length === 0) return []
+  const last = lastActive.slice(0, 10)
+  const pastGaps = gapDays.filter((day) => day < today).sort()
+  if (pastGaps.length === 0) return []
+  const lastGap = pastGaps[pastGaps.length - 1]
+  if (last > lastGap) return pastGaps
+  return []
 }
 
 /** Giữ anchor + danh sách ngày đóng băng — không mất sau check-in / reload. */
@@ -172,6 +226,23 @@ export function resolveFreezeGapContext(
 
   let gapAnchor = readAnchor(childId)
   let gapDays = readGapDays(childId)
+  let recoveredGapDays = readRecoveredGapDays(childId)
+
+  const backfillRecovered = inferRecoveredFromStreakProgress(
+    gapDays,
+    anchor,
+    currentStreak,
+    today,
+  )
+  if (backfillRecovered.length > 0) {
+    recordRecoveredGapDays(childId, backfillRecovered)
+    recoveredGapDays = readRecoveredGapDays(childId)
+  }
+
+  if (streakStatus === "Expired" || streakStatus === "Reset") {
+    clearRecoveredGapDays(childId)
+    recoveredGapDays = []
+  }
 
   if (streakStatus === "Expired" || streakStatus === "Frozen") {
     if (anchor && anchor < today) {
@@ -180,11 +251,11 @@ export function resolveFreezeGapContext(
       writeAnchor(childId, gapAnchor)
       writeGapDays(childId, gapDays)
     }
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
   if (streakStatus === "Reset") {
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
   if (freezeMissed > 0) {
@@ -198,7 +269,11 @@ export function resolveFreezeGapContext(
     }
     gapDays = mergeGapDays(gapDays, inferred)
     writeGapDays(childId, gapDays)
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    if (todayCompletedCount >= 1 && currentStreak > 0) {
+      recordRecoveredGapDays(childId, gapDays)
+      recoveredGapDays = readRecoveredGapDays(childId)
+    }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
   const keepGapOnRecover =
@@ -207,8 +282,18 @@ export function resolveFreezeGapContext(
     streakStatus === "AlreadyCheckedIn" ||
     streakStatus === "Started"
 
+  if (
+    keepGapOnRecover &&
+    todayCompletedCount >= 1 &&
+    currentStreak > 0 &&
+    gapDays.length > 0
+  ) {
+    recordRecoveredGapDays(childId, gapDays)
+    recoveredGapDays = readRecoveredGapDays(childId)
+  }
+
   if (keepGapOnRecover && gapDays.length > 0) {
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
   const localGapDays = inferFromPreviousLocalActive(previousLastActiveDate, today)
@@ -217,7 +302,7 @@ export function resolveFreezeGapContext(
     gapAnchor = readAnchor(childId)
     gapDays = readGapDays(childId)
     if (gapDays.length > 0) {
-      return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+      return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
     }
   }
 
@@ -233,7 +318,7 @@ export function resolveFreezeGapContext(
     gapDays = mergeGapDays(gapDays, weekGapDays)
     writeAnchor(childId, gapAnchor)
     writeGapDays(childId, gapDays)
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
   if (
@@ -242,14 +327,14 @@ export function resolveFreezeGapContext(
     gapDays.length === 0
   ) {
     clearFreezeGapCache(childId)
-    return { gapAnchorDate: null, freezeGapDayKeys: [] }
+    return { gapAnchorDate: null, freezeGapDayKeys: [], recoveredGapDayKeys: [] }
   }
 
   if (gapDays.length > 0) {
-    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays }
+    return { gapAnchorDate: gapAnchor, freezeGapDayKeys: gapDays, recoveredGapDayKeys: recoveredGapDays }
   }
 
-  return { gapAnchorDate: null, freezeGapDayKeys: [] }
+  return { gapAnchorDate: null, freezeGapDayKeys: [], recoveredGapDayKeys: recoveredGapDays }
 }
 
 /** @deprecated use resolveFreezeGapContext */

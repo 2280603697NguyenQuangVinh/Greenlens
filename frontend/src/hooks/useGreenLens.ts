@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   api,
   loadStoredProfile,
@@ -12,10 +12,17 @@ import type { AvatarConfig } from "@/utils/types"
 import {
   setupChildProfile,
   restoreChildSession,
+  getChildProfileLeaderboard,
   ValidationError,
   ApiError,
   NetworkError,
 } from "@/services/childProfile"
+import type { RankClimbEvent } from "@/features/dashboard/components/LeaderboardRankClimbOverlay"
+import {
+  applyLocalLeaderboardTotals,
+  findUserRankInLeaderboard,
+} from "@/features/dashboard/utils/leaderboardUtils"
+import { addLeaderboardRoundScore } from "@/services/miniGame/leaderboardTotalStorage"
 import { hasActiveSession, setChildId, getStoredCognitoSub, getChildId } from "@/services/childProfileStorage"
 import { getAuthToken, setAuthToken } from "@/services/authToken"
 import { tryRefreshBearerToken } from "@/services/sessionAuth"
@@ -46,6 +53,8 @@ export function useGreenLens() {
   const [quizMeta, setQuizMeta] = useState<Pick<QuizSessionMeta, "wasteType" | "targetAge"> | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
   const [lastScan, setLastScan] = useState<ClassificationResult | null>(null)
+  const [rankClimb, setRankClimb] = useState<RankClimbEvent | null>(null)
+  const preGameRankRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!hasActiveSession()) return
@@ -213,6 +222,27 @@ export function useGreenLens() {
     setQuizQuestions([])
   }, [])
 
+  const prepareGameLeaderboard = useCallback(async () => {
+    if (!profile) {
+      preGameRankRef.current = null
+      return
+    }
+
+    try {
+      const entries = applyLocalLeaderboardTotals(
+        await getChildProfileLeaderboard(profile.badgeId, 10),
+        profile.badgeId,
+      )
+      preGameRankRef.current = findUserRankInLeaderboard(entries, profile.badgeId)
+    } catch {
+      preGameRankRef.current = null
+    }
+  }, [profile])
+
+  const clearRankClimb = useCallback(() => {
+    setRankClimb(null)
+  }, [])
+
   const submitGame = useCallback(
     async (payload: {
       score: number
@@ -240,7 +270,36 @@ export function useGreenLens() {
           if (token) saveSession(token, next)
           return next
         })
-        return { xpEarned: res.xpAwarded }
+
+        const roundScore = Math.max(0, Math.floor(payload.score))
+        const totalScore =
+          roundScore > 0 ? addLeaderboardRoundScore(profile.badgeId, roundScore) : null
+
+        const previousRank = preGameRankRef.current
+        preGameRankRef.current = null
+
+        if (totalScore !== null && previousRank !== null) {
+          try {
+            const entries = applyLocalLeaderboardTotals(
+              await getChildProfileLeaderboard(profile.badgeId, 10),
+              profile.badgeId,
+            )
+            const newRank = findUserRankInLeaderboard(entries, profile.badgeId)
+            if (newRank !== null && newRank < previousRank) {
+              setRankClimb({
+                fromRank: previousRank,
+                toRank: newRank,
+                entries,
+                roundScore,
+                totalScore,
+              })
+            }
+          } catch {
+            // Leaderboard refresh is optional for climb animation.
+          }
+        }
+
+        return { xpEarned: res.xpAwarded, score: roundScore }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Không lưu được điểm game.")
         return null
@@ -336,6 +395,9 @@ export function useGreenLens() {
     analyzeImage,
     completeQuiz,
     submitGame,
+    prepareGameLeaderboard,
+    rankClimb,
+    clearRankClimb,
     speak,
     handleCameraResult,
     logout,

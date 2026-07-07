@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { UserProfile } from "@/services/greenLens"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_FREDOKA, FF_NUNITO } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { Mascot } from "@/features/dashboard/components/Mascot"
 import { useStreak } from "@/hooks/useStreak"
@@ -15,6 +15,7 @@ import {
   getChildProfileLeaderboard,
   type LeaderboardEntry,
 } from "@/services/childProfile"
+import { applyLocalLeaderboardTotals } from "@/features/dashboard/utils/leaderboardUtils"
 
 const BG = BACKGROUND_IMAGE
 
@@ -23,11 +24,13 @@ export function DashboardScreen({
   go,
   profile,
   streakRefreshKey = 0,
+  leaderboardRefreshKey = 0,
 }: {
   cfg: AvatarConfig
   go: (s: number) => void
   profile: UserProfile
   streakRefreshKey?: number
+  leaderboardRefreshKey?: number
 }) {
   const {
     data: streakData,
@@ -68,28 +71,35 @@ export function DashboardScreen({
     let cancelled = false
     setLeaderboardError(false)
 
-    void getChildProfileLeaderboard(profile.badgeId, 3)
+    void getChildProfileLeaderboard(profile.badgeId, 10)
       .then((rows) => {
-        if (!cancelled) setLeaderboard(rows)
+        if (!cancelled) {
+          setLeaderboard(applyLocalLeaderboardTotals(rows, profile.badgeId))
+        }
       })
       .catch(() => {
         if (cancelled) return
         setLeaderboardError(true)
-        setLeaderboard([
-          {
-            rank: 1,
-            childId: profile.badgeId,
-            name: displayName,
-            miniGameHighScore: 0,
-            isCurrentUser: true,
-          },
-        ])
+        setLeaderboard(
+          applyLocalLeaderboardTotals(
+            [
+              {
+                rank: 1,
+                childId: profile.badgeId,
+                name: displayName,
+                miniGameHighScore: 0,
+                isCurrentUser: true,
+              },
+            ],
+            profile.badgeId,
+          ),
+        )
       })
 
     return () => {
       cancelled = true
     }
-  }, [displayName, hasAccount, profile.badgeId, xp])
+  }, [displayName, hasAccount, profile.badgeId, xp, leaderboardRefreshKey])
 
   return (
     <div
@@ -126,23 +136,28 @@ export function DashboardScreen({
           onNavigate={go}
         />
 
-        <div className={`mb-2 grid min-h-[148px] gap-2.5 ${hasAccount ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`mb-2 grid gap-2.5 ${hasAccount ? "grid-cols-2" : "grid-cols-1"}`}>
           {hasAccount ? (
-            <section className="flex flex-col overflow-hidden rounded-2xl border-2 border-[#f2aa58] bg-[#ffd39b]">
-              <h2 className="shrink-0 py-2 text-center text-[15px]">Xếp hạng</h2>
-              <div className="flex flex-1 flex-col justify-center bg-white/45 px-2.5 pb-2.5">
+            <section
+              className="flex max-h-[220px] flex-col overflow-hidden rounded-2xl border-2 border-[#f2aa58] bg-[#ffd39b]"
+              style={FF_NUNITO}
+            >
+              <h2 className="shrink-0 py-2 text-center text-[15px] font-semibold">Xếp hạng</h2>
+              <div className="min-h-0 flex-1 overflow-y-auto bg-white/45 px-2.5 pb-2.5">
                 {leaderboard.map((row) => (
                   <div
                     key={row.childId}
-                    className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[14px] ${
+                    className={`mb-1 flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] last:mb-0 ${
                       row.isCurrentUser ? "bg-[#b9f0af]" : ""
                     }`}
                   >
-                    <span className="min-w-0 truncate">
+                    <span className="min-w-0 truncate font-normal">
                       {row.rank}. {row.name}
                       {row.isCurrentUser ? " (bạn)" : ""}
                     </span>
-                    <span className="ml-1 shrink-0 text-[13px]">{row.miniGameHighScore} điểm</span>
+                    <span className="ml-1 shrink-0 text-[12px] font-normal tabular-nums">
+                      {row.miniGameHighScore} điểm
+                    </span>
                   </div>
                 ))}
                 {leaderboard.length < 2 ? (
