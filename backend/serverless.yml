@@ -34,7 +34,7 @@ provider:
     AI_CAMERA_USAGE_LIMITER_ENABLED: ${env:AI_CAMERA_USAGE_LIMITER_ENABLED, 'true'}
     AI_CAMERA_USAGE_TABLE_NAME: GreenLens-AiUsage
     AI_CAMERA_PER_MINUTE_LIMIT: ${env:AI_CAMERA_PER_MINUTE_LIMIT, '3'}
-    AI_CAMERA_DAILY_LIMIT: ${env:AI_CAMERA_DAILY_LIMIT, '20'}
+    AI_CAMERA_DAILY_LIMIT: ${env:AI_CAMERA_DAILY_LIMIT, '30'}
     REKOGNITION_TIMEOUT_SECONDS: ${env:REKOGNITION_TIMEOUT_SECONDS, '5'}
     REKOGNITION_CIRCUIT_FAILURE_THRESHOLD: ${env:REKOGNITION_CIRCUIT_FAILURE_THRESHOLD, '3'}
     REKOGNITION_CIRCUIT_BREAK_SECONDS: ${env:REKOGNITION_CIRCUIT_BREAK_SECONDS, '60'}
@@ -253,6 +253,50 @@ functions:
 
 resources:
   Resources:
+    ApiGatewayResponseDefault4xx:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+    ApiGatewayResponseDefault5xx:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: DEFAULT_5XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+    ApiGatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: UNAUTHORIZED
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+    ApiGatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: ACCESS_DENIED
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
     QuizPoolTable:
       Type: AWS::DynamoDB::Table
       Properties:

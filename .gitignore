@@ -11,6 +11,7 @@ backend/.serverless/
 *.user
 
 # Bỏ qua tệp tin bảo mật/môi trường
+.secrets/
 .env
 .env.local
 .env.*.local

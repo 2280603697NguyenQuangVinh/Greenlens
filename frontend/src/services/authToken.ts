@@ -76,12 +76,26 @@ export function mapAuthErrorMessage(message: string, status: number): string {
     return "Phiên đăng nhập đã hết hạn. Hãy tạo lại nhân vật nhé!"
   }
 
-  if (status === 403 || lower.includes("forbidden") || lower.includes("quota")) {
+  if (
+    lower.includes("daily limit") ||
+    lower.includes("quota exceeded") ||
+    lower.includes("quota reached") ||
+    lower.includes("used hết lượt") ||
+    lower.includes("hết lượt")
+  ) {
     return "Bạn đã dùng hết lượt quét hôm nay. Hãy thử lại vào ngày mai nhé!"
   }
 
-  if (status === 429 || lower.includes("rate") || lower.includes("too many")) {
-    return "Hệ thống đang bận. Hãy đợi một chút rồi thử lại nhé!"
+  if (lower.includes("minute limit") || lower.includes("rate") || lower.includes("too many")) {
+    return "Con thao tác hơi nhanh rồi. Đợi một chút rồi thử lại nhé!"
+  }
+
+  if (status === 403 || lower.includes("forbidden") || lower.includes("access denied")) {
+    return "Phiên đăng nhập không hợp lệ với nhân vật này. Hãy đăng nhập lại hoặc tạo lại nhân vật nhé!"
+  }
+
+  if (status === 429) {
+    return "Hệ thống đang giới hạn tần suất. Hãy thử lại sau ít phút nhé!"
   }
 
   return message.trim() || "Đã có lỗi xảy ra. Hãy thử lại nhé!"

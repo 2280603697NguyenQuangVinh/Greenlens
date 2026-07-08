@@ -42,6 +42,8 @@ export const adminApi = {
   lockChild: (childId: string) => adminRequest(`/admin/children/${encodeURIComponent(childId)}/lock`, { method: "POST" }),
   unlockChild: (childId: string) => adminRequest(`/admin/children/${encodeURIComponent(childId)}/unlock`, { method: "POST" }),
   resetChildStreak: (childId: string) => adminRequest(`/admin/children/${encodeURIComponent(childId)}/streak/reset`, { method: "POST" }),
+  resetChildAiCameraQuota: (childId: string) =>
+    adminRequest<{ success: boolean; deletedCount: number }>(`/admin/children/${encodeURIComponent(childId)}/ai-camera/reset-quota`, { method: "POST" }),
   adjustChildXp: (childId: string, xp: number) =>
     adminRequest(`/admin/children/${encodeURIComponent(childId)}/xp-adjust`, { method: "POST", body: JSON.stringify({ xp }) }),
   getQuizFallbacks: () => adminRequest<any>("/admin/quiz/fallbacks"),

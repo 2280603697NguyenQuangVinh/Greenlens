@@ -9,6 +9,7 @@ public interface IAdminService
     Task LockChildAsync(string childId, string adminSub, CancellationToken cancellationToken = default);
     Task UnlockChildAsync(string childId, string adminSub, CancellationToken cancellationToken = default);
     Task ResetChildStreakAsync(string childId, string adminSub, CancellationToken cancellationToken = default);
+    Task<int> ResetChildAiCameraQuotaAsync(string childId, string adminSub, CancellationToken cancellationToken = default);
     Task AdjustChildXpAsync(string childId, string adminSub, int xp, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminQuizFallbackDto>> GetQuizFallbacksAsync(CancellationToken cancellationToken = default);
     Task<AdminQuizFallbackDto> SaveQuizFallbackAsync(AdminSaveQuizFallbackRequest request, string adminSub, CancellationToken cancellationToken = default);

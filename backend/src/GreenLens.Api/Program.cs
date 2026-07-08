@@ -126,7 +126,7 @@ builder.Services.AddSingleton(new AiCameraUsageLimiterOptions
 {
     TableName = builder.Configuration["AI_CAMERA_USAGE_TABLE_NAME"] ?? "GreenLens-AiUsage",
     PerMinuteLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_PER_MINUTE_LIMIT") ?? 3,
-    PerDayLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_DAILY_LIMIT") ?? 20
+    PerDayLimit = builder.Configuration.GetValue<int?>("AI_CAMERA_DAILY_LIMIT") ?? 30
 });
 builder.Services.AddSingleton(new BedrockQuizOptions
 {
@@ -731,6 +731,23 @@ app.MapPost("/admin/children/{childId}/streak/reset", async (
     var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
     await adminService.ResetChildStreakAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
     return Results.Ok();
+});
+
+app.MapPost("/admin/children/{childId}/ai-camera/reset-quota", async (
+    HttpRequest httpRequest,
+    string childId,
+    IAdminService adminService) =>
+{
+    try
+    {
+        var adminSub = httpRequest.HttpContext.Items["cognitoSub"] as string ?? string.Empty;
+        var deletedCount = await adminService.ResetChildAiCameraQuotaAsync(childId, adminSub, httpRequest.HttpContext.RequestAborted);
+        return Results.Ok(new AdminResetAiCameraQuotaResponse(true, deletedCount));
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
 });
 
 app.MapPost("/admin/children/{childId}/xp-adjust", async (

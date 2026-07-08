@@ -91,6 +91,10 @@ public sealed record AdminChildDetailDto(
 public sealed record AdminAdjustXpRequest(
     [property: JsonPropertyName("xp")] int Xp);
 
+public sealed record AdminResetAiCameraQuotaResponse(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("deletedCount")] int DeletedCount);
+
 public sealed record AdminQuizFallbackDto(
     string FallbackKey,
     int TargetAge,

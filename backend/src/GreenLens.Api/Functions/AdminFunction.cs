@@ -70,6 +70,8 @@ public sealed class AdminFunction
                     await EmptyOkAsync(() => _adminService.UnlockChildAsync(childId, principal.Subject!)),
                 ("POST", _) when !string.IsNullOrWhiteSpace(childId) && path == $"/admin/children/{childId}/streak/reset" =>
                     await EmptyOkAsync(() => _adminService.ResetChildStreakAsync(childId, principal.Subject!)),
+                ("POST", _) when !string.IsNullOrWhiteSpace(childId) && path == $"/admin/children/{childId}/ai-camera/reset-quota" =>
+                    JsonResponse(HttpStatusCode.OK, await ResetAiCameraQuotaAsync(childId, principal.Subject!)),
                 ("POST", _) when !string.IsNullOrWhiteSpace(childId) && path == $"/admin/children/{childId}/xp-adjust" =>
                     JsonResponse(HttpStatusCode.OK, await AdjustXpAsync(request, childId, principal.Subject!)),
                 ("GET", "/admin/quiz/fallbacks") => JsonResponse(HttpStatusCode.OK, await _adminService.GetQuizFallbacksAsync()),
@@ -109,6 +111,12 @@ public sealed class AdminFunction
         var body = DeserializeBody<AdminAdjustXpRequest>(request);
         await _adminService.AdjustChildXpAsync(childId, adminSub, body.Xp);
         return new { success = true };
+    }
+
+    private async Task<AdminResetAiCameraQuotaResponse> ResetAiCameraQuotaAsync(string childId, string adminSub)
+    {
+        var deletedCount = await _adminService.ResetChildAiCameraQuotaAsync(childId, adminSub);
+        return new AdminResetAiCameraQuotaResponse(true, deletedCount);
     }
 
     private Task<AdminQuizFallbackDto> SaveQuizFallbackAsync(APIGatewayProxyRequest request, string adminSub, string? fallbackKey = null)

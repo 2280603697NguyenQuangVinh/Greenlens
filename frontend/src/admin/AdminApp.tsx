@@ -1107,6 +1107,22 @@ function ChildrenPanel() {
                 >
                   <RotateCcw size={13} /> Reset streak
                 </AdminOutlineButton>
+                <AdminOutlineButton
+                  className="!gap-1.5 !px-3 !py-2 !text-xs"
+                  onClick={async () => {
+                    const ok = await confirm(
+                      "Reset quota AI Camera?",
+                      `Xóa quota AI Camera hôm nay của ${detail.characterName} để có thể quét lại ngay.`,
+                      "danger",
+                    )
+                    if (!ok) return
+                    const result = await adminApi.resetChildAiCameraQuota(detail.childId)
+                    toast.success(`Đã reset quota AI Camera (${result.deletedCount} bản ghi)`)
+                    await refreshDetail()
+                  }}
+                >
+                  <Camera size={13} /> Reset quota AI
+                </AdminOutlineButton>
                 <AdminPrimaryButton
                   className="col-span-2 !gap-1.5 !px-3 !py-2 !text-xs"
                   onClick={async () => {

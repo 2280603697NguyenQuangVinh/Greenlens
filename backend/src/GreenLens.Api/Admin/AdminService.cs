@@ -19,6 +19,7 @@ public sealed class AdminService(
     private readonly string _childProfilesTableName = configuration["CHILD_PROFILES_TABLE_NAME"] ??
         configuration["DYNAMODB_CHILD_PROFILES_TABLE"] ??
         "GreenLens-ChildProfiles";
+    private readonly string _aiCameraUsageTableName = configuration["AI_CAMERA_USAGE_TABLE_NAME"] ?? "GreenLens-AiUsage";
 
     public async Task<AdminOverviewResponse> GetOverviewAsync(CancellationToken cancellationToken = default)
     {
@@ -200,6 +201,77 @@ public sealed class AdminService(
                 }
             },
             cancellationToken);
+    }
+
+    public async Task<int> ResetChildAiCameraQuotaAsync(string childId, string adminSub, CancellationToken cancellationToken = default)
+    {
+        var child = await GetRequiredItemAsync(_childProfilesTableName, "childId", childId, cancellationToken);
+        var cognitoSub = GetString(child, "cognitoSub")?.Trim();
+        if (string.IsNullOrWhiteSpace(cognitoSub))
+        {
+            throw new InvalidOperationException("Child profile does not have a Cognito subject.");
+        }
+
+        var usageSubject = $"{cognitoSub}#{childId.Trim()}";
+        var deletedCount = 0;
+        Dictionary<string, AttributeValue>? lastEvaluatedKey = null;
+
+        do
+        {
+            var scan = await dynamoDb.ScanAsync(
+                new ScanRequest
+                {
+                    TableName = _aiCameraUsageTableName,
+                    ProjectionExpression = "quotaKey",
+                    FilterExpression = "contains(quotaKey, :usageSubject)",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":usageSubject"] = new() { S = usageSubject }
+                    },
+                    ExclusiveStartKey = lastEvaluatedKey
+                },
+                cancellationToken);
+
+            foreach (var item in scan.Items)
+            {
+                var quotaKey = GetString(item, "quotaKey");
+                if (string.IsNullOrWhiteSpace(quotaKey))
+                {
+                    continue;
+                }
+
+                await dynamoDb.DeleteItemAsync(
+                    new DeleteItemRequest
+                    {
+                        TableName = _aiCameraUsageTableName,
+                        Key = new Dictionary<string, AttributeValue>
+                        {
+                            ["quotaKey"] = new() { S = quotaKey }
+                        }
+                    },
+                    cancellationToken);
+
+                deletedCount++;
+            }
+
+            lastEvaluatedKey = scan.LastEvaluatedKey;
+        } while (lastEvaluatedKey is not null && lastEvaluatedKey.Count > 0);
+
+        await dynamoDb.UpdateItemAsync(
+            new UpdateItemRequest
+            {
+                TableName = _childProfilesTableName,
+                Key = new Dictionary<string, AttributeValue> { ["childId"] = new() { S = childId } },
+                UpdateExpression = "SET updatedBy = :updatedBy, updatedAt = :updatedAt",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":updatedBy"] = new() { S = adminSub },
+                    [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") }
+                }
+            },
+            cancellationToken);
+
+        return deletedCount;
     }
 
     public Task AdjustChildXpAsync(string childId, string adminSub, int xp, CancellationToken cancellationToken = default)
