@@ -1,0 +1,25 @@
+{
+  "name": "GreenLens Kids",
+  "short_name": "GreenLens",
+  "description": "Hoc phan loai rac, lam quiz va choi mini-game tren dien thoai nhu mot ung dung.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ecfdf5",
+  "theme_color": "#22c55e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

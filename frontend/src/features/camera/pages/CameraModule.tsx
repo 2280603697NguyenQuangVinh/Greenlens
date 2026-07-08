@@ -72,6 +72,45 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
+function isSupportedUploadType(type: string | undefined): boolean {
+  const normalized = type?.trim().toLowerCase() ?? "";
+  return normalized === "image/jpeg" || normalized === "image/png";
+}
+
+async function renderDataUrlToJpegBlob(dataUrl: string): Promise<Blob> {
+  const image = new Image();
+  image.decoding = "async";
+
+  const loadPromise = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Không đọc được ảnh đã chọn."));
+  });
+
+  image.src = dataUrl;
+  await loadPromise;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Không thể xử lý ảnh đã chọn.");
+  }
+
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((value) => resolve(value), "image/jpeg", 0.92);
+  });
+
+  if (!blob) {
+    throw new Error("Không thể chuyển ảnh sang định dạng phù hợp.");
+  }
+
+  return blob;
+}
+
 function profileToAvatar(profile: NonNullable<ReturnType<typeof loadStoredProfile>>): AvatarConfig {
   return {
     characterName: profile.characterName ?? "",
@@ -304,7 +343,10 @@ export default function CameraModule({
       cancelPlayback();
 
       try {
-        const imageBlob = imageFile ?? dataUrlToBlob(imageDataUrl);
+        const sourceBlob = imageFile ?? dataUrlToBlob(imageDataUrl);
+        const imageBlob = isSupportedUploadType(sourceBlob.type)
+          ? sourceBlob
+          : await renderDataUrlToJpegBlob(imageDataUrl);
         const analysis = await analyzeAiCameraImage(imageBlob);
         const resultSpeech = buildMascotSpeechSegments(analysis)[0]?.text
         if (resultSpeech) {
