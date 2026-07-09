@@ -1,4 +1,4 @@
-import { getToken, setToken } from "@/services/tokenStorage"
+import { getToken, removeToken, setToken } from "@/services/tokenStorage"
 import {
   getChildId,
   getStoredCognitoSub,
@@ -21,18 +21,58 @@ type AuthTokenResponse = {
   username?: string
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".")
+  if (parts.length < 2) return null
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=")
+    const json = atob(padded)
+    return JSON.parse(json) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token)
+  if (!payload) return false
+
+  const exp = payload.exp
+  if (typeof exp !== "number") return false
+
+  const nowInSeconds = Math.floor(Date.now() / 1000)
+  return exp <= nowInSeconds + 30
+}
+
+function clearCachedSessionToken(): void {
+  sessionStorage.removeItem(SESSION_TOKEN_KEY)
+  removeToken()
+}
+
 function shouldUseDevLogin(): boolean {
   return !import.meta.env.VITE_API_URL?.trim()
 }
 
 function readSessionToken(): string | null {
   const sessionToken = sessionStorage.getItem(SESSION_TOKEN_KEY)
-  if (sessionToken?.trim()) return sessionToken.trim()
+  if (sessionToken?.trim()) {
+    const trimmed = sessionToken.trim()
+    if (!isTokenExpired(trimmed)) return trimmed
+    clearCachedSessionToken()
+  }
 
   const storedToken = getToken()
   if (storedToken?.trim()) {
-    sessionStorage.setItem(SESSION_TOKEN_KEY, storedToken.trim())
-    return storedToken.trim()
+    const trimmed = storedToken.trim()
+    if (isTokenExpired(trimmed)) {
+      clearCachedSessionToken()
+      return null
+    }
+
+    sessionStorage.setItem(SESSION_TOKEN_KEY, trimmed)
+    return trimmed
   }
 
   return null

@@ -81,6 +81,8 @@ provider:
             - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:service}-${sls:stage}-quizPoolRefill
         - Effect: Allow
           Action:
+            - dynamodb:Scan
+            - dynamodb:DeleteItem
             - dynamodb:UpdateItem
           Resource:
             - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/GreenLens-AiUsage

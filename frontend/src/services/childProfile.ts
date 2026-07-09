@@ -6,9 +6,10 @@ import {
 import type { AvatarConfig } from "@/utils/types"
 import { ApiError, NetworkError, ValidationError } from "@/services/errors"
 import { apiUrl } from "@/services/http"
-import { getAuthToken, mapAuthErrorMessage, setAuthSession, setAuthToken } from "@/services/authToken"
+import { clearAuthToken, getAuthToken, mapAuthErrorMessage, setAuthSession, setAuthToken } from "@/services/authToken"
 import { tryRefreshBearerToken } from "@/services/sessionAuth"
 import {
+  clearPersistedChildSession,
   getChildId,
   setStoredCognitoSub,
 } from "@/services/childProfileStorage"
@@ -387,6 +388,10 @@ export async function setupChildProfile(
   if (validationError) {
     throw new ValidationError(validationError)
   }
+
+  // Creating a brand-new child should never inherit the previous child's token/profile cache.
+  clearAuthToken()
+  clearPersistedChildSession()
 
   if (import.meta.env.VITE_USE_MOCK === "true") {
     const result = await mockSetupChildProfile(cfg, characterName)
