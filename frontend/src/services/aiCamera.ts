@@ -1,6 +1,6 @@
 import { ApiError, NetworkError } from "@/services/errors"
 import { apiUrl } from "@/services/http"
-import { ensureBearerToken, mapAuthErrorMessage } from "@/services/authToken"
+import { clearBearerTokenCache, ensureBearerToken, mapAuthErrorMessage, tryRefreshBearerToken } from "@/services/authToken"
 import { getChildId } from "@/services/childProfileStorage"
 import type { SpeechSegment } from "@/utils/browserSpeech"
 
@@ -302,7 +302,7 @@ export async function analyzeAiCameraImage(image: Blob | File): Promise<AiCamera
     return mockAnalyze()
   }
 
-  const token = await ensureBearerToken()
+  let token = await ensureBearerToken()
   const childId = getChildId()
   if (!childId) {
     throw new NetworkError("Chưa có hồ sơ trẻ em. Hãy tạo nhân vật trước nhé!")
@@ -320,15 +320,34 @@ export async function analyzeAiCameraImage(image: Blob | File): Promise<AiCamera
     form.append("image", image, "image.jpg")
   }
 
-  let res: Response
-  try {
-    res = await fetch(ANALYZE_PATH, {
+  async function sendRequest(bearerToken: string): Promise<Response> {
+    return fetch(ANALYZE_PATH, {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+      },
       body: form,
     })
+  }
+
+  let res: Response
+  try {
+    res = await sendRequest(token)
   } catch {
     throw new NetworkError("Không kết nối được máy chủ. Kiểm tra mạng và thử lại nhé!")
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    clearBearerTokenCache()
+    const refreshedToken = await tryRefreshBearerToken()
+    if (refreshedToken) {
+      token = refreshedToken
+      try {
+        res = await sendRequest(token)
+      } catch {
+        throw new NetworkError("Không kết nối được máy chủ. Kiểm tra mạng và thử lại nhé!")
+      }
+    }
   }
 
   if (!res.ok) {
@@ -339,4 +358,3 @@ export async function analyzeAiCameraImage(image: Blob | File): Promise<AiCamera
   const backend = (await res.json()) as BackendAiCameraAnalyzeResponse
   return mapBackendResponse(backend)
 }
-

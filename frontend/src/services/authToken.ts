@@ -39,6 +39,11 @@ export function clearAuthToken(): void {
   removeAuthUsername()
 }
 
+export function clearBearerTokenCache(): void {
+  sessionStorage.removeItem(SESSION_TOKEN_KEY)
+  removeToken()
+}
+
 export function setAuthSession(
   token: string,
   refreshToken?: string | null,

@@ -1,5 +1,5 @@
 import { ApiError, NetworkError } from "@/services/errors"
-import { ensureBearerToken, mapAuthErrorMessage } from "@/services/authToken"
+import { clearBearerTokenCache, ensureBearerToken, mapAuthErrorMessage, tryRefreshBearerToken } from "@/services/authToken"
 import { apiUrl } from "@/services/http"
 import { getChildId } from "@/services/childProfileStorage"
 import { loadSavedProfile } from "@/services/greenLens"
@@ -66,6 +66,20 @@ async function authorizedGetOptional<T>(path: string): Promise<T | null> {
     })
   } catch {
     return null
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    clearBearerTokenCache()
+    const refreshedToken = await tryRefreshBearerToken()
+    if (refreshedToken) {
+      try {
+        res = await fetch(apiUrl(path), {
+          headers: { Authorization: `Bearer ${refreshedToken}` },
+        })
+      } catch {
+        return null
+      }
+    }
   }
 
   if (res.status === 404 || !isJsonResponse(res)) return null
