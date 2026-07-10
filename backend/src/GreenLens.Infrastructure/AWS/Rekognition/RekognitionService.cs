@@ -9,6 +9,16 @@ namespace GreenLens.Infrastructure.AWS.Rekognition;
 
 public sealed class RekognitionService : IRekognitionService
 {
+    private static readonly string[] BatteryTextHints =
+    [
+        "battery",
+        "alkaline battery",
+        "duracell",
+        "energizer",
+        "aa",
+        "aaa"
+    ];
+
     private static readonly string[] PreferredWasteLabels =
     [
         "Battery",
@@ -88,11 +98,23 @@ public sealed class RekognitionService : IRekognitionService
             throw RekognitionUnavailable(_circuitBreaker.RecordFailure(), exception);
         }
 
+        var textHint = await TryDetectBatteryTextHintAsync(imageBytes, cancellationToken);
+
         var labels = response.Labels
             .Where(label => !string.IsNullOrWhiteSpace(label.Name))
             .OrderByDescending(label => label.Confidence)
             .Select(label => new DetectedLabelDto(label.Name, label.Confidence))
             .ToArray();
+
+        if (textHint is not null)
+        {
+            var mergedLabels = labels
+                .Where(label => !label.Label.Contains("Battery", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            mergedLabels.Insert(0, textHint);
+            labels = mergedLabels.ToArray();
+        }
 
         var label = response.Labels
             .Where(IsPreferredWasteLabel)
@@ -101,6 +123,16 @@ public sealed class RekognitionService : IRekognitionService
             response.Labels
                 .OrderByDescending(item => item.Confidence)
                 .FirstOrDefault();
+
+        if (textHint is not null &&
+            (label is null || textHint.Confidence >= label.Confidence || !label.Name.Contains("Battery", StringComparison.OrdinalIgnoreCase)))
+        {
+            label = new Label
+            {
+                Name = textHint.Label,
+                Confidence = (float)textHint.Confidence
+            };
+        }
 
         if (label is null || string.IsNullOrWhiteSpace(label.Name))
         {
@@ -130,5 +162,50 @@ public sealed class RekognitionService : IRekognitionService
 
         return PreferredWasteLabels.Any(preferred =>
             label.Name.Contains(preferred, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<DetectedLabelDto?> TryDetectBatteryTextHintAsync(
+        MemoryStream imageBytes,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            imageBytes.Position = 0;
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _options.TimeoutSeconds)));
+
+            var response = await _rekognitionClient.DetectTextAsync(
+                new DetectTextRequest
+                {
+                    Image = new Image
+                    {
+                        Bytes = imageBytes
+                    }
+                },
+                timeoutCts.Token);
+
+            var matchedText = response.TextDetections
+                .Where(item => item.Type == TextTypes.LINE || item.Type == TextTypes.WORD)
+                .FirstOrDefault(item =>
+                    !string.IsNullOrWhiteSpace(item.DetectedText) &&
+                    BatteryTextHints.Any(hint =>
+                        item.DetectedText.Contains(hint, StringComparison.OrdinalIgnoreCase)));
+
+            if (matchedText is null)
+            {
+                return null;
+            }
+
+            return new DetectedLabelDto("Battery", Math.Max(matchedText.Confidence, 95));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        finally
+        {
+            imageBytes.Position = 0;
+        }
     }
 }

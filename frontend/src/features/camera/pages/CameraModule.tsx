@@ -74,7 +74,12 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 function isSupportedUploadType(type: string | undefined): boolean {
   const normalized = type?.trim().toLowerCase() ?? "";
-  return normalized === "image/jpeg" || normalized === "image/png";
+  return (
+    normalized === "image/jpeg" ||
+    normalized === "image/jpg" ||
+    normalized === "image/pjpeg" ||
+    normalized === "image/png"
+  );
 }
 
 async function renderDataUrlToJpegBlob(dataUrl: string): Promise<Blob> {
@@ -344,9 +349,11 @@ export default function CameraModule({
 
       try {
         const sourceBlob = imageFile ?? dataUrlToBlob(imageDataUrl);
-        const imageBlob = isSupportedUploadType(sourceBlob.type)
-          ? sourceBlob
-          : await renderDataUrlToJpegBlob(imageDataUrl);
+        const shouldNormalizeToJpeg =
+          Boolean(imageFile) || !isSupportedUploadType(sourceBlob.type);
+        const imageBlob = shouldNormalizeToJpeg
+          ? await renderDataUrlToJpegBlob(imageDataUrl)
+          : sourceBlob;
         const analysis = await analyzeAiCameraImage(imageBlob);
         const resultSpeech = buildMascotSpeechSegments(analysis)[0]?.text
         if (resultSpeech) {

@@ -6,6 +6,7 @@ namespace GreenLens.Application.Modules.AiCamera.WasteMapping;
 public sealed class WasteImageValidator : IWasteImageValidator
 {
     private const double WasteConfidenceThreshold = 70;
+    private const double HazardousWasteConfidenceThreshold = 55;
     private const double BlockConfidenceThreshold = 80;
     private const string NotWasteReason = "not_waste_image";
     private const string UncertainReason = "uncertain_detection";
@@ -98,20 +99,20 @@ public sealed class WasteImageValidator : IWasteImageValidator
             return new WasteImageValidationResult(false, UncertainReason, null, null);
         }
 
-        if (IsBlocked(topLabel) && topLabel.Confidence >= BlockConfidenceThreshold)
-        {
-            return new WasteImageValidationResult(false, NotWasteReason, null, topLabel);
-        }
-
         var wasteLabel = labels
             .Where(IsAcceptedWaste)
-            .Where(label => label.Confidence >= WasteConfidenceThreshold)
+            .Where(label => label.Confidence >= GetRequiredConfidence(label))
             .OrderByDescending(label => label.Confidence)
             .FirstOrDefault();
 
         if (wasteLabel is not null)
         {
             return new WasteImageValidationResult(true, string.Empty, wasteLabel, topLabel);
+        }
+
+        if (IsBlocked(topLabel) && topLabel.Confidence >= BlockConfidenceThreshold)
+        {
+            return new WasteImageValidationResult(false, NotWasteReason, null, topLabel);
         }
 
         var lowConfidenceWasteLabel = labels
@@ -136,6 +137,27 @@ public sealed class WasteImageValidator : IWasteImageValidator
     {
         return BlockedLabels.Any(blocked =>
             ContainsLabelPhrase(label.Label, blocked));
+    }
+
+    private static double GetRequiredConfidence(DetectedLabelDto label)
+    {
+        return IsHazardousWaste(label)
+            ? HazardousWasteConfidenceThreshold
+            : WasteConfidenceThreshold;
+    }
+
+    private static bool IsHazardousWaste(DetectedLabelDto label)
+    {
+        return ContainsLabelPhrase(label.Label, "Battery") ||
+            ContainsLabelPhrase(label.Label, "Medicine") ||
+            ContainsLabelPhrase(label.Label, "Pill") ||
+            ContainsLabelPhrase(label.Label, "Syringe") ||
+            ContainsLabelPhrase(label.Label, "Needle") ||
+            ContainsLabelPhrase(label.Label, "Chemical") ||
+            ContainsLabelPhrase(label.Label, "Paint") ||
+            ContainsLabelPhrase(label.Label, "Oil") ||
+            ContainsLabelPhrase(label.Label, "Thermometer") ||
+            ContainsLabelPhrase(label.Label, "Light Bulb");
     }
 
     private static bool ContainsLabelPhrase(string label, string phrase)

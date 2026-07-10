@@ -29,8 +29,8 @@ provider:
     BEDROCK_MODEL_ID: ${env:BEDROCK_MODEL_ID, 'amazon.nova-lite-v1:0'}
     BEDROCK_MAX_TOKENS: ${env:BEDROCK_MAX_TOKENS, '180'}
     BEDROCK_TIMEOUT_SECONDS: ${env:BEDROCK_TIMEOUT_SECONDS, '12'}
-    AI_CAMERA_GUIDANCE_FALLBACK_ENABLED: ${env:AI_CAMERA_GUIDANCE_FALLBACK_ENABLED, 'false'}
-    AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED: ${env:AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED, 'false'}
+    AI_CAMERA_GUIDANCE_FALLBACK_ENABLED: ${env:AI_CAMERA_GUIDANCE_FALLBACK_ENABLED, 'true'}
+    AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED: ${env:AI_CAMERA_SKIP_BEDROCK_WHEN_FALLBACK_ENABLED, 'true'}
     AI_CAMERA_USAGE_LIMITER_ENABLED: ${env:AI_CAMERA_USAGE_LIMITER_ENABLED, 'true'}
     AI_CAMERA_USAGE_TABLE_NAME: GreenLens-AiUsage
     AI_CAMERA_PER_MINUTE_LIMIT: ${env:AI_CAMERA_PER_MINUTE_LIMIT, '3'}
@@ -102,6 +102,7 @@ provider:
         - Effect: Allow
           Action:
             - rekognition:DetectLabels
+            - rekognition:DetectText
           Resource: "*"
         - Effect: Allow
           Action:
@@ -197,6 +198,7 @@ functions:
             arn: ${self:custom.cognitoAuthorizerArn}
   aiCameraAnalyze:
     handler: GreenLens.Api::GreenLens.Api.Functions.AiCameraFunction::AnalyzeAsync
+    timeout: 20
     events:
       - http:
           path: ai-camera/analyze
@@ -338,6 +340,17 @@ resources:
               ManagedRuleGroupStatement:
                 VendorName: AWS
                 Name: AWSManagedRulesCommonRuleSet
+                ScopeDownStatement:
+                  NotStatement:
+                    Statement:
+                      ByteMatchStatement:
+                        SearchString: /ai-camera/analyze
+                        FieldToMatch:
+                          UriPath: {}
+                        TextTransformations:
+                          - Priority: 0
+                            Type: NONE
+                        PositionalConstraint: ENDS_WITH
             VisibilityConfig:
               CloudWatchMetricsEnabled: true
               MetricName: AWSManagedCommonRules
