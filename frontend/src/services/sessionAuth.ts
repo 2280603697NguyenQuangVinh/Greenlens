@@ -1,4 +1,6 @@
 import {
+  getAuthUsername,
+  getRefreshToken,
   getToken,
   removeRefreshToken,
   removeToken,
@@ -12,7 +14,6 @@ import {
   setStoredCognitoSub,
 } from "@/services/childProfileStorage"
 import { apiUrl } from "@/services/http"
-import { getStoredAuthUsername, getStoredRefreshToken } from "@/services/authToken"
 
 const SESSION_TOKEN_KEY = "gl_token"
 const DEV_LOGIN_PATH = apiUrl("/auth/dev-login")
@@ -269,8 +270,8 @@ export async function tryRefreshBearerToken(): Promise<string | null> {
   if (!shouldUseDevLogin()) {
     const childId = getChildId()
     const deviceId = getStoredDeviceId() ?? (childId ? getOrCreateDeviceId() : null)
-    const refreshToken = getStoredRefreshToken()
-    const username = getStoredAuthUsername()
+    const refreshToken = getRefreshToken()?.trim() || null
+    const username = getAuthUsername()?.trim() || null
     if (refreshToken && username) {
       const refreshed = await refreshProductionToken(refreshToken, username)
       if (refreshed) return refreshed

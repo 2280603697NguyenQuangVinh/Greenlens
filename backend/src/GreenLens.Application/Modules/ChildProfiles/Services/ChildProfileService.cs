@@ -159,12 +159,6 @@ public sealed class ChildProfileService(
             return ToResponse(profile);
         }
 
-        if (string.IsNullOrWhiteSpace(cognitoSub) ||
-            !string.Equals(profile.CognitoSub, cognitoSub.Trim(), StringComparison.Ordinal))
-        {
-            throw new UnauthorizedAccessException("This device is not linked to the child profile yet.");
-        }
-
         await childProfileRepository.UpdateDeviceIdAsync(
             profile.ChildId,
             profile.CognitoSub,
