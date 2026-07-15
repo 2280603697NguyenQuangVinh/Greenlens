@@ -1,6 +1,13 @@
-import { getToken, removeToken, setToken } from "@/services/tokenStorage"
+import {
+  getToken,
+  removeRefreshToken,
+  removeToken,
+  setToken,
+} from "@/services/tokenStorage"
 import {
   getChildId,
+  getOrCreateDeviceId,
+  getStoredDeviceId,
   getStoredCognitoSub,
   setStoredCognitoSub,
 } from "@/services/childProfileStorage"
@@ -10,6 +17,7 @@ import { getStoredAuthUsername, getStoredRefreshToken } from "@/services/authTok
 const SESSION_TOKEN_KEY = "gl_token"
 const DEV_LOGIN_PATH = apiUrl("/auth/dev-login")
 const REFRESH_PATH = apiUrl("/auth/refresh")
+const GUEST_LOGIN_PATH = apiUrl("/auth/guest-login")
 const LOCAL_PROFILE_KEY = "gl_profile_local"
 const MOCK_TOKEN = "mock-greenlens-token"
 
@@ -19,6 +27,13 @@ type AuthTokenResponse = {
   bearerToken?: string
   refreshToken?: string
   username?: string
+}
+
+type GuestLoginResponse = {
+  auth?: AuthTokenResponse
+  profile?: {
+    cognitoSub?: string
+  }
 }
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -49,6 +64,11 @@ function isTokenExpired(token: string): boolean {
 function clearCachedSessionToken(): void {
   sessionStorage.removeItem(SESSION_TOKEN_KEY)
   removeToken()
+}
+
+function clearStoredRefreshSession(): void {
+  clearCachedSessionToken()
+  removeRefreshToken()
 }
 
 function shouldUseDevLogin(): boolean {
@@ -165,6 +185,9 @@ async function refreshProductionToken(
     })
 
     if (!res.ok) {
+      if (res.status === 401) {
+        clearStoredRefreshSession()
+      }
       return null
     }
 
@@ -175,6 +198,44 @@ async function refreshProductionToken(
     }
 
     writeSessionToken(token)
+    return token
+  } catch {
+    return null
+  }
+}
+
+async function restoreGuestProductionToken(
+  childId: string,
+  deviceId: string,
+  cognitoSub?: string | null,
+): Promise<string | null> {
+  try {
+    const res = await fetch(GUEST_LOGIN_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        childId,
+        deviceId,
+        cognitoSub: cognitoSub?.trim() || undefined,
+      }),
+    })
+
+    if (!res.ok) {
+      return null
+    }
+
+    const payload = (await res.json()) as GuestLoginResponse
+    const token = extractBearerToken(payload.auth || {})
+    if (!token) {
+      return null
+    }
+
+    writeSessionToken(token)
+    const nextCognitoSub = payload.profile?.cognitoSub?.trim()
+    if (nextCognitoSub) {
+      setStoredCognitoSub(nextCognitoSub)
+      persistCognitoSubInLocalProfile(nextCognitoSub)
+    }
     return token
   } catch {
     return null
@@ -206,11 +267,21 @@ export async function tryRefreshBearerToken(): Promise<string | null> {
   }
 
   if (!shouldUseDevLogin()) {
+    const childId = getChildId()
+    const deviceId = getStoredDeviceId() ?? (childId ? getOrCreateDeviceId() : null)
     const refreshToken = getStoredRefreshToken()
     const username = getStoredAuthUsername()
     if (refreshToken && username) {
       const refreshed = await refreshProductionToken(refreshToken, username)
       if (refreshed) return refreshed
+    }
+    if (childId && deviceId) {
+      const restored = await restoreGuestProductionToken(
+        childId,
+        deviceId,
+        getStoredCognitoSub() ?? readCognitoSubFromLocalProfile(),
+      )
+      if (restored) return restored
     }
     return null
   }

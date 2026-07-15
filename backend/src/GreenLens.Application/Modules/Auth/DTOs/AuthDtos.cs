@@ -28,9 +28,19 @@ public sealed record RegisterChildRequest(
     [property: JsonPropertyName("hair")] string? Hair,
     [property: JsonPropertyName("eyes")] string? Eyes,
     [property: JsonPropertyName("outfit")] string? Outfit,
-    [property: JsonPropertyName("avatarPreview")] string? AvatarPreview);
+    [property: JsonPropertyName("avatarPreview")] string? AvatarPreview,
+    [property: JsonPropertyName("deviceId")] string? DeviceId);
+
+public sealed record GuestChildLoginRequest(
+    [property: JsonPropertyName("childId")] string? ChildId,
+    [property: JsonPropertyName("deviceId")] string? DeviceId,
+    [property: JsonPropertyName("cognitoSub")] string? CognitoSub);
 
 public sealed record RegisterChildResponse(
+    [property: JsonPropertyName("auth")] AuthTokenResponse Auth,
+    [property: JsonPropertyName("profile")] GreenLens.Application.Modules.ChildProfiles.DTOs.ChildProfileResponse Profile);
+
+public sealed record GuestChildLoginResponse(
     [property: JsonPropertyName("auth")] AuthTokenResponse Auth,
     [property: JsonPropertyName("profile")] GreenLens.Application.Modules.ChildProfiles.DTOs.ChildProfileResponse Profile);
 

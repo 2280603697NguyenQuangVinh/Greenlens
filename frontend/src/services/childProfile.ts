@@ -11,6 +11,7 @@ import { tryRefreshBearerToken } from "@/services/sessionAuth"
 import {
   clearPersistedChildSession,
   getChildId,
+  getOrCreateDeviceId,
   setStoredCognitoSub,
 } from "@/services/childProfileStorage"
 import {
@@ -171,6 +172,7 @@ async function registerChildWithAuth(
     username,
     displayName: characterName.trim(),
     characterName: characterName.trim(),
+    deviceId: getOrCreateDeviceId(),
     ...toChildProfilePayload(cfg, characterName),
   }
 

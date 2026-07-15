@@ -42,6 +42,11 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             ["updatedAt"] = new() { S = profile.UpdatedAt.ToString("O") }
         };
 
+        if (!string.IsNullOrWhiteSpace(profile.DeviceId))
+        {
+            item["deviceId"] = new AttributeValue { S = profile.DeviceId.Trim() };
+        }
+
         if (!string.IsNullOrWhiteSpace(profile.LastStreakDate))
         {
             item["lastStreakDate"] = new AttributeValue { S = profile.LastStreakDate };
@@ -89,6 +94,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         {
             ChildId = GetRequiredString(response.Item, "childId"),
             CognitoSub = GetRequiredString(response.Item, "cognitoSub"),
+            DeviceId = GetString(response.Item, "deviceId"),
             CharacterName = GetRequiredString(response.Item, "characterName"),
             Gender = GetRequiredString(response.Item, "gender"),
             Hair = GetRequiredString(response.Item, "hair"),
@@ -151,6 +157,32 @@ public sealed class ChildProfileRepository : IChildProfileRepository
             .ToList();
     }
 
+    public Task UpdateDeviceIdAsync(
+        string childId,
+        string cognitoSub,
+        string deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new UpdateItemRequest
+        {
+            TableName = _tableName,
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["childId"] = RequiredString(childId, nameof(childId))
+            },
+            UpdateExpression = "SET deviceId = :deviceId, updatedAt = :updatedAt",
+            ConditionExpression = "cognitoSub = :cognitoSub",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":deviceId"] = RequiredString(deviceId, nameof(deviceId)),
+                [":updatedAt"] = new() { S = DateTime.UtcNow.ToString("O") },
+                [":cognitoSub"] = RequiredString(cognitoSub, nameof(cognitoSub))
+            }
+        };
+
+        return _dynamoDb.UpdateItemAsync(request, cancellationToken);
+    }
+
     public Task UpdateStreakAsync(
         string childId,
         string cognitoSub,
@@ -187,6 +219,7 @@ public sealed class ChildProfileRepository : IChildProfileRepository
         {
             ChildId = GetRequiredString(item, "childId"),
             CognitoSub = GetRequiredString(item, "cognitoSub"),
+            DeviceId = GetString(item, "deviceId"),
             CharacterName = GetRequiredString(item, "characterName"),
             Gender = GetRequiredString(item, "gender"),
             Hair = GetRequiredString(item, "hair"),

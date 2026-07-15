@@ -3,6 +3,7 @@ const SESSION_BADGE_KEY = "gl_badgeId"
 const SESSION_PROFILE_KEY = "gl_profile"
 const LOCAL_PROFILE_KEY = "gl_profile_local"
 const LOCAL_COGNITO_SUB_KEY = "gl_cognito_sub"
+const LOCAL_DEVICE_ID_KEY = "gl_device_id"
 const LOGGED_OUT_KEY = "gl_logged_out"
 
 function readBadgeIdFromSession(): string | null {
@@ -54,6 +55,23 @@ export function getStoredCognitoSub(): string | null {
 
 export function clearStoredCognitoSub(): void {
   localStorage.removeItem(LOCAL_COGNITO_SUB_KEY)
+}
+
+export function getOrCreateDeviceId(): string {
+  const existing = localStorage.getItem(LOCAL_DEVICE_ID_KEY)?.trim()
+  if (existing) return existing
+
+  const next =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
+  localStorage.setItem(LOCAL_DEVICE_ID_KEY, next)
+  return next
+}
+
+export function getStoredDeviceId(): string | null {
+  return localStorage.getItem(LOCAL_DEVICE_ID_KEY)?.trim() || null
 }
 
 export function saveLocalProfileJson(profileJson: string): void {

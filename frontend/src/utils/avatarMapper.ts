@@ -12,6 +12,7 @@ export interface ChildProfileRequest {
 export interface ChildProfileResponse {
   childId: string;
   cognitoSub?: string;
+  deviceId?: string;
   characterName: string;
   gender: "male" | "female";
   hair: string;

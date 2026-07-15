@@ -36,6 +36,51 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
         return Task.FromResult<IReadOnlyList<ChildProfile>>(profiles);
     }
 
+    public Task UpdateDeviceIdAsync(
+        string childId,
+        string cognitoSub,
+        string deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_profiles.TryGetValue(childId, out var profile))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!string.Equals(profile.CognitoSub, cognitoSub, StringComparison.Ordinal))
+        {
+            return Task.CompletedTask;
+        }
+
+        _profiles[childId] = new ChildProfile
+        {
+            ChildId = profile.ChildId,
+            CognitoSub = profile.CognitoSub,
+            DeviceId = deviceId,
+            CharacterName = profile.CharacterName,
+            Gender = profile.Gender,
+            Hair = profile.Hair,
+            Eyes = profile.Eyes,
+            Outfit = profile.Outfit,
+            AvatarPreview = profile.AvatarPreview,
+            Xp = profile.Xp,
+            Level = profile.Level,
+            Streak = profile.Streak,
+            LastStreakDate = profile.LastStreakDate,
+            StreakFreezeDaysUsed = profile.StreakFreezeDaysUsed,
+            AiCameraScanCount = profile.AiCameraScanCount,
+            MiniGameHighScore = profile.MiniGameHighScore,
+            Badges = profile.Badges,
+            Rewards = profile.Rewards,
+            Status = profile.Status,
+            UpdatedBy = profile.UpdatedBy,
+            CreatedAt = profile.CreatedAt,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        return Task.CompletedTask;
+    }
+
     public Task UpdateStreakAsync(
         string childId,
         string cognitoSub,
@@ -58,6 +103,7 @@ public sealed class InMemoryChildProfileRepository : IChildProfileRepository
         {
             ChildId = profile.ChildId,
             CognitoSub = profile.CognitoSub,
+            DeviceId = profile.DeviceId,
             CharacterName = profile.CharacterName,
             Gender = profile.Gender,
             Hair = profile.Hair,

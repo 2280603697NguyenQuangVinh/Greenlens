@@ -61,6 +61,53 @@ public sealed class AuthFunction
         return HandleAsync<AuthRefreshRequest>(request, context, _authService.RefreshAsync);
     }
 
+    public async Task<APIGatewayProxyResponse> GuestLoginAsync(
+        APIGatewayProxyRequest request,
+        ILambdaContext context)
+    {
+        GuestChildLoginRequest? body;
+        try
+        {
+            body = JsonSerializer.Deserialize<GuestChildLoginRequest>(request.Body ?? string.Empty, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return JsonResponse(HttpStatusCode.BadRequest, new { message = "Invalid request body." });
+        }
+
+        if (body is null)
+        {
+            return JsonResponse(HttpStatusCode.BadRequest, new { message = "Invalid request body." });
+        }
+
+        try
+        {
+            var profile = await _childProfileService.RestoreSessionAsync(
+                body.ChildId ?? string.Empty,
+                body.DeviceId ?? string.Empty,
+                body.CognitoSub,
+                CancellationToken.None);
+
+            var auth = await _authService.IssueChildSessionAsync(
+                profile.CognitoSub,
+                CancellationToken.None);
+            return JsonResponse(HttpStatusCode.OK, new GuestChildLoginResponse(auth, profile));
+        }
+        catch (ArgumentException exception)
+        {
+            return JsonResponse(HttpStatusCode.BadRequest, new { message = exception.Message });
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return JsonResponse(HttpStatusCode.Forbidden, new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            context.Logger.LogLine($"Guest login failed: {exception}");
+            return JsonResponse(HttpStatusCode.NotFound, new { message = exception.Message });
+        }
+    }
+
     public async Task<APIGatewayProxyResponse> RegisterChildAsync(
         APIGatewayProxyRequest request,
         ILambdaContext context)
@@ -105,7 +152,8 @@ public sealed class AuthFunction
                     body.Hair,
                     body.Eyes,
                     body.Outfit,
-                    body.AvatarPreview),
+                    body.AvatarPreview,
+                    body.DeviceId),
                 cognitoSub,
                 CancellationToken.None);
 

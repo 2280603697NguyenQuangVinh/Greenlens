@@ -78,7 +78,7 @@ export function mapAuthErrorMessage(message: string, status: number): string {
   const lower = message.toLowerCase()
 
   if (status === 401 || lower.includes("unauthorized") || lower.includes("token")) {
-    return "Phiên đăng nhập đã hết hạn. Hãy tạo lại nhân vật nhé!"
+    return "Không đăng nhập lại được. Hãy thử mở lại đúng thiết bị đã tạo nhân vật hoặc kiểm tra backend nhé!"
   }
 
   if (
@@ -96,7 +96,7 @@ export function mapAuthErrorMessage(message: string, status: number): string {
   }
 
   if (status === 403 || lower.includes("forbidden") || lower.includes("access denied")) {
-    return "Phiên đăng nhập không hợp lệ với nhân vật này. Hãy đăng nhập lại hoặc tạo lại nhân vật nhé!"
+    return "Thiết bị này chưa khớp với nhân vật đã lưu. Hãy mở lại trên đúng máy đã tạo nhân vật hoặc tạo nhân vật mới nhé!"
   }
 
   if (status === 429) {

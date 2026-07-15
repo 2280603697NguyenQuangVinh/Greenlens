@@ -125,14 +125,55 @@ public sealed class CognitoAuthService : IAuthService
             throw new ArgumentException("username is required when Cognito app client secret is configured.");
         }
 
-        var response = await _cognito.InitiateAuthAsync(new InitiateAuthRequest
+        try
         {
-            ClientId = _options.AppClientId,
-            AuthFlow = AuthFlowType.REFRESH_TOKEN_AUTH,
-            AuthParameters = authParameters
+            var response = await _cognito.InitiateAuthAsync(new InitiateAuthRequest
+            {
+                ClientId = _options.AppClientId,
+                AuthFlow = AuthFlowType.REFRESH_TOKEN_AUTH,
+                AuthParameters = authParameters
+            }, cancellationToken);
+
+            return MapAuthResult(username, response.AuthenticationResult, request.RefreshToken.Trim());
+        }
+        catch (NotAuthorizedException)
+        {
+            throw new UnauthorizedAccessException("Refresh token has expired.");
+        }
+        catch (UserNotFoundException)
+        {
+            throw new UnauthorizedAccessException("Refresh token is no longer valid.");
+        }
+        catch (InvalidParameterException exception)
+            when (exception.Message.Contains("Refresh Token has expired", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Refresh token has expired.");
+        }
+    }
+
+    public async Task<AuthTokenResponse> IssueChildSessionAsync(
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(cognitoSub))
+        {
+            throw new ArgumentException("cognitoSub is required.");
+        }
+
+        EnsureConfigured();
+
+        var username = await ResolveUsernameBySubAsync(cognitoSub.Trim(), cancellationToken);
+        var password = GeneratePassword();
+
+        await _cognito.AdminSetUserPasswordAsync(new AdminSetUserPasswordRequest
+        {
+            UserPoolId = _options.UserPoolId,
+            Username = username,
+            Password = password,
+            Permanent = true
         }, cancellationToken);
 
-        return MapAuthResult(username, response.AuthenticationResult, request.RefreshToken.Trim());
+        return await LoginAsync(new AuthLoginRequest(username, password), cancellationToken);
     }
 
     private static List<AttributeType> BuildUserAttributes(AuthRegisterRequest request)
@@ -221,5 +262,28 @@ public sealed class CognitoAuthService : IAuthService
     private static string GeneratePassword()
     {
         return $"GL-{Guid.NewGuid():N}-aA1!";
+    }
+
+    private async Task<string> ResolveUsernameBySubAsync(
+        string cognitoSub,
+        CancellationToken cancellationToken)
+    {
+        var response = await _cognito.ListUsersAsync(new ListUsersRequest
+        {
+            UserPoolId = _options.UserPoolId,
+            Filter = $"sub = \"{cognitoSub}\"",
+            Limit = 1
+        }, cancellationToken);
+
+        var username = response.Users
+            .FirstOrDefault()?.Username?
+            .Trim();
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new UnauthorizedAccessException("Child identity was not found in Cognito.");
+        }
+
+        return username;
     }
 }

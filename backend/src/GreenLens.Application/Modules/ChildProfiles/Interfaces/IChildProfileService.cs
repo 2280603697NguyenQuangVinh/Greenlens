@@ -14,6 +14,12 @@ public interface IChildProfileService
         string cognitoSub,
         CancellationToken cancellationToken = default);
 
+    Task<ChildProfileResponse> RestoreSessionAsync(
+        string childId,
+        string deviceId,
+        string? cognitoSub = null,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<LeaderboardEntryDto>> GetLeaderboardAsync(
         string? currentChildId,
         int limit = 10,

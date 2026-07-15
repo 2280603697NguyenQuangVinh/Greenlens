@@ -89,6 +89,7 @@ public sealed class ChildProfileService(
         {
             ChildId = childId,
             CognitoSub = resolvedCognitoSub,
+            DeviceId = request.DeviceId?.Trim(),
             CharacterName = request.CharacterName!.Trim(),
             Gender = request.Gender!.Trim(),
             Hair = request.Hair!.Trim(),
@@ -121,6 +122,82 @@ public sealed class ChildProfileService(
         var profile = await GetOwnedProfileAsync(childId, cognitoSub, cancellationToken);
 
         return ToResponse(profile);
+    }
+
+    public async Task<ChildProfileResponse> RestoreSessionAsync(
+        string childId,
+        string deviceId,
+        string? cognitoSub = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(childId))
+        {
+            throw new ArgumentException("childId is required.", nameof(childId));
+        }
+
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            throw new ArgumentException("deviceId is required.", nameof(deviceId));
+        }
+
+        var profile = await childProfileRepository.GetAsync(childId.Trim(), cancellationToken)
+            ?? throw new InvalidOperationException("Child profile was not found.");
+
+        if (!string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Child profile is disabled.");
+        }
+
+        var normalizedDeviceId = deviceId.Trim();
+        if (!string.IsNullOrWhiteSpace(profile.DeviceId))
+        {
+            if (!string.Equals(profile.DeviceId, normalizedDeviceId, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException("This child profile is linked to another device.");
+            }
+
+            return ToResponse(profile);
+        }
+
+        if (string.IsNullOrWhiteSpace(cognitoSub) ||
+            !string.Equals(profile.CognitoSub, cognitoSub.Trim(), StringComparison.Ordinal))
+        {
+            throw new UnauthorizedAccessException("This device is not linked to the child profile yet.");
+        }
+
+        await childProfileRepository.UpdateDeviceIdAsync(
+            profile.ChildId,
+            profile.CognitoSub,
+            normalizedDeviceId,
+            cancellationToken);
+
+        var reboundProfile = new ChildProfile
+        {
+            ChildId = profile.ChildId,
+            CognitoSub = profile.CognitoSub,
+            DeviceId = normalizedDeviceId,
+            CharacterName = profile.CharacterName,
+            Gender = profile.Gender,
+            Hair = profile.Hair,
+            Eyes = profile.Eyes,
+            Outfit = profile.Outfit,
+            AvatarPreview = profile.AvatarPreview,
+            Xp = profile.Xp,
+            Level = profile.Level,
+            Streak = profile.Streak,
+            LastStreakDate = profile.LastStreakDate,
+            StreakFreezeDaysUsed = profile.StreakFreezeDaysUsed,
+            AiCameraScanCount = profile.AiCameraScanCount,
+            MiniGameHighScore = profile.MiniGameHighScore,
+            Badges = profile.Badges,
+            Rewards = profile.Rewards,
+            Status = profile.Status,
+            UpdatedBy = profile.UpdatedBy,
+            CreatedAt = profile.CreatedAt,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        return ToResponse(reboundProfile);
     }
 
     public async Task<IReadOnlyList<LeaderboardEntryDto>> GetLeaderboardAsync(
@@ -187,6 +264,7 @@ public sealed class ChildProfileService(
         {
             ChildId = profile.ChildId,
             CognitoSub = profile.CognitoSub,
+            DeviceId = profile.DeviceId,
             CharacterName = profile.CharacterName,
             Gender = profile.Gender,
             Hair = profile.Hair,
@@ -271,6 +349,7 @@ public sealed class ChildProfileService(
         return new ChildProfileResponse(
             profile.ChildId,
             profile.CognitoSub,
+            profile.DeviceId,
             profile.CharacterName,
             profile.Gender,
             profile.Hair,

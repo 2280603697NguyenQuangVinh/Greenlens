@@ -8,11 +8,13 @@ public sealed record CreateChildProfileRequest(
     [property: JsonPropertyName("hair")] string? Hair,
     [property: JsonPropertyName("eyes")] string? Eyes,
     [property: JsonPropertyName("outfit")] string? Outfit,
-    [property: JsonPropertyName("avatarPreview")] string? AvatarPreview);
+    [property: JsonPropertyName("avatarPreview")] string? AvatarPreview,
+    [property: JsonPropertyName("deviceId")] string? DeviceId);
 
 public sealed record ChildProfileResponse(
     [property: JsonPropertyName("childId")] string ChildId,
     [property: JsonPropertyName("cognitoSub")] string CognitoSub,
+    [property: JsonPropertyName("deviceId")] string? DeviceId,
     [property: JsonPropertyName("characterName")] string CharacterName,
     [property: JsonPropertyName("gender")] string Gender,
     [property: JsonPropertyName("hair")] string Hair,

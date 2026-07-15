@@ -15,4 +15,8 @@ public interface IAuthService
     Task<AuthTokenResponse> RefreshAsync(
         AuthRefreshRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<AuthTokenResponse> IssueChildSessionAsync(
+        string cognitoSub,
+        CancellationToken cancellationToken = default);
 }

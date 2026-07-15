@@ -62,6 +62,14 @@ public sealed class InMemoryAuthService : IAuthService
         return Task.FromResult(DevBearerTokenFactory.Create(username, ResolveGroups(username)));
     }
 
+    public Task<AuthTokenResponse> IssueChildSessionAsync(
+        string cognitoSub,
+        CancellationToken cancellationToken = default)
+    {
+        var username = NormalizeUsername(cognitoSub);
+        return Task.FromResult(DevBearerTokenFactory.Create(username, ResolveGroups(username)));
+    }
+
     private IReadOnlyCollection<string> ResolveGroups(string username)
     {
         return _options.EnableDefaultAdmin &&

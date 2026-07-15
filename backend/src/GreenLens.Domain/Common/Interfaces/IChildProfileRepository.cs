@@ -14,6 +14,12 @@ public interface IChildProfileRepository
         int limit,
         CancellationToken cancellationToken = default);
 
+    Task UpdateDeviceIdAsync(
+        string childId,
+        string cognitoSub,
+        string deviceId,
+        CancellationToken cancellationToken = default);
+
     Task UpdateStreakAsync(
         string childId,
         string cognitoSub,

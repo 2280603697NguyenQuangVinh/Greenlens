@@ -4,6 +4,7 @@ public sealed class ChildProfile
 {
     public required string ChildId { get; init; }
     public required string CognitoSub { get; init; }
+    public string? DeviceId { get; init; }
     public required string CharacterName { get; init; }
     public required string Gender { get; init; }
     public required string Hair { get; init; }

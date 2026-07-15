@@ -421,7 +421,8 @@ app.MapPost("/auth/register-child", async (
                 request.Hair,
                 request.Eyes,
                 request.Outfit,
-                request.AvatarPreview),
+                request.AvatarPreview,
+                request.DeviceId),
             cognitoSub,
             httpContext.RequestAborted);
 
@@ -510,6 +511,39 @@ app.MapPost("/auth/refresh", async (
     catch (InvalidOperationException exception)
     {
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+app.MapPost("/auth/guest-login", async (
+    GuestChildLoginRequest request,
+    IAuthService authService,
+    IChildProfileService childProfileService,
+    HttpContext httpContext) =>
+{
+    try
+    {
+        var profile = await childProfileService.RestoreSessionAsync(
+            request.ChildId ?? string.Empty,
+            request.DeviceId ?? string.Empty,
+            request.CognitoSub,
+            httpContext.RequestAborted);
+
+        var auth = await authService.IssueChildSessionAsync(
+            profile.CognitoSub,
+            httpContext.RequestAborted);
+        return Results.Ok(new GuestChildLoginResponse(auth, profile));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        return Results.Json(new { message = exception.Message }, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { message = exception.Message }, statusCode: StatusCodes.Status404NotFound);
     }
 });
 
@@ -1159,6 +1193,7 @@ static bool IsPublicAuthPath(PathString path)
         path.StartsWithSegments("/auth/register-child", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWithSegments("/auth/login", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWithSegments("/auth/refresh", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/auth/guest-login", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWithSegments("/auth/dev-login", StringComparison.OrdinalIgnoreCase);
 }
 
