@@ -33,6 +33,8 @@ const DEFAULT_AVATAR: AvatarConfig = {
 
 /** Rough minimum for a real JPEG data URL (empty/mock payloads are much shorter). */
 const MIN_IMAGE_DATA_LENGTH = 1000;
+const GENTLE_AI_RETRY_MESSAGE =
+  "Ôi, AI hơi bối rối một chút rồi. Con thử lại một lần nữa nhé!";
 
 function formatCameraError(rawMessage: string): string {
   const lower = rawMessage.toLowerCase();
@@ -59,6 +61,22 @@ function isValidImageDataUrl(dataUrl: string): boolean {
   if (!dataUrl.startsWith("data:image/")) return false;
   const base64 = dataUrl.split(",")[1] ?? "";
   return base64.length >= MIN_IMAGE_DATA_LENGTH;
+}
+
+function toGentleAiErrorMessage(rawMessage: string): string {
+  const trimmed = rawMessage.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (
+    lower.includes("hết lượt") ||
+    lower.includes("quota") ||
+    lower.includes("giới hạn") ||
+    lower.includes("thử lại vào ngày mai")
+  ) {
+    return trimmed;
+  }
+
+  return GENTLE_AI_RETRY_MESSAGE;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -334,9 +352,7 @@ export default function CameraModule({
   const runAnalysis = useCallback(
     async (imageDataUrl: string, imageFile?: Blob | File) => {
       if (!isValidImageDataUrl(imageDataUrl)) {
-        setError(
-          "Không có ảnh hợp lệ. Hãy chọn ảnh từ thư viện hoặc thử chụp lại nhé!",
-        );
+        setError("Ảnh này chưa rõ lắm. Con thử chụp lại hoặc chọn ảnh khác nhé!");
         return;
       }
 
@@ -372,8 +388,8 @@ export default function CameraModule({
         const message =
           err instanceof Error
             ? err.message
-            : "Không nhận ra được, bạn thử chụp lại nhé!";
-        setError(message);
+            : GENTLE_AI_RETRY_MESSAGE;
+        setError(toGentleAiErrorMessage(message));
         setCapturedImage(null);
       } finally {
         setIsProcessing(false);
@@ -395,7 +411,7 @@ export default function CameraModule({
 
     const video = videoRef.current;
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      setError("Camera chưa sẵn sàng. Đợi một chút rồi thử lại nhé!");
+      setError("Camera đang chuẩn bị xong rồi nè. Con đợi một chút rồi thử lại nhé!");
       return;
     }
 
@@ -560,16 +576,28 @@ export default function CameraModule({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-x-4 top-20 z-40 rounded-2xl bg-red-500/90 px-4 py-3 text-center text-white shadow-lg"
+              className="absolute inset-x-4 top-20 z-40 rounded-3xl border border-white/60 bg-white/92 px-4 py-3 text-center text-[#1B4332] shadow-[0_10px_30px_rgba(45,106,79,0.18)] backdrop-blur-sm"
             >
+              <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#E8F8EF] text-xl">
+                ✨
+              </div>
               <p className="font-bold text-sm leading-snug">{error}</p>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                className="mt-2 text-sm underline opacity-80"
-              >
-                Đóng
-              </button>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  className="rounded-full bg-[#2DD62D] px-4 py-2 text-sm font-black text-white shadow-sm active:scale-[0.98]"
+                >
+                  Thử lại
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGalleryClick}
+                  className="rounded-full bg-[#E8F8EF] px-4 py-2 text-sm font-bold text-[#2D6A4F] active:scale-[0.98]"
+                >
+                  Chọn ảnh khác
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
