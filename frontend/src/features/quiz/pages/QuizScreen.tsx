@@ -13,22 +13,25 @@ const QUIZ_FONT_SEMI = { ...FF_QUIZ, fontWeight: 600 as const }
 
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const
 
-/** Màu badge (hình tròn đặc) + khung đáp án (~10% opacity cùng tông) */
+/** Nền khung câu hỏi + đáp án (cùng opacity) */
+const QUIZ_SURFACE = "bg-white/[0.555]" as const
+
+/** Màu badge (hình tròn đặc) + khung đáp án, viền theo tông badge */
 const OPTION_STYLES = [
   {
-    card: "bg-blue-500/10 border-blue-400/45",
+    card: `${QUIZ_SURFACE} border-blue-400/50`,
     badge: "bg-blue-500 text-white border-blue-500",
   },
   {
-    card: "bg-pink-500/10 border-pink-400/45",
+    card: `${QUIZ_SURFACE} border-pink-400/50`,
     badge: "bg-pink-500 text-white border-pink-500",
   },
   {
-    card: "bg-yellow-500/10 border-yellow-400/45",
+    card: `${QUIZ_SURFACE} border-yellow-400/50`,
     badge: "bg-yellow-500 text-white border-yellow-500",
   },
   {
-    card: "bg-red-500/10 border-red-400/45",
+    card: `${QUIZ_SURFACE} border-red-400/50`,
     badge: "bg-red-500 text-white border-red-500",
   },
 ] as const
@@ -91,7 +94,7 @@ function QuizBackground() {
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(240,253,244,0.94) 0%, rgba(220,252,231,0.88) 45%, rgba(236,253,245,0.92) 100%)",
+            "linear-gradient(180deg, rgba(240,253,244,0.55) 0%, rgba(220,252,231,0.5) 45%, rgba(236,253,245,0.6) 100%)",
         }}
         aria-hidden
       />
@@ -213,7 +216,7 @@ export function QuizScreen({
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 280 }}
-          className="w-full max-w-sm rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm p-6 text-center shadow-xl"
+          className="w-full max-w-sm rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm p-6 text-center shadow-xl mt-8"
         >
           <img src={MASCOT_IMAGE} alt="" className="mx-auto h-24 w-24 object-contain mb-3" />
           <div className="text-5xl mb-2">🏆</div>
@@ -258,11 +261,11 @@ export function QuizScreen({
   if (loading) {
     return (
       <QuizShell className="items-center justify-center px-6">
-        <div className="rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm px-8 py-10 text-center shadow-lg max-w-xs">
+        <div className="rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm px-8 py-10 text-center shadow-lg w-full max-w-sm mt-8">
           <motion.img
             src={QUIZ_TASK_ICON}
             alt=""
-            className="h-20 w-20 mx-auto mb-4"
+            className="h-20 w-20 mx-auto mb-4 mt-8"
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -390,17 +393,17 @@ export function QuizScreen({
       </div>
 
       {/* Question + answers */}
-      <div className="flex-1 min-h-0 px-4 sm:px-5 pb-4 sm:pb-5 flex flex-col gap-2.5 sm:gap-4 overflow-y-auto">
+      <div className="flex-1 min-h-0 px-4 sm:px-5 pb-4 sm:pb-5 flex flex-col gap-2.5 sm:gap-4 overflow-y-auto justify-between">
         <motion.div
           key={qi}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28 }}
-          className="rounded-[1.75rem] sm:rounded-[2rem] border-2 border-white bg-white/95 backdrop-blur-sm p-6 sm:p-9 shadow-md flex-shrink-0"
+          className={`mt-6 sm:mt-10 rounded-[1.75rem] sm:rounded-[2rem] border border-white/25 ${QUIZ_SURFACE} p-4 sm:p-5 flex-shrink-0`}
         >
           <div className="flex justify-center mb-2 sm:mb-3">
             <span
-              className="inline-flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl sm:rounded-3xl bg-green-50 border-2 border-green-100 text-4xl sm:text-5xl"
+              className={`inline-flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl sm:rounded-3xl ${QUIZ_SURFACE} border border-white/30 text-4xl sm:text-5xl`}
               role="img"
               aria-hidden
             >
@@ -416,7 +419,7 @@ export function QuizScreen({
         </motion.div>
 
         {/* 4 options — 2 columns × 2 rows */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-shrink-0">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-shrink-0 mt-auto pt-2 sm:pt-4 pb-2">
           {q.o.slice(0, 4).map((opt, i) => {
             const letter = OPTION_LETTERS[i] ?? String(i + 1)
             const baseStyle = OPTION_STYLES[i] ?? OPTION_STYLES[0]

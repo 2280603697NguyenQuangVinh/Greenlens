@@ -282,6 +282,23 @@ export const api = {
   getProfile: () => request<UserProfile>("/api/user/profile"),
 }
 
+/** Giữ ngoại hình đã chỉnh trên máy khi backend chưa trả avatar mới nhất. */
+export function mergeCachedAvatarAppearance(
+  profile: UserProfile,
+  cached: UserProfile | null,
+): UserProfile {
+  if (!cached || cached.badgeId !== profile.badgeId) return profile
+  return {
+    ...profile,
+    characterName: cached.characterName?.trim() || profile.characterName,
+    gender: cached.gender,
+    skin: cached.skin,
+    hair: cached.hair,
+    eyes: cached.eyes,
+    outfit: cached.outfit,
+  }
+}
+
 export function resumeProfileSession(profile: UserProfile, token?: string | null) {
   const cognitoSub = getStoredCognitoSub() ?? profile.cognitoSub?.trim()
   const profileToSave: UserProfile = cognitoSub ? { ...profile, cognitoSub } : profile

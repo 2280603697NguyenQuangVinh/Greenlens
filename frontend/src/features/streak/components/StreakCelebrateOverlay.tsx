@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { CHECK_ICON, FREEZING_ICON, STREAK_ICON } from "@/assets"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 import {
   getDayLabels,
   getTodayWeekIndex,
@@ -193,14 +193,14 @@ export function StreakCelebrateOverlay({
 
             <motion.p
               className="mt-2 text-6xl font-bold leading-none text-[#1b4332]"
-              style={FF_FREDOKA}
+              style={FF_QUIZ}
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.15 }}
             >
               {displayStreak}
             </motion.p>
-            <p className="mt-1 text-lg text-[#f4a261]" style={FF_FREDOKA}>
+            <p className="mt-1 text-lg text-[#f4a261]" style={FF_QUIZ}>
               ngày streak!
             </p>
 

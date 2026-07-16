@@ -2,7 +2,7 @@ import React from "react"
 import type { UserProfile } from "@/services/greenLens"
 import { Mascot } from "@/features/dashboard/components/Mascot"
 import { BottomNav } from "@/features/dashboard/components/BottomNav"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 
 import { BACKGROUND_IMAGE, ACHIEVEMENTS, DEFAULT_UNLOCKED } from "@/assets"
@@ -30,20 +30,29 @@ export function ProfileScreen({
   const badgeCards = ACHIEVEMENTS.map((achievement) => ({
     achievement,
     unlocked: isUnlocked(achievement.id),
-    date: isUnlocked(achievement.id) ? "05/11/2026" : "Chưa h/thành",
+    date: isUnlocked(achievement.id) ? "05/11/2026" : undefined,
   }))
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundImage: `url("${BG}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
+    <div
+      className="flex h-full flex-col"
+      style={{
+        ...FF_QUIZ,
+        backgroundImage: `url("${BG}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
       <div className="px-4 pt-5 pb-3 text-center">
         <div className="flex items-center justify-between">
-          <h1 className="text-[20px] font-black text-[#285f2e] drop-shadow-sm" style={{ ...FF_FREDOKA, fontWeight: 700 }}>
+          <h1 className="text-[20px] font-black text-[#285f2e] drop-shadow-sm" style={{ ...FF_QUIZ, fontWeight: 800 }}>
             Hồ Sơ Của Em
           </h1>
           <button
             type="button"
             onClick={onLogout}
-            className="rounded-full bg-[#ef4444] px-3 py-1.5 text-xs font-bold text-white active:scale-95"
+            className="rounded-full border border-rose-300 bg-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 active:scale-95"
+            style={FF_QUIZ}
           >
             Đăng xuất
           </button>
@@ -61,7 +70,7 @@ export function ProfileScreen({
           ✎
         </button>
 
-        <h2 className="mt-2 text-[22px] font-black text-black">
+        <h2 className="mt-2 text-[22px] font-black text-black" style={{ ...FF_QUIZ, fontWeight: 800 }}>
           {profile.characterName?.trim() || "Nhân vật của em"}
         </h2>
 
@@ -83,6 +92,7 @@ export function ProfileScreen({
         <button
           onClick={() => go(1)}
           className="mx-auto mt-4 block rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-slate-700"
+          style={FF_QUIZ}
         >
           ← Về Trang Chủ
         </button>
@@ -90,6 +100,7 @@ export function ProfileScreen({
           type="button"
           onClick={onEditAvatar}
           className="mx-auto mt-2 block rounded-full bg-[#22c55e] px-4 py-2 text-sm font-bold text-white active:scale-95"
+          style={FF_QUIZ}
         >
           Chỉnh sửa Avatar
         </button>

@@ -1,6 +1,6 @@
 import { motion } from "motion/react"
 import { CAMERA_TASK_ICON, GAME_TASK_ICON, QUIZ_TASK_ICON } from "@/assets"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 import type { DailyActivityStatus } from "@/services/streak/types"
 
 const TASKS = [
@@ -89,7 +89,7 @@ export function DailyGoalProgress({
   if (compact) {
     return (
       <div>
-        <p className="mb-2.5 text-base text-[#1b4332]" style={FF_FREDOKA}>
+        <p className="mb-2.5 text-base text-[#1b4332]" style={FF_QUIZ}>
           Nhiệm vụ hôm nay
         </p>
         {taskList}
@@ -99,7 +99,7 @@ export function DailyGoalProgress({
             type="button"
             onClick={() => onNavigate(nextTask.screen)}
             className="w-full rounded-full bg-[#2dd62d] py-3 text-[15px] text-white shadow-sm active:scale-[0.99]"
-            style={FF_FREDOKA}
+            style={FF_QUIZ}
           >
             Tiếp tục: {nextTask.label}
           </button>
@@ -114,7 +114,7 @@ export function DailyGoalProgress({
 
   return (
     <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
-      <h3 className="mb-3 text-[15px] text-[#1b4332]" style={FF_FREDOKA}>
+      <h3 className="mb-3 text-[15px] text-[#1b4332]" style={FF_QUIZ}>
         Nhiệm vụ hôm nay
       </h3>
       {taskList}

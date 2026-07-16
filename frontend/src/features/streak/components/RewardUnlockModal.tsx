@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 
 export function RewardUnlockModal({
   open,
@@ -34,7 +34,7 @@ export function RewardUnlockModal({
             onClick={(e) => e.stopPropagation()}
           >
             <p className="mb-1 text-sm text-[#2d6a4f]">Phần thưởng mới!</p>
-            <p className="mb-4 text-lg text-[#1b4332]" style={FF_FREDOKA}>
+            <p className="mb-4 text-lg text-[#1b4332]" style={FF_QUIZ}>
               {title}
             </p>
             {imageUrl ? (
@@ -52,7 +52,7 @@ export function RewardUnlockModal({
               type="button"
               onClick={onClose}
               className="w-full rounded-full bg-[#2dd62d] py-3 text-[15px] text-white active:scale-[0.99]"
-              style={FF_FREDOKA}
+              style={FF_QUIZ}
             >
               Tuyệt vời!
             </button>

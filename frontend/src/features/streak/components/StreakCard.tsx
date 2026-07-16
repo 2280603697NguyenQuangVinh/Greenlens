@@ -1,6 +1,6 @@
 import { motion } from "motion/react"
 import { STREAK_ICON } from "@/assets"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 import type { StreakInfo, StreakRewardInfo } from "@/services/streak/types"
 import { formatNextRewardDayLabel } from "@/features/streak/utils/streakUi"
 
@@ -55,7 +55,7 @@ export function StreakCard({
         <motion.p
           key={streak.currentStreak}
           className={compact ? "mt-0.5 text-lg leading-snug sm:text-xl" : "text-xl"}
-          style={FF_FREDOKA}
+          style={FF_QUIZ}
           initial={!compact && pulse ? { scale: 1.4, opacity: 0 } : false}
           animate={{ scale: 1, opacity: 1 }}
         >

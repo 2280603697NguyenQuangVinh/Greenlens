@@ -1,11 +1,11 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { BINS, FF_FREDOKA, FF_COMFORTAA, GAME_POOL } from "../../../utils/constants"
+import { BINS, FF_QUIZ, GAME_POOL } from "../../../utils/constants"
 import type { TrashCategory } from "../../../utils/constants"
 import { getTrashSortItems } from "../../../services/miniGame/miniGameApi"
 import { mapTrashSortApiItems, type GamePoolItem } from "../../../services/miniGame/trashSortMappers"
 import { getAchievement } from "../../../assets/achievementAssets"
-import { MASCOT_IMAGE } from "../../../assets/assetUrl"
+import { MASCOT_IMAGE, BACKGROUND_IMAGE } from "../../../assets/assetUrl"
 import {
   cancelSupertonicPlayback,
   isSupertonicEnabled,
@@ -79,8 +79,53 @@ const INITIAL_BIN_EFFECT: Record<TrashCategory, BinEffectType> = {
   Hazardous: "idle",
 }
 
-const FONT_DISPLAY = { ...FF_FREDOKA, fontWeight: 700 }
-const FONT_TEXT = { ...FF_COMFORTAA, fontWeight: 700 }
+const FONT_DISPLAY = { ...FF_QUIZ, fontWeight: 700 as const }
+const FONT_TEXT = { ...FF_QUIZ, fontWeight: 600 as const }
+const FONT_QUIZ = { ...FF_QUIZ, fontWeight: 700 as const }
+const FONT_QUIZ_BOLD = { ...FF_QUIZ, fontWeight: 800 as const }
+
+const BIN_IDLE_BORDER: Record<TrashCategory, string> = {
+  Recyclable: "#86EFAC",
+  Organic: "#FDE047",
+  Hazardous: "#FDA4AF",
+}
+
+const BIN_IDLE_BG: Record<TrashCategory, string> = {
+  Recyclable: "linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%)",
+  Organic: "linear-gradient(180deg, #FEFCE8 0%, #ECFCCB 52%, #D9F99D 100%)",
+  Hazardous: "linear-gradient(180deg, #FFF5F3 0%, #FFE4E1 100%)",
+}
+
+const BIN_LABEL_COLOR: Record<TrashCategory, string> = {
+  Recyclable: "#166534",
+  Organic: "#854D0E",
+  Hazardous: "#C0564B",
+}
+
+const BOTTOM_PANEL_BG =
+  "linear-gradient(180deg, #F0FDF4 0%, #EFF8FF 16%, #EAF4FF 42%, #DFEEFF 70%, #D4E8FF 100%)"
+
+function getBinSurfaceStyle(category: TrashCategory, effect: BinEffectType): React.CSSProperties {
+  if (effect === "error") {
+    return {
+      backgroundColor: "#FEE2E2",
+      borderColor: "#DC2626",
+      boxShadow: undefined,
+    }
+  }
+  if (effect === "success") {
+    return {
+      backgroundColor: "#DCFCE7",
+      borderColor: "#16A34A",
+      boxShadow: "0 0 20px rgba(22,163,74,0.55)",
+    }
+  }
+  return {
+    background: BIN_IDLE_BG[category],
+    borderColor: BIN_IDLE_BORDER[category],
+    boxShadow: "0 2px 10px rgba(148,163,184,0.12)",
+  }
+}
 
 async function loadTrashSortPool(): Promise<PoolItem[]> {
   try {
@@ -649,55 +694,47 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
   }, [detectBinByPoint, endPointerSession, moveDragSession])
 
   return (
-    <div className="relative h-full overflow-hidden bg-[#DBF8FF]">
+    <div className="relative h-full overflow-hidden">
       <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_#dff6ff_0%,_#cdeeff_40%,_#b7e1ff_70%,_#9bd8ff_100%)]" />
-        <div className="absolute left-[6%] top-[10%] h-20 w-36 rounded-full bg-white/90 blur-[1px]" />
-        <div className="absolute left-[13%] top-[8%] h-12 w-24 rounded-full bg-white/95" />
-        <div className="absolute right-[9%] top-[16%] h-16 w-32 rounded-full bg-white/90" />
-        <div className="absolute right-[17%] top-[14%] h-10 w-16 rounded-full bg-white/95" />
-        <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-[#FFD93D] shadow-[0_0_40px_8px_rgba(255,217,61,0.5)]">
-          <div className="absolute left-[28%] top-[33%] h-2 w-2 rounded-full bg-[#9A3412]" />
-          <div className="absolute right-[28%] top-[33%] h-2 w-2 rounded-full bg-[#9A3412]" />
-          <div className="absolute left-[34%] top-[53%] h-3 w-8 rounded-b-full border-b-2 border-[#9A3412]" />
-        </div>
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url("${BACKGROUND_IMAGE}")` }}
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(240,253,244,0.55) 0%, rgba(220,252,231,0.5) 45%, rgba(236,253,245,0.6) 100%)",
+          }}
+          aria-hidden
+        />
         <motion.span
-          className="absolute left-[12%] top-[34%] text-2xl opacity-30"
+          className="absolute left-[12%] top-[34%] text-2xl opacity-20"
           animate={{ y: [0, -8, 0], rotate: [-6, 6, -6] }}
           transition={{ repeat: Infinity, duration: 3.5 }}
         >
           ♻️
         </motion.span>
         <motion.span
-          className="absolute right-[18%] top-[32%] text-xl opacity-25"
+          className="absolute right-[18%] top-[32%] text-xl opacity-[0.15]"
           animate={{ y: [0, -10, 0], rotate: [8, -8, 8] }}
           transition={{ repeat: Infinity, duration: 3.2 }}
         >
           ♻️
         </motion.span>
-        <motion.span
-          className="absolute right-[38%] top-[22%] text-lg opacity-20"
-          animate={{ y: [0, -7, 0], rotate: [5, -5, 5] }}
-          transition={{ repeat: Infinity, duration: 2.8 }}
-        >
-          ♻️
-        </motion.span>
-        <div className="absolute inset-x-0 bottom-0 h-[40%] bg-[radial-gradient(ellipse_at_bottom,_#A7F3D0_0%,_#6EE7B7_48%,_#34D399_100%)]" />
-        <div className="absolute bottom-16 left-0 h-20 w-52 rounded-tr-[80px] rounded-tl-[50px] bg-[#4ADE80]/90" />
-        <div className="absolute bottom-14 right-0 h-24 w-60 rounded-tl-[90px] rounded-tr-[40px] bg-[#22C55E]/90" />
-        <div className="absolute bottom-10 left-[30%] h-16 w-44 rounded-[80px] bg-[#16A34A]/70" />
       </div>
 
       <div className="relative z-10 flex h-full flex-col">
-        <div className="flex items-center justify-between gap-2 bg-white/80 px-3 pb-2 pt-3 shadow-sm backdrop-blur-sm">
+        <div className="grid grid-cols-3 items-center gap-2 bg-white/80 px-3 pb-2 pt-3 shadow-sm backdrop-blur-sm">
           <button
             onClick={onBack}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/90"
+            className="flex h-10 w-10 items-center justify-center justify-self-start rounded-2xl bg-white/90"
           >
             <span className="text-gray-600">←</span>
           </button>
           <div
-            className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-base ${
+            className={`flex items-center justify-center gap-2 justify-self-center rounded-2xl px-3 py-2 text-base ${
               time <= 10 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"
             }`}
             style={FONT_DISPLAY}
@@ -706,7 +743,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
             <span>{String(time).padStart(2, "0")}s</span>
           </div>
           <div
-            className="flex items-center gap-2 rounded-2xl bg-amber-100 px-3 py-2 text-base text-amber-600"
+            className="flex items-center gap-2 justify-self-end rounded-2xl bg-amber-100 px-3 py-2 text-base text-amber-600"
             style={FONT_DISPLAY}
           >
             <span>Điểm</span>
@@ -726,7 +763,11 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
           </span>
         </div>
 
-        <div className="relative flex-1 overflow-hidden px-3 py-2">
+        <div className="relative flex-1 overflow-visible px-3 py-2">
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-b from-transparent via-[#EFF8FF]/40 to-[#EAF4FF]/90"
+            aria-hidden
+          />
           <AnimatePresence>
             {phase === "loading" && (
               <motion.div
@@ -743,7 +784,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
           </AnimatePresence>
 
           {phase === "playing" && (
-            <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4">
+            <div className="absolute inset-x-0 bottom-0 z-30 flex -translate-y-[70px] items-end justify-center px-2 sm:px-4">
               <div className="mx-auto grid w-full max-w-[380px] grid-cols-3 place-items-center gap-2 md:max-w-[600px] md:gap-5">
                 {Array.from({ length: STAGE_SIZE }, (_, slotIndex) => {
                   const slot = stageSlots[slotIndex]
@@ -813,7 +854,9 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                             }
                             resolveDrop(slotIndex, slot.token, null)
                           }}
-                          className="absolute inset-0 z-20 flex h-full w-full select-none flex-col items-center justify-center bg-transparent px-1 py-1 text-center"
+                          className={`absolute inset-0 flex h-full w-full select-none flex-col items-center justify-center bg-transparent px-1 py-1 text-center ${
+                            slot.isDragging ? "z-50" : "z-30"
+                          }`}
                           animate={{ x: slot.offsetX, y: slot.offsetY, scale: slot.isDragging ? 1.08 : 1 }}
                           transition={
                             slot.isDragging
@@ -852,170 +895,56 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
             </div>
           )}
 
-          <div className="pointer-events-none absolute bottom-2 left-2 z-30 md:bottom-3 md:left-4">
-            <motion.div
-              className="relative flex items-end gap-2"
-              animate={
-                mascotMood === "success"
-                  ? { y: [0, -3, 0], scale: [1, 1.04, 1] }
-                  : mascotMood === "error"
-                    ? { x: [0, -3, 3, -2, 2, 0] }
-                    : { y: [0, -1, 0] }
-              }
-              transition={{ duration: 0.42, repeat: mascotMood === "idle" ? Infinity : 0, repeatDelay: 1.2 }}
-            >
-              {!failedMascotImage ? (
-                <img
-                  src={MASCOT_IMAGE}
-                  alt="Mascot"
-                  className="h-[88px] w-[88px] object-contain md:h-[108px] md:w-[108px]"
-                  onError={() => setFailedMascotImage(true)}
-                  draggable={false}
-                />
-              ) : (
-                <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-white/85 text-2xl md:h-[108px] md:w-[108px]">
-                  🦊
-                </div>
-              )}
-              <div
-                className={`max-w-[210px] rounded-2xl border-2 px-3 py-2 text-xs ${
-                  mascotMood === "success"
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                    : mascotMood === "error"
-                      ? "border-red-500 bg-red-50 text-red-700"
-                      : "border-sky-400 bg-white/90 text-sky-700"
-                }`}
-                style={FONT_DISPLAY}
-              >
-                {mascotBubbleText}
-              </div>
-            </motion.div>
-          </div>
-
-          <AnimatePresence>
-            {phase === "gameOver" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 z-40 rounded-2xl bg-black/60 p-4 backdrop-blur-sm sm:p-6"
-              >
-                <div className="h-full w-full overflow-y-auto rounded-3xl bg-white p-4 sm:p-6">
-                  <h3 className="text-center text-xl text-[#14532d]" style={FONT_DISPLAY}>
-                    Kết quả trò chơi
-                  </h3>
-
-                  <p className="mt-2 text-center text-base text-[#334155]" style={FONT_TEXT}>
-                    {resultMessage}
-                  </p>
-
-                  {endReason === "completed" && (
-                    <>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-emerald-50 p-3">
-                          <p className="text-xs text-emerald-700" style={FONT_TEXT}>
-                            Điểm số
-                          </p>
-                          <p className="text-2xl text-emerald-700" style={FONT_DISPLAY}>
-                            {finalScore}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl bg-sky-50 p-3">
-                          <p className="text-xs text-sky-700" style={FONT_TEXT}>
-                            Thời gian
-                          </p>
-                          <p className="text-2xl text-sky-700" style={FONT_DISPLAY}>
-                            {elapsedSeconds}s
-                          </p>
-                        </div>
-                        <div className="rounded-2xl bg-lime-50 p-3">
-                          <p className="text-xs text-lime-700" style={FONT_TEXT}>
-                            Số câu đúng
-                          </p>
-                          <p className="text-2xl text-lime-700" style={FONT_DISPLAY}>
-                            {correctCount}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl bg-rose-50 p-3">
-                          <p className="text-xs text-rose-700" style={FONT_TEXT}>
-                            Số câu sai
-                          </p>
-                          <p className="text-2xl text-rose-700" style={FONT_DISPLAY}>
-                            {wrongCount}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-2xl bg-amber-50 p-3">
-                        <p className="text-sm text-amber-700" style={FONT_TEXT}>
-                          Phần thưởng
-                        </p>
-                        {resultPayload ? (
-                          <>
-                            <p className="mt-1 text-base text-amber-700" style={FONT_DISPLAY}>
-                              +{resultPayload.xpAwarded} XP
-                            </p>
-                            <div className="mt-2 flex flex-wrap justify-center gap-3">
-                              {resultPayload.unlockedBadges.length ? (
-                                resultPayload.unlockedBadges.map((badge) => (
-                                  <div key={badge} className="flex flex-col items-center gap-1">
-                                    {badge === RAC_KY_THU_BADGE && racKyThuAchievement ? (
-                                      <img
-                                        src={racKyThuAchievement.image}
-                                        alt={badge}
-                                        className="h-14 w-14 object-contain"
-                                      />
-                                    ) : null}
-                                    <span className="text-xs text-amber-800" style={FONT_TEXT}>
-                                      {badge}
-                                    </span>
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-xs text-amber-700" style={FONT_TEXT}>
-                                  Chưa mở khóa huy hiệu mới
-                                </span>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <p className="mt-2 text-xs text-amber-700" style={FONT_TEXT}>
-                            Đang tải phần thưởng...
-                          </p>
-                        )}
-                      </div>
-
-                      {busy && (
-                        <p className="mt-2 text-center text-xs text-slate-500" style={FONT_TEXT}>
-                          Đang lưu điểm...
-                        </p>
-                      )}
-                    </>
-                  )}
-
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => void refreshGame()}
-                      className="rounded-2xl bg-emerald-500 py-3 text-sm text-white active:scale-95"
-                      style={FONT_DISPLAY}
-                    >
-                      Chơi lại
-                    </button>
-                    <button
-                      onClick={onBack}
-                      className="rounded-2xl bg-slate-200 py-3 text-sm text-slate-700 active:scale-95"
-                      style={FONT_DISPLAY}
-                    >
-                      Về trang chủ
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        <div className="flex-shrink-0 px-2 pb-3 pt-2">
-          <div className="mx-auto flex w-full max-w-[760px] flex-row flex-nowrap justify-center gap-3">
+        <div className="relative z-20 w-full flex-shrink-0">
+          <div
+            className="w-full overflow-hidden rounded-t-[1.75rem] border border-b-0 border-white/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(147,197,253,0.22)] backdrop-blur-md sm:rounded-t-[2rem] sm:px-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]"
+            style={{ background: BOTTOM_PANEL_BG }}
+          >
+            <div className="pointer-events-none mb-3 flex justify-center">
+              <motion.div
+                className="flex w-full max-w-[440px] items-center gap-2 sm:gap-3"
+                animate={
+                  mascotMood === "success"
+                    ? { y: [0, -3, 0], scale: [1, 1.04, 1] }
+                    : mascotMood === "error"
+                      ? { x: [0, -3, 3, -2, 2, 0] }
+                      : { y: [0, -1, 0] }
+                }
+                transition={{ duration: 0.42, repeat: mascotMood === "idle" ? Infinity : 0, repeatDelay: 1.2 }}
+              >
+                {!failedMascotImage ? (
+                  <img
+                    src={MASCOT_IMAGE}
+                    alt="Mascot"
+                    className="h-[72px] w-[72px] shrink-0 object-contain md:h-[88px] md:w-[88px]"
+                    onError={() => setFailedMascotImage(true)}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-white/85 text-2xl md:h-[88px] md:w-[88px]">
+                    🦊
+                  </div>
+                )}
+                <div
+                  className={`min-w-0 flex-1 rounded-2xl border-2 px-3 py-2 text-center text-xs ${
+                    mascotMood === "success"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : mascotMood === "error"
+                        ? "border-red-500 bg-red-50 text-red-700"
+                        : "border-white/75 bg-white/92 text-[#14532d] shadow-sm"
+                  }`}
+                  style={FONT_DISPLAY}
+                >
+                  {mascotBubbleText}
+                </div>
+              </motion.div>
+            </div>
+
+            <div className="mb-3 h-px w-full bg-sky-200/45" aria-hidden />
+
+            <div className="mx-auto flex w-full max-w-[760px] flex-row flex-nowrap justify-center gap-3">
             {BINS.map((bin, i) => {
               const effect = binEffects[bin.category]
               const stars = starBursts.filter((entry) => entry.category === bin.category)
@@ -1049,11 +978,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                     resolveDrop(payload.slotIndex, payload.token, binCategory)
                   }}
                   className="relative flex h-[140px] w-[31%] min-w-0 flex-col items-center rounded-2xl border-[3px] px-2 py-2 active:scale-95 md:h-[180px] md:w-[176px] md:px-3 md:py-3"
-                  style={{
-                    backgroundColor: effect === "error" ? "#FEE2E2" : effect === "success" ? "#DCFCE7" : "#FFFFFF",
-                    borderColor: effect === "error" ? "#DC2626" : effect === "success" ? "#16A34A" : "#111111",
-                    boxShadow: effect === "success" ? "0 0 20px rgba(22,163,74,0.55)" : undefined,
-                  }}
+                  style={getBinSurfaceStyle(bin.category, effect)}
                   animate={
                     effect === "error"
                       ? { x: [0, -6, 6, -5, 5, -2, 2, 0] }
@@ -1094,12 +1019,12 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                   ) : (
                     <div className="text-2xl">{bin.i}</div>
                   )}
-                  <span className="mt-1 text-sm leading-none" style={FONT_TEXT}>
+                  <span className="mt-1 text-sm leading-none text-[#14532d]" style={FONT_TEXT}>
                     {bin.l}
                   </span>
                   <span
                     className="text-center text-xs leading-tight"
-                    style={{ ...FONT_DISPLAY, color: bin.c }}
+                    style={{ ...FONT_DISPLAY, color: BIN_LABEL_COLOR[bin.category] }}
                   >
                     {bin.lVi}
                   </span>
@@ -1110,7 +1035,11 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                       return (
                         <div
                           key={`${bin.category}-filled-${slot}`}
-                          className="flex h-8 items-center justify-center rounded-lg bg-[#F3F4F6] md:h-10"
+                          className={`flex h-8 items-center justify-center rounded-lg md:h-10 ${
+                            item
+                              ? "border border-transparent bg-white/82"
+                              : "border border-dotted border-slate-500/42 bg-white/58"
+                          }`}
                         >
                           {item ? (
                             !failedItemImages[item.key] && item.iconSrc ? (
@@ -1126,7 +1055,7 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                               </span>
                             )
                           ) : (
-                            <span className="text-xs text-slate-300" style={FONT_TEXT}>
+                            <span className="text-xs text-slate-400" style={FONT_TEXT}>
                               trống
                             </span>
                           )}
@@ -1137,9 +1066,136 @@ export function GameScreen({ onBack, busy, onGameEnd }: Props) {
                 </motion.button>
               )
             })}
+            </div>
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {phase === "gameOver" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-xl sm:p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="max-h-[92%] w-full max-w-lg overflow-y-auto rounded-3xl bg-white/95 p-4 shadow-2xl sm:p-6"
+            >
+              <h3 className="text-center text-xl text-[#14532d]" style={FONT_QUIZ_BOLD}>
+                Kết quả trò chơi
+              </h3>
+
+              <p className="mt-2 text-center text-base text-[#334155]" style={FONT_QUIZ}>
+                {resultMessage}
+              </p>
+
+              {endReason === "completed" && (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-emerald-50 p-3">
+                      <p className="text-xs text-emerald-700" style={FONT_QUIZ}>
+                        Điểm số
+                      </p>
+                      <p className="text-2xl text-emerald-700" style={FONT_QUIZ_BOLD}>
+                        {finalScore}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-sky-50 p-3">
+                      <p className="text-xs text-sky-700" style={FONT_QUIZ}>
+                        Thời gian
+                      </p>
+                      <p className="text-2xl text-sky-700" style={FONT_QUIZ_BOLD}>
+                        {elapsedSeconds}s
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-lime-50 p-3">
+                      <p className="text-xs text-lime-700" style={FONT_QUIZ}>
+                        Số câu đúng
+                      </p>
+                      <p className="text-2xl text-lime-700" style={FONT_QUIZ_BOLD}>
+                        {correctCount}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-rose-50 p-3">
+                      <p className="text-xs text-rose-700" style={FONT_QUIZ}>
+                        Số câu sai
+                      </p>
+                      <p className="text-2xl text-rose-700" style={FONT_QUIZ_BOLD}>
+                        {wrongCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl bg-amber-50 p-3">
+                    <p className="text-sm text-amber-700" style={FONT_QUIZ}>
+                      Phần thưởng
+                    </p>
+                    {resultPayload ? (
+                      <>
+                        <p className="mt-1 text-base text-amber-700" style={FONT_QUIZ_BOLD}>
+                          +{resultPayload.xpAwarded} XP
+                        </p>
+                        <div className="mt-2 flex flex-wrap justify-center gap-3">
+                          {resultPayload.unlockedBadges.length ? (
+                            resultPayload.unlockedBadges.map((badge) => (
+                              <div key={badge} className="flex flex-col items-center gap-1">
+                                {badge === RAC_KY_THU_BADGE && racKyThuAchievement ? (
+                                  <img
+                                    src={racKyThuAchievement.image}
+                                    alt={badge}
+                                    className="h-14 w-14 object-contain"
+                                  />
+                                ) : null}
+                                <span className="text-xs text-amber-800" style={FONT_QUIZ}>
+                                  {badge}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-xs text-amber-700" style={FONT_QUIZ}>
+                              Chưa mở khóa huy hiệu mới
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-xs text-amber-700" style={FONT_QUIZ}>
+                        Đang tải phần thưởng...
+                      </p>
+                    )}
+                  </div>
+
+                  {busy && (
+                    <p className="mt-2 text-center text-xs text-slate-500" style={FONT_QUIZ}>
+                      Đang lưu điểm...
+                    </p>
+                  )}
+                </>
+              )}
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => void refreshGame()}
+                  className="rounded-2xl bg-emerald-500 py-3 text-sm text-white active:scale-95"
+                  style={FONT_QUIZ_BOLD}
+                >
+                  Chơi lại
+                </button>
+                <button
+                  onClick={onBack}
+                  className="rounded-2xl bg-slate-200 py-3 text-sm text-slate-700 active:scale-95"
+                  style={FONT_QUIZ_BOLD}
+                >
+                  Về trang chủ
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

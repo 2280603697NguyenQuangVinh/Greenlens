@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react"
 import { XP_REWARD_ICON } from "@/assets"
-import { FF_FREDOKA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 
 export function XpFloatToast({ show }: { show: boolean }) {
   return (
@@ -14,7 +14,7 @@ export function XpFloatToast({ show }: { show: boolean }) {
           aria-hidden
         >
           <img src={XP_REWARD_ICON} alt="" className="h-5 w-5 object-contain" draggable={false} />
-          <span className="text-sm font-medium text-[#e85d4c]" style={FF_FREDOKA}>
+          <span className="text-sm font-medium text-[#e85d4c]" style={FF_QUIZ}>
             +20 XP
           </span>
         </motion.div>
