@@ -68,7 +68,7 @@ export function StreakCard({
   if (compact) {
     return (
       <div
-        className={`rounded-2xl px-4 py-3.5 text-white shadow-[0_4px_16px_rgba(232,93,76,0.35)] ${
+        className={`rounded-[1.35rem] px-5 py-4 text-white shadow-[0_4px_16px_rgba(232,93,76,0.35)] ${
           isEmpty
             ? "bg-gradient-to-r from-[#52b788] to-[#2d6a4f] shadow-[0_4px_16px_rgba(45,106,79,0.3)]"
             : "bg-gradient-to-b from-[#ff8c42] to-[#e85d4c]"
@@ -97,7 +97,7 @@ export function StreakCard({
   }
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-orange-400 to-red-500 p-4 text-white shadow-lg">
+    <div className="rounded-[1.75rem] bg-gradient-to-br from-orange-400 to-red-500 p-5 text-white shadow-lg">
       <div className="mb-3 flex items-center justify-between gap-2">
         {headline}
         {pulse ? (

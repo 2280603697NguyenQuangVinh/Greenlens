@@ -32,4 +32,5 @@ export {
   getModelHair,
   getModelOutfit,
   getOutfitOptionList,
+  EYE_COLOR_LAYERS,
 } from "./avatarAssets"

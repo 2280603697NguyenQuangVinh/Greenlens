@@ -20,9 +20,9 @@ function NavIconImage({ src, alt, active }: { src: string; alt: string; active: 
 export function BottomNav({ screen, go, avatarCfg }: { screen: number; go: (s: number) => void; avatarCfg?: AvatarConfig }) {
   return (
     <div className="flex-shrink-0 bg-white border-t-2 border-green-100 flex items-center justify-around px-2 py-2 shadow-lg" style={{ height: 76 }}>
-      <button onClick={() => go(1)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 1 ? "text-red-500" : "text-gray-400"}`}>
+      <button onClick={() => go(1)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 1 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         <NavIconImage src={NAV_HOME} alt="Trang chủ" active={screen === 1} />
-        <span className={`text-[10px] ${screen === 1 ? "font-semibold text-red-500" : ""}`} style={FF_QUIZ}>Trang chủ</span>
+        <span className="text-[10px]" style={FF_QUIZ}>Trang chủ</span>
       </button>
       <button onClick={() => go(3)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 3 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         <NavIconImage src={NAV_QUIZ} alt="Câu đố" active={screen === 3} />

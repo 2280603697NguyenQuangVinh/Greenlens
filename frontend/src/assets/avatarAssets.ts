@@ -7,7 +7,9 @@ const EYES_LAYER = [
   new URL("./Character/eyes color/black.png", import.meta.url).href,
   new URL("./Character/eyes color/brown.png", import.meta.url).href,
   new URL("./Character/eyes color/blue.png", import.meta.url).href,
-]
+] as const
+
+export const EYE_COLOR_LAYERS: readonly string[] = EYES_LAYER
 
 const GENDER_MALE_ICON = new URL(
   "./Character/male/gender/male.png",

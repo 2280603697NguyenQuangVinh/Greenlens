@@ -24,7 +24,7 @@ export const LAYER_LAYOUT = {
   },
   female: {
     stageScalePct: 88,
-    eyes: { widthPct: 26.25, topPct: 42.5, xPct: 50, offsetXPct: 0, offsetYPct: 0 },
+    eyes: { widthPct: 24, topPct: 42.5, xPct: 50, offsetXPct: -0.03, offsetYPct: 0.05 },
     hair: { widthPct: 67, topPct: 4.5, xPct: 49, offsetXPct: 0, offsetYPct: 0 },
     outfit: { widthPct: 47, topPct: 58, xPct: 49.75, offsetXPct: 0, offsetYPct: 0 },
   },

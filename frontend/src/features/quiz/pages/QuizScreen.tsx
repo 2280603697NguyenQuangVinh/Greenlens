@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react"
 import type { QuizQuestion } from "@/services/greenLens"
 import { wasteTypeEmoji, wasteTypeLabel } from "@/services/quiz/quizApi"
 import { FF_QUIZ } from "@/utils/constants"
+import { KIDS_PRIMARY_BUTTON_CLASS, KIDS_PRIMARY_BUTTON_STYLE, KIDS_SQUIRCLE } from "@/utils/kidsUiStyles"
 import { BACKGROUND_IMAGE, MASCOT_IMAGE } from "@/assets"
 import { CHECK_ICON, LETTER_X_ICON, QUIZ_TASK_ICON, XP_REWARD_ICON } from "@/assets/iconAssets"
 import type { LocalQuizItem } from "@/utils/types"
@@ -16,23 +17,23 @@ const OPTION_LETTERS = ["A", "B", "C", "D"] as const
 /** Nền khung câu hỏi + đáp án (cùng opacity) */
 const QUIZ_SURFACE = "bg-white/[0.555]" as const
 
-/** Màu badge (hình tròn đặc) + khung đáp án, viền theo tông badge */
+/** Màu badge tròn A/B/C/D + viền pastel nhẹ trên nền trắng */
 const OPTION_STYLES = [
   {
-    card: `${QUIZ_SURFACE} border-blue-400/50`,
-    badge: "bg-blue-500 text-white border-blue-500",
+    card: "bg-white/92 border-blue-200/70",
+    badge: "bg-sky-400 text-white border-sky-300/80",
   },
   {
-    card: `${QUIZ_SURFACE} border-pink-400/50`,
-    badge: "bg-pink-500 text-white border-pink-500",
+    card: "bg-white/92 border-pink-200/70",
+    badge: "bg-rose-400 text-white border-rose-300/80",
   },
   {
-    card: `${QUIZ_SURFACE} border-yellow-400/50`,
-    badge: "bg-yellow-500 text-white border-yellow-500",
+    card: "bg-white/92 border-amber-200/70",
+    badge: "bg-amber-400 text-white border-amber-300/80",
   },
   {
-    card: `${QUIZ_SURFACE} border-red-400/50`,
-    badge: "bg-red-500 text-white border-red-500",
+    card: "bg-white/92 border-red-200/70",
+    badge: "bg-red-400 text-white border-red-300/80",
   },
 ] as const
 
@@ -117,16 +118,52 @@ function QuizBackground() {
   )
 }
 
+function AnswerBorderFlash({ variant }: { variant: "correct" | "wrong" }) {
+  const edge =
+    variant === "correct"
+      ? "rgba(34, 197, 94, 0.72)"
+      : "rgba(239, 68, 68, 0.72)"
+  const mid =
+    variant === "correct"
+      ? "rgba(74, 222, 128, 0.28)"
+      : "rgba(252, 165, 165, 0.28)"
+
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-[80]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, 1, 0.75, 0] }}
+      transition={{ duration: 0.75, times: [0, 0.12, 0.35, 1], ease: "easeOut" }}
+      aria-hidden
+      style={{
+        background: `
+          linear-gradient(to bottom, ${edge} 0%, ${mid} 10%, transparent 22%),
+          linear-gradient(to top, ${edge} 0%, ${mid} 10%, transparent 22%),
+          linear-gradient(to right, ${edge} 0%, ${mid} 8%, transparent 18%),
+          linear-gradient(to left, ${edge} 0%, ${mid} 8%, transparent 18%)
+        `,
+      }}
+    />
+  )
+}
+
 function QuizShell({
   children,
   className = "",
+  borderFlash = null,
+  flashKey = 0,
 }: {
   children: ReactNode
   className?: string
+  borderFlash?: "correct" | "wrong" | null
+  flashKey?: number
 }) {
   return (
     <div className={`relative h-full flex flex-col overflow-hidden ${className}`} style={QUIZ_FONT}>
       <QuizBackground />
+      <AnimatePresence>
+        {borderFlash ? <AnswerBorderFlash key={flashKey} variant={borderFlash} /> : null}
+      </AnimatePresence>
       <div className="relative z-10 flex flex-col flex-1 min-h-0">{children}</div>
     </div>
   )
@@ -146,8 +183,8 @@ function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-4 rounded-3xl text-white text-lg active:scale-[0.98] transition-transform disabled:opacity-60 shadow-lg shadow-green-300/40"
-      style={{ ...QUIZ_FONT_BOLD, background: "linear-gradient(135deg,#34D399,#16A34A)" }}
+      className={`w-full py-4 ${KIDS_PRIMARY_BUTTON_CLASS}`}
+      style={{ ...QUIZ_FONT_BOLD, ...KIDS_PRIMARY_BUTTON_STYLE }}
     >
       {children}
     </button>
@@ -173,6 +210,8 @@ export function QuizScreen({
   const [done, setDone] = useState(false)
   const [correctCount, setCorrectCount] = useState(0)
   const [finalScore, setFinalScore] = useState(0)
+  const [borderFlash, setBorderFlash] = useState<"correct" | "wrong" | null>(null)
+  const [flashKey, setFlashKey] = useState(0)
 
   const q = QUIZ[qi]
   const topicLabel = quizMeta ? wasteTypeLabel(quizMeta.wasteType) : "Eco Quiz"
@@ -182,6 +221,9 @@ export function QuizScreen({
     if (sel !== null || busy || !q) return
     setSel(i)
     const isCorrect = i === q.a
+    setBorderFlash(isCorrect ? "correct" : "wrong")
+    setFlashKey((k) => k + 1)
+    window.setTimeout(() => setBorderFlash(null), 580)
     const nextCorrect = isCorrect ? correctCount + 1 : correctCount
     if (isCorrect) {
       setXpPopup("+10 XP")
@@ -216,7 +258,7 @@ export function QuizScreen({
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 280 }}
-          className="w-full max-w-sm rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm p-6 text-center shadow-xl mt-8"
+          className="w-full max-w-sm rounded-[2rem] border border-white/50 bg-white/92 backdrop-blur-sm p-7 text-center shadow-[0_12px_40px_rgba(45,106,79,0.12)] mt-8"
         >
           <img src={MASCOT_IMAGE} alt="" className="mx-auto h-24 w-24 object-contain mb-3" />
           <div className="text-5xl mb-2">🏆</div>
@@ -228,7 +270,7 @@ export function QuizScreen({
           </p>
 
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="rounded-2xl border-2 border-green-200 bg-green-50 px-3 py-3">
+            <div className="rounded-[1.25rem] border border-emerald-200/70 bg-emerald-50/90 px-4 py-4 shadow-[0_4px_16px_rgba(34,197,94,0.08)]">
               <div className="text-[11px] text-green-600 mb-0.5" style={QUIZ_FONT_SEMI}>
                 Điểm số
               </div>
@@ -236,7 +278,7 @@ export function QuizScreen({
                 {finalScore}
               </div>
             </div>
-            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-3 py-3">
+            <div className="rounded-[1.25rem] border border-amber-200/70 bg-amber-50/90 px-4 py-4 shadow-[0_4px_16px_rgba(245,158,11,0.08)]">
               <div
                 className="text-[11px] text-amber-600 mb-0.5 flex items-center justify-center gap-1"
                 style={QUIZ_FONT_SEMI}
@@ -261,7 +303,7 @@ export function QuizScreen({
   if (loading) {
     return (
       <QuizShell className="items-center justify-center px-6">
-        <div className="rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm px-8 py-10 text-center shadow-lg w-full max-w-sm mt-8">
+        <div className="rounded-[2rem] border border-white/50 bg-white/92 backdrop-blur-sm px-8 py-10 text-center shadow-[0_10px_32px_rgba(45,106,79,0.1)] w-full max-w-sm mt-8">
           <motion.img
             src={QUIZ_TASK_ICON}
             alt=""
@@ -283,7 +325,7 @@ export function QuizScreen({
   if (!q) {
     return (
       <QuizShell className="items-center justify-center px-6">
-        <div className="rounded-[2rem] border-2 border-white/80 bg-white/90 backdrop-blur-sm px-6 py-8 text-center shadow-lg max-w-xs w-full">
+        <div className="rounded-[2rem] border border-white/50 bg-white/92 backdrop-blur-sm px-6 py-8 text-center shadow-[0_10px_32px_rgba(45,106,79,0.1)] max-w-xs w-full">
           <div className="text-5xl mb-3">😅</div>
           <h2 className="text-xl text-green-800 mb-2" style={QUIZ_FONT_BOLD}>
             Chưa tải được câu đố
@@ -300,7 +342,7 @@ export function QuizScreen({
             <button
               type="button"
               onClick={onBack}
-              className="w-full py-3.5 rounded-3xl bg-white border-2 border-green-200 text-green-700 active:scale-[0.98]"
+              className="w-full py-4 rounded-[1.75rem] bg-white border border-emerald-200/70 text-green-700 active:scale-[0.97] shadow-[0_4px_16px_rgba(45,106,79,0.06)]"
               style={QUIZ_FONT_BOLD}
             >
               ← Về trang chủ
@@ -312,7 +354,7 @@ export function QuizScreen({
   }
 
   return (
-    <QuizShell>
+    <QuizShell borderFlash={borderFlash} flashKey={flashKey}>
       <AnimatePresence>
         {showXP && (
           <motion.div
@@ -336,7 +378,7 @@ export function QuizScreen({
         <button
           type="button"
           onClick={onBack}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 flex items-center justify-center shadow-sm border-2 border-green-100 active:scale-95"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-[1rem] bg-white/95 flex items-center justify-center shadow-[0_4px_12px_rgba(45,106,79,0.08)] border border-emerald-100/70 active:scale-[0.97]"
           aria-label="Quay lại"
         >
           <span className="text-green-700 text-lg sm:text-xl" style={QUIZ_FONT_BOLD}>
@@ -358,7 +400,7 @@ export function QuizScreen({
         </div>
 
         <div
-          className="rounded-2xl bg-white/95 border-2 border-green-100 px-2.5 py-1.5 sm:px-3 sm:py-2 text-center min-w-[44px] sm:min-w-[52px] shadow-sm"
+          className="rounded-[1rem] bg-white/95 border border-emerald-100/70 px-3 py-2 sm:px-3.5 sm:py-2.5 text-center min-w-[44px] sm:min-w-[52px] shadow-[0_4px_12px_rgba(45,106,79,0.08)]"
           style={QUIZ_FONT_BOLD}
         >
           <div className="text-[10px] sm:text-[11px] text-green-600 leading-none" style={QUIZ_FONT_SEMI}>
@@ -399,7 +441,7 @@ export function QuizScreen({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28 }}
-          className={`mt-6 sm:mt-10 rounded-[1.75rem] sm:rounded-[2rem] border border-white/25 ${QUIZ_SURFACE} p-4 sm:p-5 flex-shrink-0`}
+              className={`mt-6 sm:mt-10 ${KIDS_SQUIRCLE} border border-white/40 ${QUIZ_SURFACE} p-5 sm:p-6 flex-shrink-0 shadow-[0_8px_24px_rgba(45,106,79,0.08)]`}
         >
           <div className="flex justify-center mb-2 sm:mb-3">
             <span
@@ -425,24 +467,22 @@ export function QuizScreen({
             const baseStyle = OPTION_STYLES[i] ?? OPTION_STYLES[0]
             let cardBg = baseStyle.card
             let cardBorder = ""
-            let textColor = "text-black"
+            let textColor = "text-green-900"
             let badgeClass = baseStyle.badge
 
             if (sel !== null) {
               if (i === q.a) {
-                cardBg = "bg-green-500"
-                cardBorder = "border-green-600"
-                textColor = "text-white"
-                badgeClass = "bg-white/25 text-white border-white/40"
+                cardBg = "bg-emerald-50/95"
+                cardBorder = "border-emerald-300/80"
+                textColor = "text-green-900"
               } else if (i === sel) {
-                cardBg = "bg-orange-400"
-                cardBorder = "border-orange-500"
-                textColor = "text-white"
-                badgeClass = "bg-white/25 text-white border-white/40"
+                cardBg = "bg-orange-50/95"
+                cardBorder = "border-orange-300/80"
+                textColor = "text-orange-900"
               } else {
-                cardBg = `${baseStyle.card} opacity-45`
+                cardBg = "bg-white/55"
                 cardBorder = "border-transparent"
-                textColor = "text-black/40"
+                textColor = "text-green-900/35"
               }
             }
 
@@ -452,8 +492,8 @@ export function QuizScreen({
                 type="button"
                 onClick={() => answer(i)}
                 disabled={sel !== null || busy}
-                whileTap={{ scale: 0.98 }}
-                className={`relative min-h-[120px] sm:min-h-[120px] py-2.5 sm:py-3.5 px-2 sm:px-3 rounded-2xl sm:rounded-3xl border-2 flex flex-col items-center justify-center gap-1.5 sm:gap-2 text-center transition-all shadow-sm ${cardBg} ${cardBorder}`}
+                whileTap={{ scale: 0.97 }}
+                className={`relative min-h-[124px] sm:min-h-[128px] py-3.5 sm:py-4 px-3 sm:px-4 ${KIDS_SQUIRCLE} border-2 flex flex-col items-center justify-center gap-2 sm:gap-2.5 text-center transition-all shadow-[0_6px_20px_rgba(45,106,79,0.08)] ${cardBg} ${cardBorder}`}
               >
                 <span
                   className={`flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center text-sm sm:text-base ${badgeClass}`}
@@ -493,7 +533,7 @@ export function QuizScreen({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ delay: 0.2 }}
-              className="rounded-2xl sm:rounded-3xl border-2 border-amber-200 bg-amber-50/95 px-4 sm:px-5 py-3 sm:py-4 flex-shrink-0"
+              className="rounded-[1.35rem] sm:rounded-[1.5rem] border border-amber-200/70 bg-amber-50/90 px-5 sm:px-6 py-4 sm:py-5 flex-shrink-0 shadow-[0_6px_20px_rgba(245,158,11,0.1)]"
             >
               <p
                 className="text-green-900 text-sm sm:text-base leading-relaxed"

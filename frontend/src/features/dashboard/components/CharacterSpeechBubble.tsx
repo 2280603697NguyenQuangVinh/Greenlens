@@ -1,11 +1,10 @@
 import type { ReactNode } from "react"
-import { SPEECH_BUBBLE_RIGHT } from "@/assets/iconAssets"
 import { FF_NUNITO } from "@/utils/constants"
 
 type TailSide = "left" | "right"
 type BubbleVariant = "dashboard" | "camera"
 
-function ImageSpeechBubble({
+function SoftSpeechBubble({
   children,
   className,
   tail = "left",
@@ -14,30 +13,35 @@ function ImageSpeechBubble({
   className?: string
   tail?: TailSide
 }) {
-  const flip = tail === "right"
+  const tailSide = tail === "right" ? "right" : "left"
 
   return (
     <div className={`min-w-0 flex-1 ${className ?? ""}`}>
-      <div
-        className={`relative w-full drop-shadow-[0_3px_10px_rgba(45,106,79,0.15)] ${flip ? "-scale-x-100" : ""}`}
-      >
-        <img
-          src={SPEECH_BUBBLE_RIGHT}
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-fill"
-          draggable={false}
-          aria-hidden
-        />
+      <div className="relative">
         <div
-          className={`relative flex min-h-[3.25rem] items-center justify-center px-4 pb-[1.2rem] pt-2.5 ${flip ? "-scale-x-100" : ""}`}
+          className="relative rounded-[1.35rem] border border-emerald-100/80 bg-white/94 px-5 py-3.5 shadow-[0_6px_24px_rgba(45,106,79,0.1)]"
         >
           <p
             lang="vi"
-            className="text-center text-[13px] font-semibold leading-normal tracking-normal antialiased text-black sm:text-[14px]"
+            className="text-center text-[13px] font-semibold leading-normal tracking-normal antialiased text-green-900 sm:text-[14px]"
             style={{ ...FF_NUNITO, fontWeight: 600 }}
           >
             {children}
           </p>
+        </div>
+        {/* Soft curved tail — two overlapping circles instead of a sharp point */}
+        <div
+          className={`absolute bottom-3 flex items-end gap-0 ${
+            tailSide === "left" ? "-left-2 flex-row" : "-right-2 flex-row-reverse"
+          }`}
+          aria-hidden
+        >
+          <span className="h-3.5 w-3.5 rounded-full border border-emerald-100/70 bg-white/94 shadow-[0_2px_8px_rgba(45,106,79,0.06)]" />
+          <span
+            className={`-mb-0.5 h-2.5 w-2.5 rounded-full border border-emerald-100/60 bg-white/92 ${
+              tailSide === "left" ? "-ml-1.5" : "-mr-1.5"
+            }`}
+          />
         </div>
       </div>
     </div>
@@ -48,7 +52,7 @@ export function CharacterSpeechBubble({
   children,
   className = "",
   tail = "left",
-  variant = "dashboard",
+  variant: _variant = "dashboard",
 }: {
   children: ReactNode
   className?: string
@@ -56,8 +60,8 @@ export function CharacterSpeechBubble({
   variant?: BubbleVariant
 }) {
   return (
-    <ImageSpeechBubble className={className} tail={tail}>
+    <SoftSpeechBubble className={className} tail={tail}>
       {children}
-    </ImageSpeechBubble>
+    </SoftSpeechBubble>
   )
 }

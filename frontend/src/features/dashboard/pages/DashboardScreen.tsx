@@ -112,12 +112,12 @@ export function DashboardScreen({
       }}
     >
       <header className="flex items-center gap-3 px-3 pb-2.5 pt-3">
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#1b3a1b] bg-[#a8dcae] shadow-sm">
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-300/45 bg-[#B8E0BC]/90 shadow-[0_6px_20px_rgba(45,106,79,0.1)]">
           <Mascot cfg={cfg} size={60} rounded />
         </div>
         <div className="min-w-0 flex-1">
           <h1
-            className="truncate text-2xl font-normal leading-tight text-black"
+            className="truncate text-2xl font-normal leading-tight text-green-900"
             style={{ ...FF_QUIZ, fontWeight: 700 }}
           >
             Chào, {displayName}!
@@ -144,7 +144,7 @@ export function DashboardScreen({
         <div className={`mb-2 grid gap-2.5 ${hasAccount ? "grid-cols-2" : "grid-cols-1"}`}>
           {hasAccount ? (
             <section
-              className="flex max-h-[220px] flex-col overflow-hidden rounded-2xl border-2 border-[#f2aa58] bg-[#ffd39b]"
+              className="flex max-h-[220px] flex-col overflow-hidden rounded-[1.35rem] border border-orange-200/60 bg-gradient-to-b from-[#FFE8D4] to-[#FFD4B8] shadow-[0_6px_20px_rgba(245,176,152,0.15)]"
               style={FF_NUNITO}
             >
               <h2 className="shrink-0 py-2 text-center text-[15px] font-semibold">Xếp hạng</h2>
@@ -176,7 +176,7 @@ export function DashboardScreen({
             </section>
           ) : null}
 
-          <section className="flex flex-col overflow-hidden rounded-2xl border-2 border-[#3da9f5] bg-[#63b8ff]">
+          <section className="flex flex-col overflow-hidden rounded-[1.35rem] border border-sky-200/60 bg-gradient-to-b from-[#B8DCFF] to-[#9ECCF5] shadow-[0_6px_20px_rgba(100,160,220,0.15)]">
             <h2 className="shrink-0 py-2 text-center text-[15px] font-semibold" style={FF_QUIZ}>Huy Hiệu</h2>
             <div
               className={`grid flex-1 place-items-center gap-2 bg-white/40 px-2 pb-2.5 pt-1 ${

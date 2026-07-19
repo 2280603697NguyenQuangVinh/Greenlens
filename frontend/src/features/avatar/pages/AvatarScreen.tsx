@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "motion/react"
 import { RefreshCw, Save, Sparkles, Play } from "lucide-react"
 import { validateCharacterName } from "@/services/childProfile"
 import { FF_QUIZ } from "@/utils/constants"
+import { KIDS_PRIMARY_BUTTON_CLASS, KIDS_PRIMARY_BUTTON_STYLE, KIDS_SQUIRCLE } from "@/utils/kidsUiStyles"
 import type { AvatarConfig } from "@/utils/types"
-import { getHairOptionList, getOutfitOptionList, getUiAsset } from "@/assets"
+import { getHairOptionList, getOutfitOptionList, getUiAsset, EYE_COLOR_LAYERS } from "@/assets"
 import { AvatarPreview } from "@/features/avatar/components/AvatarPreview"
 
 // ---------------------------------------------------------------------------
@@ -12,10 +13,10 @@ import { AvatarPreview } from "@/features/avatar/components/AvatarPreview"
 // ---------------------------------------------------------------------------
 
 const EYE_COLORS = [
-  { label: "Đen", color: null },                              // default — no overlay
-  { label: "Nâu", color: "rgba(92, 51, 23, 0.55)" },
-  { label: "Xanh\nDương", color: "rgba(25, 100, 220, 0.55)" },
-]
+  { label: "Đen", image: EYE_COLOR_LAYERS[0] },
+  { label: "Nâu", image: EYE_COLOR_LAYERS[1] },
+  { label: "Xanh\nDương", image: EYE_COLOR_LAYERS[2] },
+] as const
 
 const AVATAR_FONT = { ...FF_QUIZ } as const
 const AVATAR_FONT_BOLD = { ...FF_QUIZ, fontWeight: 800 as const }
@@ -109,8 +110,8 @@ export function AvatarScreen({
                   key={value}
                   type="button"
                   onClick={() => setCfg({ ...cfg, gender: value })}
-                  className={`flex flex-col items-center rounded-3xl border-[3px] px-2 py-3 transition-all active:scale-95 ${
-                    selected ? `border-green-500 shadow-lg ${accent}` : "border-slate-200 bg-white"
+                  className={`flex flex-col items-center rounded-[1.75rem] border-2 px-3 py-4 transition-all active:scale-[0.97] shadow-[0_4px_16px_rgba(45,106,79,0.06)] ${
+                    selected ? `${accent} shadow-[0_6px_20px_rgba(59,130,246,0.12)]` : "border-slate-200/70 bg-white"
                   }`}
                 >
                   <AvatarPreview cfg={previewCfg} size={118} />
@@ -136,8 +137,8 @@ export function AvatarScreen({
               <button
                 key={i}
                 onClick={() => setCfg({ ...cfg, hair: i + 1 })}
-                className={`flex flex-col items-center rounded-3xl overflow-hidden border-[3px] transition-all active:scale-95 bg-white ${
-                  selected ? "border-green-500 shadow-lg" : "border-slate-200"
+                className={`flex flex-col items-center rounded-[1.75rem] overflow-hidden border-2 transition-all active:scale-[0.97] bg-white shadow-[0_4px_16px_rgba(45,106,79,0.06)] ${
+                  selected ? "border-emerald-300/80 shadow-[0_6px_20px_rgba(34,197,94,0.12)]" : "border-slate-200/70"
                 }`}
               >
                 <img src={src} alt={`Kiểu ${i + 1}`} className="w-full h-20 object-contain" />
@@ -159,20 +160,25 @@ export function AvatarScreen({
             Chọn màu mắt cho nhân vật
           </p>
           <div className="grid grid-cols-3 gap-3">
-            {EYE_COLORS.map(({ label, color }, i) => {
+            {EYE_COLORS.map(({ label, image }, i) => {
               const selected = cfg.eyes === i
               return (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setCfg({ ...cfg, eyes: i })}
-                  className={`flex flex-col items-center gap-2 py-4 px-2 rounded-3xl border-[3px] transition-all active:scale-95 ${
-                    selected ? "border-green-500 bg-green-50 shadow-md" : "border-slate-200 bg-white"
+                  className={`flex flex-col items-center gap-2 py-5 px-3 rounded-[1.75rem] border-2 transition-all active:scale-[0.97] shadow-[0_4px_16px_rgba(45,106,79,0.06)] ${
+                    selected ? "border-emerald-300/80 bg-emerald-50/80 shadow-[0_6px_20px_rgba(34,197,94,0.1)]" : "border-slate-200/70 bg-white"
                   }`}
                 >
-                  <div
-                    className="w-10 h-10 rounded-full border-2 border-slate-300 shadow-inner"
-                    style={{ backgroundColor: color ?? "#1A1A1A" }}
-                  />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/80 bg-[#e8f8ef]/80 shadow-inner">
+                    <img
+                      src={image}
+                      alt=""
+                      className="h-7 w-10 object-contain"
+                      draggable={false}
+                    />
+                  </div>
                   <span className="text-[11px] font-bold text-slate-600 text-center leading-tight whitespace-pre-line" style={AVATAR_FONT_SEMI}>
                     {label}
                   </span>
@@ -194,8 +200,8 @@ export function AvatarScreen({
             <button
               key={i}
               onClick={() => setCfg({ ...cfg, outfit: i + 1 })}
-              className={`flex flex-col items-center rounded-3xl overflow-hidden border-[3px] transition-all active:scale-95 bg-white ${
-                selected ? "border-green-500 shadow-lg" : "border-slate-200"
+              className={`flex flex-col items-center rounded-[1.75rem] overflow-hidden border-2 transition-all active:scale-[0.97] bg-white shadow-[0_4px_16px_rgba(45,106,79,0.06)] ${
+                selected ? "border-emerald-300/80 shadow-[0_6px_20px_rgba(34,197,94,0.12)]" : "border-slate-200/70"
               }`}
             >
               <img src={src} alt={`Kiểu ${i + 1}`} className="w-full h-20 object-contain" />
@@ -236,13 +242,13 @@ export function AvatarScreen({
           {isStartupFlow ? (
             <>Hãy Tạo Nhân Vật Cho Riêng Bản Thân Nào!</>
           ) : (
-            <>Chỉnh Sửa<br />Nhân Vật</>
+            <>Chỉnh Sửa Nhân Vật</>
           )}
         </h1>
       </div>
 
       {isStartupFlow && savedCharacterName && savedCfg && onContinueSaved ? (
-        <div className="mx-4 mb-3 rounded-3xl border-2 border-green-500 bg-white p-4 shadow-sm">
+        <div className={`mx-4 mb-3 ${KIDS_SQUIRCLE} border border-emerald-200/70 bg-white/95 p-5 shadow-[0_8px_24px_rgba(45,106,79,0.08)]`}>
           <p className="text-center text-sm font-bold text-slate-700 mb-3" style={AVATAR_FONT_SEMI}>
             Chào lại, <span className="text-green-700">{savedCharacterName}</span>!
           </p>
@@ -253,8 +259,8 @@ export function AvatarScreen({
             type="button"
             onClick={onContinueSaved}
             disabled={busy}
-            className="w-full py-3.5 rounded-3xl font-black text-base flex items-center justify-center gap-2 text-white active:scale-95 transition-transform disabled:opacity-60 shadow-lg"
-            style={{ ...AVATAR_FONT_BOLD, fontWeight: 700, background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 8px 20px #22C55E44" }}
+            className={`w-full py-4 ${KIDS_PRIMARY_BUTTON_CLASS} font-black text-base flex items-center justify-center gap-2`}
+            style={{ ...AVATAR_FONT_BOLD, fontWeight: 700, ...KIDS_PRIMARY_BUTTON_STYLE }}
           >
             <Play size={18} />
             {busy ? "Đang vào game..." : "Tiếp tục chơi"}
@@ -279,7 +285,7 @@ export function AvatarScreen({
           }}
           placeholder="Ví dụ: Gấu Xanh"
           disabled={busy}
-          className="w-full rounded-2xl border-2 border-slate-200 px-4 py-3 text-sm font-semibold focus:border-green-500 outline-none disabled:opacity-60 bg-white"
+          className="w-full rounded-[1.25rem] border border-slate-200/80 px-5 py-3.5 text-sm font-semibold focus:border-emerald-300 outline-none disabled:opacity-60 bg-white shadow-[0_4px_16px_rgba(45,106,79,0.04)]"
           style={AVATAR_FONT_SEMI}
         />
       </div>
@@ -347,7 +353,7 @@ export function AvatarScreen({
           type="button"
           onClick={handleRandom}
           disabled={busy}
-          className="flex-1 py-3.5 rounded-3xl font-black text-base flex items-center justify-center gap-2 border-2 border-green-400 text-green-700 bg-white active:scale-95 transition-transform disabled:opacity-60"
+          className="flex-1 py-4 rounded-[1.75rem] font-black text-base flex items-center justify-center gap-2 border border-emerald-300/60 text-green-700 bg-white active:scale-[0.97] transition-transform disabled:opacity-60 shadow-[0_4px_16px_rgba(45,106,79,0.06)]"
           style={AVATAR_FONT_BOLD}
         >
           <RefreshCw size={18} />
@@ -357,8 +363,8 @@ export function AvatarScreen({
           type="button"
           onClick={handleSaveClick}
           disabled={busy}
-          className="flex-1 py-3.5 rounded-3xl font-black text-base flex items-center justify-center gap-2 text-white active:scale-95 transition-transform disabled:opacity-60 shadow-lg"
-          style={{ ...AVATAR_FONT_BOLD, fontWeight: 700, background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 8px 20px #22C55E44" }}
+          className={`flex-1 py-4 ${KIDS_PRIMARY_BUTTON_CLASS} font-black text-base flex items-center justify-center gap-2`}
+          style={{ ...AVATAR_FONT_BOLD, fontWeight: 700, ...KIDS_PRIMARY_BUTTON_STYLE }}
         >
           {isStartupFlow ? <Sparkles size={18} /> : <Save size={18} />}
           {busy ? "Đang lưu..." : isStartupFlow ? "Start Adventure" : "Lưu"}
