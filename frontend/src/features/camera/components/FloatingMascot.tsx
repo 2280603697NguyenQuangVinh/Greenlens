@@ -116,7 +116,7 @@ export function FloatingMascot({
     (isInline
       ? "mb-3 w-full"
       : isIdle
-        ? "pointer-events-none absolute bottom-52 left-3 right-3 z-[60] max-w-[min(100%,22rem)]"
+        ? "pointer-events-none absolute left-3 right-3 top-[max(5.25rem,env(safe-area-inset-top,0px)+4.5rem)] z-[60] max-w-[min(100%,22rem)]"
         : "pointer-events-none absolute z-30")
 
   const rowAlign = isInline ? "items-start" : "items-center"
@@ -137,7 +137,7 @@ export function FloatingMascot({
         <motion.img
           src={mascotPng}
           alt="Mascot"
-          className="shrink-0 self-center object-contain drop-shadow-md"
+          className="shrink-0 self-center object-contain drop-shadow-[0_4px_14px_rgba(45,106,79,0.2)]"
           style={{ height: mascotSize, width: mascotSize }}
           draggable={false}
           initial={isResult ? { scale: 0.85, opacity: 0 } : false}
@@ -162,8 +162,8 @@ export function FloatingMascot({
             isResult
               ? `min-w-0 max-w-[min(calc(100vw-100px),17rem)] ${isInline ? "flex-1" : ""}`
               : isIdle
-                ? "drop-shadow-[0_4px_14px_rgba(0,0,0,0.45)]"
-                : "drop-shadow-md"
+                ? "shadow-[0_6px_24px_rgba(45,106,79,0.18)]"
+                : "shadow-[0_6px_20px_rgba(45,106,79,0.14)]"
           }
         >
           {text}

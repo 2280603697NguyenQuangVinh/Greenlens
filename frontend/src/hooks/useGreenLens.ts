@@ -3,6 +3,7 @@ import {
   api,
   loadStoredProfile,
   logoutSession,
+  resumeProfileSession,
   saveSession,
   type ClassificationResult,
   type QuizQuestion,
@@ -369,12 +370,7 @@ export function useGreenLens() {
         eyes: avatar.eyes,
         outfit: avatar.outfit,
       }
-      const token = getAuthToken()
-      if (token) {
-        saveSession(token, next)
-      } else {
-        sessionStorage.setItem("gl_profile", JSON.stringify(next))
-      }
+      resumeProfileSession(next, getAuthToken())
       setProfile(next)
       return true
     },

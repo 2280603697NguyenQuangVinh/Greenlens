@@ -7,16 +7,23 @@ const EYES_LAYER = [
   new URL("./Character/eyes color/black.png", import.meta.url).href,
   new URL("./Character/eyes color/brown.png", import.meta.url).href,
   new URL("./Character/eyes color/blue.png", import.meta.url).href,
-]
+] as const
 
-const GENDER_OPTION = new URL(
-  "./Character/male/gender/gender-option.png",
+export const EYE_COLOR_LAYERS: readonly string[] = EYES_LAYER
+
+const GENDER_MALE_ICON = new URL(
+  "./Character/male/gender/male.png",
+  import.meta.url,
+).href
+
+const GENDER_FEMALE_ICON = new URL(
+  "./Character/male/gender/female.png",
   import.meta.url,
 ).href
 
 const GENDER_ICON = {
-  male: GENDER_OPTION,
-  female: GENDER_OPTION,
+  male: GENDER_MALE_ICON,
+  female: GENDER_FEMALE_ICON,
 } as const
 
 const MALE_HAIR = [

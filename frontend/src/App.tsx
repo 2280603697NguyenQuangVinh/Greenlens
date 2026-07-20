@@ -67,11 +67,7 @@ export default function App() {
   const [streakRefreshKey, setStreakRefreshKey] = useState(0)
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0)
   const [cfg, setCfg] = useState<AvatarConfig>(
-    stored
-      ? profileToCfg(stored)
-      : savedChild
-        ? profileToCfg(savedChild)
-        : DEFAULT_CFG,
+    stored ? profileToCfg(stored) : DEFAULT_CFG,
   )
 
   useEffect(() => {
@@ -147,8 +143,7 @@ export default function App() {
 
   const handleLogout = () => {
     gl.logout()
-    const saved = loadSavedProfile()
-    setCfg(saved ? profileToCfg(saved) : DEFAULT_CFG)
+    setCfg(DEFAULT_CFG)
     setPhase("avatar")
     setScreen(1)
     setAvatarFlow("startup")
@@ -230,6 +225,11 @@ export default function App() {
                     savedCharacterName={
                       avatarFlow === "startup" && hasSavedChild()
                         ? savedChild?.characterName?.trim() || "Nhân vật của em"
+                        : undefined
+                    }
+                    savedCfg={
+                      avatarFlow === "startup" && hasSavedChild() && savedChild
+                        ? profileToCfg(savedChild)
                         : undefined
                     }
                     onContinueSaved={

@@ -17,6 +17,7 @@ import {
 import {
   loadSavedProfile,
   loadStoredProfile,
+  mergeCachedAvatarAppearance,
   resumeProfileSession,
   saveSession,
   type UserProfile,
@@ -236,6 +237,7 @@ export async function restoreChildSession(): Promise<UserProfile | null> {
       if (res.ok) {
         const backendProfile = (await res.json()) as ChildProfileResponse
         profile = childProfileResponseToUserProfile(backendProfile)
+        profile = mergeCachedAvatarAppearance(profile, loadSavedProfile())
         if (backendProfile.cognitoSub?.trim()) {
           setStoredCognitoSub(backendProfile.cognitoSub.trim())
         }

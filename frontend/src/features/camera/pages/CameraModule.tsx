@@ -478,9 +478,10 @@ export default function CameraModule({
           <button
             type="button"
             onClick={onBack}
-            className="w-12 h-12 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center"
+            className="flex h-14 w-14 items-center justify-center rounded-[1.15rem] border border-white/20 bg-white/12 shadow-[0_4px_18px_rgba(15,40,25,0.25)] backdrop-blur-xl active:scale-95"
+            aria-label="Về trang chủ"
           >
-            <Home size={24} className="text-white" />
+            <Home size={26} strokeWidth={2.5} className="text-white/95" />
           </button>
         </div>
       )}
@@ -527,21 +528,29 @@ export default function CameraModule({
         )}
 
         {!cameraUnavailable && !capturedImage && !isProcessing && (
-          <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
-            <div className="relative w-64 h-64 border-4 border-teal-400 rounded-2xl z-10">
-              <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-teal-400 rounded-tl-lg" />
-              <div className="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-teal-400 rounded-tr-lg" />
-              <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-teal-400 rounded-bl-lg" />
-              <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-teal-400 rounded-br-lg" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-400 text-4xl animate-pulse">
-                🎯
-              </div>
+          <div className="absolute inset-0 flex items-center justify-center p-6 pointer-events-none">
+            <div
+              className="relative aspect-square w-[min(78vw,19rem)] rounded-[2.75rem] border-[6px] border-[#86EFAC]/95 shadow-[0_0_0_10px_rgba(134,239,172,0.18),0_8px_32px_rgba(34,197,94,0.22),inset_0_0_28px_rgba(134,239,172,0.12)]"
+            >
+              <motion.div
+                className="absolute inset-0 rounded-[2.5rem]"
+                animate={{ opacity: [0.35, 0.65, 0.35] }}
+                transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+                style={{
+                  boxShadow: "inset 0 0 0 2px rgba(167,243,208,0.35)",
+                }}
+              />
+              <motion.div
+                className="absolute left-5 right-5 h-[3px] rounded-full bg-gradient-to-r from-transparent via-[#BBF7D0] to-transparent shadow-[0_0_12px_rgba(134,239,172,0.85)]"
+                animate={{ top: ["14%", "84%", "14%"] }}
+                transition={{ repeat: Infinity, duration: 2.8, ease: "easeInOut" }}
+              />
             </div>
           </div>
         )}
 
         {!cameraUnavailable && !cameraReady && !capturedImage && !isProcessing && (
-          <div className="absolute left-1/2 top-16 z-20 -translate-x-1/2 rounded-2xl bg-black/60 px-4 py-2 text-sm text-white pointer-events-none">
+          <div className="absolute left-1/2 top-[max(11rem,calc(env(safe-area-inset-top,0px)+10rem))] z-20 -translate-x-1/2 rounded-[1.25rem] border border-white/15 bg-[#0f2818]/55 px-5 py-2.5 text-sm text-white/90 shadow-[0_6px_20px_rgba(15,40,25,0.25)] backdrop-blur-md pointer-events-none">
             {supertonicLoading ? "Đang tải giọng mascot…" : "Đang bật camera..."}
           </div>
         )}
@@ -558,11 +567,13 @@ export default function CameraModule({
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                  className="w-20 h-20 border-4 border-teal-400/30 border-t-teal-400 rounded-full"
+                  className="h-20 w-20 rounded-full border-[5px] border-[#86EFAC]/25 border-t-[#86EFAC]"
                 />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-400 text-2xl">
-                  🔍
-                </div>
+                <motion.div
+                  className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#86EFAC]/20"
+                  animate={{ scale: [0.85, 1.1, 0.85], opacity: [0.5, 0.9, 0.5] }}
+                  transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+                />
               </div>
               <p className="text-white font-bold text-lg mt-6">Đang phân tích...</p>
               <p className="text-white/60 text-sm mt-2">AI đang nhận diện rác thải</p>
@@ -691,31 +702,33 @@ export default function CameraModule({
       <canvas ref={canvasRef} className="hidden" />
 
       {!capturedImage && !isProcessing && !cameraUnavailable && (
-        <div className="absolute bottom-0 left-0 w-full bg-black/60 backdrop-blur-md p-6 pb-8 z-50">
-          <div className="flex items-center justify-center gap-8">
+        <div className="absolute bottom-0 left-0 z-50 w-full bg-gradient-to-t from-[#0f2818]/75 via-[#0f2818]/45 to-transparent px-6 pb-8 pt-12 backdrop-blur-md">
+          <div className="flex items-center justify-center gap-10">
             <button
               type="button"
               onClick={handleGalleryClick}
-              className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center ring-2 ring-white/30"
+              className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] border border-white/18 bg-white/10 shadow-[0_6px_22px_rgba(15,40,25,0.28)] backdrop-blur-xl active:scale-95"
               aria-label="Chọn ảnh từ thư viện"
             >
-              <Image size={28} className="text-white" />
+              <Image size={30} strokeWidth={2.5} className="text-white/95" />
             </button>
 
             <motion.button
-              whileTap={!cameraReady ? undefined : { scale: 0.9 }}
+              whileTap={!cameraReady ? undefined : { scale: 0.94, y: 3 }}
               type="button"
               onClick={handleCapture}
               disabled={!cameraReady}
-              className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${
-                cameraReady ? "bg-white" : "bg-gray-400 opacity-60 cursor-not-allowed"
+              className={`flex h-[5.75rem] w-[5.75rem] items-center justify-center rounded-full ${
+                cameraReady
+                  ? "bg-gradient-to-b from-[#7EE8A8] via-[#4ADE80] to-[#22C55E] shadow-[0_7px_0_#15803D,0_14px_32px_rgba(34,197,94,0.38),inset_0_3px_10px_rgba(255,255,255,0.5),inset_0_-6px_14px_rgba(21,128,61,0.28)]"
+                  : "cursor-not-allowed bg-gradient-to-b from-gray-400 to-gray-500 opacity-60 shadow-none"
               }`}
               aria-label="Chụp ảnh"
             >
-              <div
-                className={`w-16 h-16 border-4 rounded-full ${
-                  cameraReady ? "border-gray-300" : "border-gray-500"
-                }`}
+              <CameraIcon
+                size={34}
+                strokeWidth={2.5}
+                className={cameraReady ? "text-white drop-shadow-sm" : "text-white/70"}
               />
             </motion.button>
           </div>

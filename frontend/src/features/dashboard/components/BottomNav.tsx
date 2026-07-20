@@ -1,4 +1,4 @@
-import { FF_COMFORTAA } from "@/utils/constants"
+import { FF_QUIZ } from "@/utils/constants"
 import type { AvatarConfig } from "@/utils/types"
 import { AvatarPreview } from "@/features/avatar/components/AvatarPreview"
 import { getUiAsset } from "@/assets"
@@ -20,13 +20,13 @@ function NavIconImage({ src, alt, active }: { src: string; alt: string; active: 
 export function BottomNav({ screen, go, avatarCfg }: { screen: number; go: (s: number) => void; avatarCfg?: AvatarConfig }) {
   return (
     <div className="flex-shrink-0 bg-white border-t-2 border-green-100 flex items-center justify-around px-2 py-2 shadow-lg" style={{ height: 76 }}>
-      <button onClick={() => go(1)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 1 ? "text-red-500" : "text-gray-400"}`}>
+      <button onClick={() => go(1)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 1 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         <NavIconImage src={NAV_HOME} alt="Trang chủ" active={screen === 1} />
-        <span className={`text-[10px] ${screen === 1 ? "font-semibold text-red-500" : ""}`} style={FF_COMFORTAA}>Trang chủ</span>
+        <span className="text-[10px]" style={FF_QUIZ}>Trang chủ</span>
       </button>
       <button onClick={() => go(3)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 3 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         <NavIconImage src={NAV_QUIZ} alt="Câu đố" active={screen === 3} />
-        <span className="text-[10px]" style={FF_COMFORTAA}>Câu đố</span>
+        <span className="text-[10px]" style={FF_QUIZ}>Câu đố</span>
       </button>
       <button
         type="button"
@@ -40,7 +40,7 @@ export function BottomNav({ screen, go, avatarCfg }: { screen: number; go: (s: n
       </button>
       <button onClick={() => go(4)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 4 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         <NavIconImage src={NAV_MINIGAME} alt="Mini Game" active={screen === 4} />
-        <span className="text-[10px]" style={FF_COMFORTAA}>Mini game</span>
+        <span className="text-[10px]" style={FF_QUIZ}>Mini game</span>
       </button>
       <button onClick={() => go(5)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all ${screen === 5 ? "bg-green-50 text-green-600" : "text-gray-400"}`}>
         {avatarCfg ? (
@@ -50,7 +50,7 @@ export function BottomNav({ screen, go, avatarCfg }: { screen: number; go: (s: n
         ) : (
           <span className={`h-8 w-8 rounded-full border border-green-200 bg-green-50 ${screen === 5 ? "opacity-100" : "opacity-65"}`} />
         )}
-        <span className="text-[10px]" style={FF_COMFORTAA}>Hồ sơ</span>
+        <span className="text-[10px]" style={FF_QUIZ}>Hồ sơ</span>
       </button>
     </div>
   )

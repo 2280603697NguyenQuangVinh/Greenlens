@@ -13,6 +13,7 @@ export function AvatarPreview({ cfg, size = 170, rounded = false, className = ""
   const preview = getAvatarImages(cfg)
   const layer = getLayerLayout(cfg)
   const stageSize = `${layer.stageScalePct}%`
+  const isFemale = cfg.gender === 1
 
   const buildLayerStyle = (layout: {
     widthPct: number
@@ -26,6 +27,11 @@ export function AvatarPreview({ cfg, size = 170, rounded = false, className = ""
     top: `calc(${layout.topPct}% + ${layout.offsetYPct ?? 0}%)`,
     transform: "translateX(-50%)",
   })
+
+  const eyesStyle = {
+    ...buildLayerStyle(layer.eyes),
+    transform: isFemale ? "translateX(-50%) scale(1.06)" : "translateX(-50%)",
+  }
 
   return (
     <div
@@ -42,7 +48,7 @@ export function AvatarPreview({ cfg, size = 170, rounded = false, className = ""
           src={preview.eyes}
           alt="Avatar eyes"
           className="absolute pointer-events-none object-contain"
-          style={buildLayerStyle(layer.eyes)}
+          style={eyesStyle}
         />
         <img
           src={preview.outfit}
