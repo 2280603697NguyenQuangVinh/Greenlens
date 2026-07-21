@@ -13,14 +13,19 @@ public sealed class RekognitionServiceTests
     [Fact]
     public async Task DetectLabelsAsync_WhenClientSucceeds_ReturnsDetectionAndResetsCircuit()
     {
-        var client = new FakeAmazonRekognitionClient(_ => Task.FromResult(new DetectLabelsResponse
+        DetectLabelsRequest? capturedRequest = null;
+        var client = new FakeAmazonRekognitionClient(request =>
         {
-            Labels =
-            [
-                new Label { Name = "Bottle", Confidence = 96.7f }
-            ]
-        }));
-        var options = new RekognitionOptions { TimeoutSeconds = 5 };
+            capturedRequest = request;
+            return Task.FromResult(new DetectLabelsResponse
+            {
+                Labels =
+                [
+                    new Label { Name = "Bottle", Confidence = 96.7f }
+                ]
+            });
+        });
+        var options = new RekognitionOptions { MaxLabels = 25, MinConfidence = 35, TimeoutSeconds = 5 };
         var breaker = new AiCameraDependencyCircuitBreaker(options);
         var service = new RekognitionService(client, options, breaker);
 
@@ -30,6 +35,36 @@ public sealed class RekognitionServiceTests
         Assert.Equal("Bottle", result.Label);
         Assert.Equal(96.7f, result.Confidence);
         Assert.Single(result.Labels);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(25, capturedRequest.MaxLabels);
+        Assert.Equal(35, capturedRequest.MinConfidence);
+    }
+
+    [Fact]
+    public async Task DetectLabelsAsync_DefaultOptions_UseDeeperLabelScan()
+    {
+        DetectLabelsRequest? capturedRequest = null;
+        var client = new FakeAmazonRekognitionClient(request =>
+        {
+            capturedRequest = request;
+            return Task.FromResult(new DetectLabelsResponse
+            {
+                Labels =
+                [
+                    new Label { Name = "Paper", Confidence = 91.4f }
+                ]
+            });
+        });
+        var options = new RekognitionOptions { TimeoutSeconds = 5 };
+        var breaker = new AiCameraDependencyCircuitBreaker(options);
+        var service = new RekognitionService(client, options, breaker);
+
+        await using var image = new MemoryStream(JpegBytes());
+        await service.DetectLabelsAsync(image);
+
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(25, capturedRequest.MaxLabels);
+        Assert.Equal(35, capturedRequest.MinConfidence);
     }
 
     [Fact]

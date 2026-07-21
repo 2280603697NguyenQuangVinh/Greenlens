@@ -6,6 +6,7 @@ namespace GreenLens.Application.Modules.AiCamera.WasteMapping;
 public sealed class WasteImageValidator : IWasteImageValidator
 {
     private const double WasteConfidenceThreshold = 70;
+    private const double HandHeldWasteConfidenceThreshold = 50;
     private const double HazardousWasteConfidenceThreshold = 55;
     private const double BlockConfidenceThreshold = 80;
     private const string NotWasteReason = "not_waste_image";
@@ -36,10 +37,21 @@ public sealed class WasteImageValidator : IWasteImageValidator
         "Plastic",
         "Paper",
         "Cardboard",
+        "Tin",
+        "Tin Can",
         "Can",
         "Aluminium",
         "Aluminum",
         "Carton",
+        "Cup",
+        "Container",
+        "Jar",
+        "Box",
+        "Wrapper",
+        "Packet",
+        "Packaging",
+        "Plastic Container",
+        "Foil",
         "Newspaper",
         "Envelope",
         "Book",
@@ -110,15 +122,30 @@ public sealed class WasteImageValidator : IWasteImageValidator
             return new WasteImageValidationResult(true, string.Empty, wasteLabel, topLabel);
         }
 
-        if (IsBlocked(topLabel) && topLabel.Confidence >= BlockConfidenceThreshold)
-        {
-            return new WasteImageValidationResult(false, NotWasteReason, null, topLabel);
-        }
-
         var lowConfidenceWasteLabel = labels
             .Where(IsAcceptedWaste)
             .OrderByDescending(label => label.Confidence)
             .FirstOrDefault();
+
+        if (IsBlocked(topLabel) &&
+            topLabel.Confidence >= BlockConfidenceThreshold &&
+            lowConfidenceWasteLabel is not null &&
+            IsLikelyHandHeldWaste(topLabel, lowConfidenceWasteLabel))
+        {
+            return new WasteImageValidationResult(true, string.Empty, lowConfidenceWasteLabel, topLabel);
+        }
+
+        if (IsHumanOccluder(topLabel) &&
+            topLabel.Confidence >= BlockConfidenceThreshold &&
+            lowConfidenceWasteLabel is not null)
+        {
+            return new WasteImageValidationResult(false, UncertainReason, lowConfidenceWasteLabel, topLabel);
+        }
+
+        if (IsBlocked(topLabel) && topLabel.Confidence >= BlockConfidenceThreshold)
+        {
+            return new WasteImageValidationResult(false, NotWasteReason, null, topLabel);
+        }
 
         return new WasteImageValidationResult(
             false,
@@ -144,6 +171,33 @@ public sealed class WasteImageValidator : IWasteImageValidator
         return IsHazardousWaste(label)
             ? HazardousWasteConfidenceThreshold
             : WasteConfidenceThreshold;
+    }
+
+    private static bool IsLikelyHandHeldWaste(DetectedLabelDto topLabel, DetectedLabelDto wasteLabel)
+    {
+        if (!IsHumanOccluder(topLabel))
+        {
+            return false;
+        }
+
+        var requiredConfidence = IsHazardousWaste(wasteLabel)
+            ? HazardousWasteConfidenceThreshold
+            : HandHeldWasteConfidenceThreshold;
+
+        return wasteLabel.Confidence >= requiredConfidence;
+    }
+
+    private static bool IsHumanOccluder(DetectedLabelDto label)
+    {
+        return ContainsLabelPhrase(label.Label, "Person") ||
+            ContainsLabelPhrase(label.Label, "People") ||
+            ContainsLabelPhrase(label.Label, "Human") ||
+            ContainsLabelPhrase(label.Label, "Body") ||
+            ContainsLabelPhrase(label.Label, "Body Part") ||
+            ContainsLabelPhrase(label.Label, "Hand") ||
+            ContainsLabelPhrase(label.Label, "Finger") ||
+            ContainsLabelPhrase(label.Label, "Arm") ||
+            ContainsLabelPhrase(label.Label, "Skin");
     }
 
     private static bool IsHazardousWaste(DetectedLabelDto label)

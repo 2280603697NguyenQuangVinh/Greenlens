@@ -303,6 +303,12 @@ public sealed class AiCameraFunction
     {
         return new RekognitionOptions
         {
+            MaxLabels = int.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_MAX_LABELS"), out var maxLabels)
+                ? maxLabels
+                : 25,
+            MinConfidence = float.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_MIN_CONFIDENCE"), out var minConfidence)
+                ? minConfidence
+                : 35,
             TimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("REKOGNITION_TIMEOUT_SECONDS"), out var timeoutSeconds)
                 ? timeoutSeconds
                 : 5,

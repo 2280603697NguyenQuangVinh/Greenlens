@@ -110,6 +110,8 @@ builder.Services.AddSingleton(new S3BucketOptions
 });
 builder.Services.AddSingleton(new RekognitionOptions
 {
+    MaxLabels = builder.Configuration.GetValue<int?>("REKOGNITION_MAX_LABELS") ?? 25,
+    MinConfidence = builder.Configuration.GetValue<float?>("REKOGNITION_MIN_CONFIDENCE") ?? 35,
     TimeoutSeconds = builder.Configuration.GetValue<int?>("REKOGNITION_TIMEOUT_SECONDS") ?? 5,
     CircuitFailureThreshold = builder.Configuration.GetValue<int?>("REKOGNITION_CIRCUIT_FAILURE_THRESHOLD") ?? 3,
     CircuitBreakSeconds = builder.Configuration.GetValue<int?>("REKOGNITION_CIRCUIT_BREAK_SECONDS") ?? 60
